@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, height=1920" />
+<title>NEWZI — reel 9:16</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+@font-face{font-family:"NewziInter";src:url("assets/fonts/inter-latin.woff2") format("woff2");font-weight:400 800;font-style:normal}
+*{box-sizing:border-box}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#06122F}
+#root{position:relative;width:100%;height:100%;overflow:hidden;background:#06122F}
+#stage{position:absolute;left:0;top:0;width:540px;height:960px;transform:scale(2);transform-origin:0 0;overflow:hidden;font-family:"NewziInter",sans-serif}
+#stage section.clip{position:absolute;left:0;top:0;width:540px;height:960px}
+.scene{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;animation:fin .35s ease both,sceneOut .35s ease forwards}
+.scene.iris{animation:iris .6s cubic-bezier(.6,0,.2,1) both,sceneOut .35s ease forwards}
+.cut{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;animation:fin .08s linear both,sceneOut .05s linear forwards}
+.txt{animation:up .5s cubic-bezier(.2,.8,.2,1) both,sceneOut .22s ease forwards}
+.ic{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.a-up{animation:up .6s cubic-bezier(.2,.8,.2,1) both}
+.a-fin{animation:fin .6s ease both}
+.a-pop{animation:pop .6s cubic-bezier(.2,.9,.3,1.15) both}
+.a-word{display:inline-block;margin-right:.22em;animation:word .55s cubic-bezier(.2,.8,.2,1) both}
+.a-drop{animation:drop .6s cubic-bezier(.2,.8,.2,1) both}
+.a-ripple{animation:ripple .9s ease-out both}
+.a-tap{animation:tap .7s ease both}
+.a-rise{animation:rise 1s cubic-bezier(.2,.8,.2,1) both}
+.a-glow{animation:glow 1.6s ease-out both}
+.a-steam{animation:steam 1.6s ease-in-out 2 both}
+.a-steam2{animation:steam2 1.5s ease-out 2 both}
+.a-road{animation:road .5s linear 12}
+.a-eq{transform-origin:50% 100%;animation:eq .5s ease-in-out 20 alternate}
+.a-pulse{animation:pulse 1.4s ease-out 3}
+.a-ken{animation:ken 8s ease-out both}
+.a-feed{animation:feed 1.9s cubic-bezier(.45,0,.3,1) both}
+.a-alarm{animation:alarm .45s ease-in-out 3}
+.a-fill{animation:fill .5s cubic-bezier(.7,0,.3,1) both}
+.a-fill>div{animation:fadeaway .2s ease forwards;animation-delay:inherit}
+.a-slideup{animation:slideup .55s cubic-bezier(.2,.8,.2,1) both}
+.a-zoomcard{animation:zoomcard 3.7s ease-in-out both}
+.a-zoomwave{animation:zoomwave 1.8s ease-in-out both}
+.a-sway{animation:sway 2s ease-in-out both}
+.a-bloom{animation:bloom .6s cubic-bezier(.5,0,.5,1) both}
+.a-settle{animation:settle .5s cubic-bezier(.2,.8,.2,1) both}
+.a-pan{animation:pan 2.4s linear both}
+.a-homescroll{animation:homescroll .8s cubic-bezier(.45,0,.3,1) both}
+.a-gone{animation:gone .01s linear forwards}
+.a-dock{animation:dock .55s cubic-bezier(.65,0,.35,1) both}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+@keyframes sceneOut{to{opacity:0}}
+@keyframes fadeaway{to{opacity:0}}
+@keyframes up{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes word{from{opacity:0;transform:translateY(.35em);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes drop{from{opacity:0;transform:translateY(-60px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes ripple{0%{opacity:0;transform:scale(.3)}12%{opacity:.6}100%{opacity:0;transform:scale(2.6)}}
+@keyframes tap{0%{opacity:0;transform:translate(40px,40px)}45%{opacity:1;transform:none}62%{opacity:1;transform:scale(.78)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+@keyframes rise{from{opacity:0;transform:translateY(120px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(8,124,240,0)}35%{box-shadow:0 0 0 7px rgba(8,124,240,.22)}100%{box-shadow:0 16px 34px -14px rgba(8,124,240,.45)}}
+@keyframes steam{0%{opacity:0;transform:translateY(10px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-26px)}}
+@keyframes steam2{0%{opacity:0;transform:translateY(20px) scale(.8)}40%{opacity:1}100%{opacity:0;transform:translateY(-80px) scale(1.4)}}
+@keyframes road{to{stroke-dashoffset:-46}}
+@keyframes eq{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(8,124,240,.45)}100%{box-shadow:0 0 0 22px rgba(8,124,240,0)}}
+@keyframes ken{from{transform:scale(1.14)}to{transform:scale(1)}}
+@keyframes feed{from{transform:translateY(0)}to{transform:translateY(-380px)}}
+@keyframes alarm{0%,100%{background:rgba(255,255,255,.13)}50%{background:rgba(232,51,80,.6)}}
+@keyframes fill{from{transform:scale(1);border-radius:18px}to{transform:scale(3.8,10);border-radius:2px}}
+@keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
+@keyframes zoomcard{0%,15%{transform:scale(1)}27%,42%{transform:scale(1.22)}51%,100%{transform:scale(1)}}
+@keyframes zoomwave{from{transform:scale(1)}to{transform:scale(1.1)}}
+@keyframes sway{0%{transform:translateY(0) scale(1.02)}50%{transform:translateY(-4px) scale(1.02)}100%{transform:translateY(0) scale(1.02)}}
+@keyframes bloom{from{clip-path:circle(0px at 300px 430px)}to{clip-path:circle(1150px at 300px 430px)}}
+@keyframes iris{from{clip-path:circle(0% at 50% 44%)}to{clip-path:circle(125% at 50% 44%)}}
+@keyframes settle{from{transform:scale(1.08)}to{transform:none}}
+@keyframes pan{from{transform:translateX(0)}to{transform:translateX(-170px)}}
+@keyframes homescroll{from{transform:translateY(0)}to{transform:translateY(-170px)}}
+@keyframes gone{to{opacity:0;visibility:hidden}}
+@keyframes dock{from{transform:translateY(0)}to{transform:translateY(300px)}}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="20.6" data-width="1080" data-height="1920">
+<div id="stage">

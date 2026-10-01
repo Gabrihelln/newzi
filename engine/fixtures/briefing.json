@@ -1,0 +1,458 @@
+{
+  "generated_at": "2026-09-21T01:16:27.740800Z",
+  "statistics": {
+    "sources_checked": 24,
+    "sources_successful": 24,
+    "sources_failed": 0,
+    "articles_collected": 427,
+    "articles_after_deduplication": 426,
+    "exact_duplicates_removed": 1,
+    "events_created": 418,
+    "single_source_events": 414,
+    "multi_source_events": 4,
+    "events_artificial_intelligence": 137,
+    "events_technology": 35,
+    "events_business": 29,
+    "events_other": 198,
+    "events_excluded_other": 198,
+    "eligible_events": 209,
+    "average_articles_per_event": 1.02,
+    "average_sources_per_event": 1.01,
+    "genre_distribution": {
+      "ANALYSIS": 11,
+      "BREAKING_NEWS": 2,
+      "BUYING_GUIDE": 12,
+      "COMPANY_ANNOUNCEMENT": 20,
+      "DEAL_COUPON": 7,
+      "EVENT_PROMOTION": 3,
+      "FUNDING": 8,
+      "HOW_TO": 8,
+      "INTERVIEW": 3,
+      "NEWS_EVENT": 311,
+      "PRODUCT_ANNOUNCEMENT": 8,
+      "REGULATION": 9,
+      "RESEARCH": 4,
+      "REVIEW": 8,
+      "ROUNDUP": 4
+    },
+    "eligible_by_genre": {
+      "ANALYSIS": 8,
+      "BREAKING_NEWS": 0,
+      "BUYING_GUIDE": 0,
+      "COMPANY_ANNOUNCEMENT": 9,
+      "DEAL_COUPON": 0,
+      "EVENT_PROMOTION": 0,
+      "FUNDING": 6,
+      "HOW_TO": 0,
+      "INTERVIEW": 0,
+      "NEWS_EVENT": 173,
+      "PRODUCT_ANNOUNCEMENT": 5,
+      "REGULATION": 6,
+      "RESEARCH": 2,
+      "REVIEW": 0,
+      "ROUNDUP": 0
+    },
+    "events_ranked": 209,
+    "items_selected": 10,
+    "source_errors": {}
+  },
+  "items": [
+    {
+      "rank": 1,
+      "event_id": "c025fcee17edce64",
+      "title": "Veja como foi o fim de semana dos candidatos a presidente",
+      "categories": [
+        "BRAZIL",
+        "SPORTS",
+        "WORLD"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 75,
+      "primary_entities": [],
+      "relevance_score": 75.46,
+      "sources": [
+        "Agência Brasil"
+      ],
+      "articles": [
+        {
+          "title": "Veja como foi o fim de semana dos candidatos a presidente",
+          "url": "https://agenciabrasil.ebc.com.br/politica/noticia/2026-09/veja-como-foi-o-fim-de-semana-dos-candidatos-presidente-0",
+          "source": "Agência Brasil",
+          "publisher_id": "agencia_brasil",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T21:15:00Z"
+        }
+      ]
+    },
+    {
+      "rank": 2,
+      "event_id": "f75765f3a59922c9",
+      "title": "Como funciona a Rockstar Games? Conheça os 12 estúdios por trás de GTA 6",
+      "categories": [
+        "CULTURE",
+        "ENTERTAINMENT",
+        "TECHNOLOGY",
+        "WORLD"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 80,
+      "primary_entities": [
+        "games",
+        "gta",
+        "microsoft",
+        "rockstar"
+      ],
+      "relevance_score": 74.91,
+      "sources": [
+        "Canaltech"
+      ],
+      "articles": [
+        {
+          "title": "Como funciona a Rockstar Games? Conheça os 12 estúdios por trás de GTA 6",
+          "url": "https://canaltech.com.br/games/rockstar-games-12-estudios-o-que-cada-um-faz",
+          "source": "Canaltech",
+          "publisher_id": "canaltech",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T17:00:00Z"
+        }
+      ]
+    },
+    {
+      "rank": 3,
+      "event_id": "82d034e8b7dc5291",
+      "title": "Anthropic's Amodei says China presents 'toughest dilemma' for his proposed AI slowdown",
+      "categories": [
+        "ARTIFICIAL_INTELLIGENCE"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 90,
+      "primary_entities": [
+        "amodei",
+        "anthropic",
+        "china",
+        "google",
+        "openai",
+        "sam altman"
+      ],
+      "relevance_score": 74.61,
+      "sources": [
+        "CNBC Technology",
+        "TechCrunch AI",
+        "The Verge AI"
+      ],
+      "articles": [
+        {
+          "title": "Anthropic's Amodei says China presents 'toughest dilemma' for his proposed AI slowdown",
+          "url": "https://www.cnbc.com/2026/09/13/china-dilemma-ai-slowdown-anthropic.html",
+          "source": "CNBC Technology",
+          "publisher_id": "cnbc",
+          "source_type": "JOURNALISM",
+          "source_tags": [
+            "technology",
+            "business"
+          ],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-13T16:39:24Z"
+        },
+        {
+          "title": "Is Big Tech’s AI slowdown a safety pact or a cartel?",
+          "url": "https://www.theverge.com/ai-artificial-intelligence/995186/is-big-techs-ai-slowdown-a-safety-pact-or-a-cartel",
+          "source": "The Verge AI",
+          "publisher_id": "verge_ai",
+          "source_type": "SPECIALIZED",
+          "source_tags": [
+            "AI",
+            "Anthropic",
+            "Google",
+            "OpenAI",
+            "Policy",
+            "Report",
+            "Tech",
+            "xAI"
+          ],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-14T22:59:41Z"
+        },
+        {
+          "title": "OpenAI, Anthropic, Google have been in talks on AI safety for weeks",
+          "url": "https://techcrunch.com/2026/09/15/openai-anthropic-google-have-been-in-talks-on-ai-safety-for-weeks",
+          "source": "TechCrunch AI",
+          "publisher_id": "techcrunch",
+          "source_type": "SPECIALIZED",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-15T15:47:03Z"
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "event_id": "4d05880406e3f4f8",
+      "title": "Brasil fecha Copa do Mundo de ginástica com mais cinco pódios",
+      "categories": [
+        "BRAZIL",
+        "WORLD"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 80,
+      "primary_entities": [
+        "copa",
+        "mundo"
+      ],
+      "relevance_score": 74.17,
+      "sources": [
+        "Agência Brasil"
+      ],
+      "articles": [
+        {
+          "title": "Brasil fecha Copa do Mundo de ginástica com mais cinco pódios",
+          "url": "https://agenciabrasil.ebc.com.br/esportes/noticia/2026-09/brasil-fecha-copa-do-mundo-de-ginastica-com-mais-cinco-podios",
+          "source": "Agência Brasil",
+          "publisher_id": "agencia_brasil",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T19:03:00Z"
+        }
+      ]
+    },
+    {
+      "rank": 5,
+      "event_id": "d8b12cdf3d98422f",
+      "title": "Museu do Folclore recebe bordados do Vale do Jequitinhonha",
+      "categories": [
+        "BRAZIL",
+        "CULTURE"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 80,
+      "primary_entities": [
+        "folclore",
+        "jequitinhonha",
+        "vale"
+      ],
+      "relevance_score": 74.14,
+      "sources": [
+        "Agência Brasil"
+      ],
+      "articles": [
+        {
+          "title": "Museu do Folclore recebe bordados do Vale do Jequitinhonha",
+          "url": "https://agenciabrasil.ebc.com.br/cultura/noticia/2026-09/museu-do-folclore-recebe-bordados-do-vale-do-jequitinhonha",
+          "source": "Agência Brasil",
+          "publisher_id": "agencia_brasil",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T18:47:00Z"
+        }
+      ]
+    },
+    {
+      "rank": 6,
+      "event_id": "085c670b7956ccc9",
+      "title": "OpenAI’s Sam Altman says it would be ‘ill-advised’ to go public in 2026",
+      "categories": [
+        "ARTIFICIAL_INTELLIGENCE",
+        "BUSINESS"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 90,
+      "primary_entities": [
+        "altman",
+        "openai",
+        "sam",
+        "sam altman"
+      ],
+      "relevance_score": 73.15,
+      "sources": [
+        "TechCrunch AI",
+        "The Verge AI"
+      ],
+      "articles": [
+        {
+          "title": "OpenAI’s Sam Altman says it would be ‘ill-advised’ to go public in 2026",
+          "url": "https://techcrunch.com/2026/09/12/openais-sam-altman-says-it-would-be-ill-advised-to-go-public-in-2026",
+          "source": "TechCrunch AI",
+          "publisher_id": "techcrunch",
+          "source_type": "SPECIALIZED",
+          "source_tags": [
+            "AI",
+            "Fundraising",
+            "In Brief",
+            "IPO",
+            "OpenAI",
+            "sam altman"
+          ],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-12T20:19:16Z"
+        },
+        {
+          "title": "Sam Altman says OpenAI going public in 2026 would be ‘ill-advised’",
+          "url": "https://www.theverge.com/ai-artificial-intelligence/994384/sam-altman-no-openai-ipo-ill-advised",
+          "source": "The Verge AI",
+          "publisher_id": "verge_ai",
+          "source_type": "SPECIALIZED",
+          "source_tags": [
+            "AI",
+            "News",
+            "OpenAI"
+          ],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-12T21:16:28Z"
+        }
+      ]
+    },
+    {
+      "rank": 7,
+      "event_id": "0450c6d8ab639f3d",
+      "title": "Brasil e EUA: entenda as relações após alerta sobre eleições",
+      "categories": [
+        "BRAZIL",
+        "WORLD"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 75,
+      "primary_entities": [
+        "eua"
+      ],
+      "relevance_score": 72.42,
+      "sources": [
+        "Agência Brasil"
+      ],
+      "articles": [
+        {
+          "title": "Brasil e EUA: entenda as relações após alerta sobre eleições",
+          "url": "https://agenciabrasil.ebc.com.br/internacional/noticia/2026-09/entenda-relacao-entre-brasil-e-estados-unidos",
+          "source": "Agência Brasil",
+          "publisher_id": "agencia_brasil",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T17:05:00Z"
+        }
+      ]
+    },
+    {
+      "rank": 8,
+      "event_id": "34e62ff4c7cf4def",
+      "title": "The Hugging Face incident and the road ahead",
+      "categories": [
+        "ARTIFICIAL_INTELLIGENCE"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 90,
+      "primary_entities": [
+        "face",
+        "hugging",
+        "llm",
+        "openai"
+      ],
+      "relevance_score": 71.75,
+      "sources": [
+        "Ars Technica Technology Lab",
+        "OpenAI News"
+      ],
+      "articles": [
+        {
+          "title": "The Hugging Face incident and the road ahead",
+          "url": "https://openai.com/index/hugging-face-incident-and-the-road-ahead",
+          "source": "OpenAI News",
+          "publisher_id": "openai_news",
+          "source_type": "PRIMARY",
+          "source_tags": [
+            "Security"
+          ],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-08-26T00:00:00Z"
+        },
+        {
+          "title": "How OpenAI let a mob of LLM agents game a test and ransack Hugging Face",
+          "url": "https://arstechnica.com/security/2026/08/how-openai-let-a-mob-of-llm-agents-game-a-test-and-ransack-hugging-face",
+          "source": "Ars Technica Technology Lab",
+          "publisher_id": "ars",
+          "source_type": "SPECIALIZED",
+          "source_tags": [
+            "AI",
+            "Biz & IT",
+            "Security",
+            "AI agents",
+            "Hugging Face",
+            "LLMs",
+            "openai"
+          ],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-08-27T12:58:59Z"
+        }
+      ]
+    },
+    {
+      "rank": 9,
+      "event_id": "f29beb9c87540caf",
+      "title": "Longa de André Novais vence o Festival de Brasília de Cinema",
+      "categories": [
+        "ENTERTAINMENT"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 80,
+      "primary_entities": [
+        "cinema",
+        "festival",
+        "novais"
+      ],
+      "relevance_score": 70.5,
+      "sources": [
+        "Agência Brasil"
+      ],
+      "articles": [
+        {
+          "title": "Longa de André Novais vence o Festival de Brasília de Cinema",
+          "url": "https://agenciabrasil.ebc.com.br/cultura/noticia/2026-09/longa-de-andre-novais-vence-o-festival-de-brasilia-de-cinema",
+          "source": "Agência Brasil",
+          "publisher_id": "agencia_brasil",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T19:40:00Z"
+        }
+      ]
+    },
+    {
+      "rank": 10,
+      "event_id": "afd5f436eb425a9e",
+      "title": "Veja como desativar o Google Gemini no seu Gmail, Docs e Drive de uma só vez",
+      "categories": [
+        "ARTIFICIAL_INTELLIGENCE"
+      ],
+      "content_genre": "NEWS_EVENT",
+      "newsworthiness_score": 80,
+      "primary_entities": [
+        "docs",
+        "drive",
+        "gemini",
+        "gmail",
+        "google"
+      ],
+      "relevance_score": 70.45,
+      "sources": [
+        "Canaltech"
+      ],
+      "articles": [
+        {
+          "title": "Veja como desativar o Google Gemini no seu Gmail, Docs e Drive de uma só vez",
+          "url": "https://canaltech.com.br/inteligencia-artificial/como-desativar-google-gemini-do-gmail-docs-drive",
+          "source": "Canaltech",
+          "publisher_id": "canaltech",
+          "source_type": "JOURNALISM",
+          "source_tags": [],
+          "content_genre": "NEWS_EVENT",
+          "published_at": "2026-09-20T11:00:00Z"
+        }
+      ]
+    }
+  ]
+}

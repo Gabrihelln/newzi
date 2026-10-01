@@ -1,0 +1,27 @@
+[Unit]
+Description=NEWZI Briefing and News Worker
+After=network-online.target newzi-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=newzi
+Group=newzi
+WorkingDirectory=/opt/newzi
+EnvironmentFile=/etc/newzi/newzi.env
+StateDirectory=newzi
+StateDirectoryMode=0750
+ExecStartPre=/usr/bin/mkdir -p /var/lib/newzi/engine /var/lib/newzi/audio /var/lib/newzi/tmp
+ExecStart=/opt/newzi/.venv/bin/python /opt/newzi/engine/main.py --delivery-worker
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=60s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/newzi
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

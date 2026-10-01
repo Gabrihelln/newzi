@@ -1,0 +1,27 @@
+[Unit]
+Description=NEWZI Product API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=newzi
+Group=newzi
+WorkingDirectory=/opt/newzi
+EnvironmentFile=/etc/newzi/newzi.env
+StateDirectory=newzi
+StateDirectoryMode=0750
+ExecStartPre=/usr/bin/mkdir -p /var/lib/newzi/engine /var/lib/newzi/audio /var/lib/newzi/tmp
+ExecStart=/opt/newzi/.venv/bin/python /opt/newzi/backend/product_api.py
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/newzi
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

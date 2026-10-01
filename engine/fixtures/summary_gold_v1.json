@@ -1,0 +1,20 @@
+{
+  "version": "summary_gold_v1",
+  "cases": [
+    {"id":"g01","language":"en","domain":"AI","event_type":"FUNDING","title":"Profound raises US$180 million Series D","description":"The startup announced a US$180 million funding round."},
+    {"id":"g02","language":"pt-BR","domain":"Technology","event_type":"PRODUCT_ANNOUNCEMENT","title":"OpenAI lança ferramenta para desenvolvedores","description":"A empresa apresentou uma nova ferramenta."},
+    {"id":"g03","language":"es","domain":"AI","event_type":"REGULATION","title":"España debate una nueva ley de inteligencia artificial","description":"O projeto de lei está em debate."},
+    {"id":"g04","language":"fr","domain":"AI","event_type":"RESEARCH","title":"Anthropic publie une étude sur la sécurité","description":"L'étude présente des résultats sur la sécurité."},
+    {"id":"g05","language":"en","domain":"Business","event_type":"COMPANY_ANNOUNCEMENT","title":"Microsoft changes EU cloud terms","description":"Microsoft announced changes to its cloud terms."},
+    {"id":"g06","language":"en","domain":"Technology","event_type":"NEWS_EVENT","title":"Apple software updates are available","description":"Apple made software updates available."},
+    {"id":"g07","language":"pt-BR","domain":"Business","event_type":"FUNDING","title":"Startup capta R$ 20 milhões","description":"A startup anunciou uma rodada de financiamento."},
+    {"id":"g08","language":"es","domain":"Technology","event_type":"PRODUCT_ANNOUNCEMENT","title":"Samsung presenta un nuevo teléfono","description":"Samsung presentó un nuevo producto."},
+    {"id":"g09","language":"fr","domain":"Business","event_type":"COMPANY_ANNOUNCEMENT","title":"Une entreprise annonce un partenariat","description":"La société a annoncé un partenariat."},
+    {"id":"g10","language":"en","domain":"AI","event_type":"RESEARCH","title":"New study measures ocean temperatures","description":"Researchers published a new study."},
+    {"id":"g11","language":"en","domain":"Technology","event_type":"REGULATION","title":"Lawmakers propose new AI regulation","description":"A bill would impose obligations on AI companies."},
+    {"id":"g12","language":"pt-BR","domain":"AI","event_type":"NEWS_EVENT","title":"Empresa atualiza sua plataforma de IA","description":"A companhia informou que a atualização está disponível."},
+    {"id":"g13","language":"es","domain":"Business","event_type":"FUNDING","title":"La startup recauda 50 millones de euros","description":"La empresa anunció una nueva ronda."},
+    {"id":"g14","language":"fr","domain":"Technology","event_type":"NEWS_EVENT","title":"La plateforme reçoit une mise à jour","description":"La mise à jour est disponible pour les utilisateurs."},
+    {"id":"g15","language":"en","domain":"Business","event_type":"ACQUISITION","title":"Google acquires a robotics startup","description":"Google announced the acquisition."}
+  ]
+}

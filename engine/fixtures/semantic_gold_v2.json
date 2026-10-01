@@ -1,0 +1,1287 @@
+{
+  "version": "semantic_gold_v2",
+  "cases": [
+    {
+      "id": "s01",
+      "kind": "single",
+      "title": "OpenAI announces GPT-6 Astra",
+      "description": "OpenAI introduced a new frontier model for developers.",
+      "expected": {
+        "main_entity": "OpenAI",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s02",
+      "kind": "single",
+      "title": "Profound raises $180 million Series D",
+      "description": "The startup reached a unicorn valuation in a new funding round.",
+      "expected": {
+        "main_entity": "Profound",
+        "event_type": "FUNDING",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s03",
+      "kind": "single",
+      "title": "Lawmakers propose new AI regulation",
+      "description": "A bill would impose new obligations on AI companies.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "REGULATION",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s04",
+      "kind": "single",
+      "title": "Google publishes new AI economy research",
+      "description": "Researchers released findings from a new study.",
+      "expected": {
+        "main_entity": "Google",
+        "event_type": "RESEARCH",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s05",
+      "kind": "single",
+      "title": "What’s at stake in AI’s trillion-dollar gamble",
+      "description": "An analysis examines investment and infrastructure risks.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "ANALYSIS",
+        "is_news_event": false,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s06",
+      "kind": "single",
+      "title": "Are older MacBooks still worth buying in 2026?",
+      "description": "A guide compares older models for buyers.",
+      "expected": {
+        "main_entity": "Apple",
+        "event_type": "BUYING_GUIDE",
+        "is_news_event": false,
+        "is_evergreen": true
+      }
+    },
+    {
+      "id": "s07",
+      "kind": "single",
+      "title": "Amazon Prime Big Deal Days sale returns in October",
+      "description": "A retail promotion announces a future sale.",
+      "expected": {
+        "main_entity": "Amazon",
+        "event_type": "PROMOTION",
+        "is_news_event": false,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s08",
+      "kind": "single",
+      "title": "AWS Weekly Roundup: AI news and more",
+      "description": "A roundup summarizes several unrelated items.",
+      "expected": {
+        "main_entity": "AWS",
+        "event_type": "ROUNDUP",
+        "is_news_event": false,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s09",
+      "kind": "single",
+      "title": "Interview: How AI is changing enterprise work",
+      "description": "A conversation with an executive about trends.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "INTERVIEW",
+        "is_news_event": false,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s10",
+      "kind": "single",
+      "title": "HTC Vive Eagle review",
+      "description": "A review evaluates a new pair of smart glasses.",
+      "expected": {
+        "main_entity": "HTC",
+        "event_type": "REVIEW",
+        "is_news_event": false,
+        "is_evergreen": true
+      }
+    },
+    {
+      "id": "s11",
+      "kind": "single",
+      "title": "How to use a new cloud security dashboard",
+      "description": "A tutorial explains setup steps.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "HOW_TO",
+        "is_news_event": false,
+        "is_evergreen": true
+      }
+    },
+    {
+      "id": "s12",
+      "kind": "single",
+      "title": "Meta expands subscription plans with AI features",
+      "description": "Meta announced new paid plans for its services.",
+      "expected": {
+        "main_entity": "Meta",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s13",
+      "kind": "single",
+      "title": "Apple releases new child safety features",
+      "description": "The features are now available across Apple platforms.",
+      "expected": {
+        "main_entity": "Apple",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s14",
+      "kind": "single",
+      "title": "Bank of America expects investment banking fees to fall",
+      "description": "The bank cut its outlook and shares moved lower.",
+      "expected": {
+        "main_entity": "Bank of America",
+        "event_type": "NEWS_EVENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s15",
+      "kind": "single",
+      "title": "New York seizes celebrity deepfake websites",
+      "description": "Authorities took action against a network of websites.",
+      "expected": {
+        "main_entity": "New York",
+        "event_type": "LEGAL",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s16",
+      "kind": "single",
+      "title": "Volvo increases batteries for XC60 and XC90",
+      "description": "The plug-in vehicle refresh adds range.",
+      "expected": {
+        "main_entity": "Volvo",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s17",
+      "kind": "single",
+      "title": "Microsoft acquires security startup",
+      "description": "Microsoft announced an acquisition to expand its security business.",
+      "expected": {
+        "main_entity": "Microsoft",
+        "event_type": "ACQUISITION",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s18",
+      "kind": "single",
+      "title": "Inside Meta’s infrastructure lab",
+      "description": "An analysis looks at how the company builds data centers.",
+      "expected": {
+        "main_entity": "Meta",
+        "event_type": "ANALYSIS",
+        "is_news_event": false,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s19",
+      "kind": "single",
+      "title": "Sam Altman says OpenAI going public would be ill-advised",
+      "description": "The CEO commented on a possible IPO.",
+      "expected": {
+        "main_entity": "OpenAI",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s20",
+      "kind": "single",
+      "title": "2 ways Android users can use Apple MagSafe accessories",
+      "description": "A practical guide for users.",
+      "expected": {
+        "main_entity": "Apple",
+        "event_type": "HOW_TO",
+        "is_news_event": false,
+        "is_evergreen": true
+      }
+    },
+    {
+      "id": "s21",
+      "kind": "single",
+      "title": "Cisco product keynote: platform for agentic enterprise",
+      "description": "Cisco presented a platform announcement at a keynote.",
+      "expected": {
+        "main_entity": "Cisco",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "s22",
+      "kind": "single",
+      "title": "Anthropic CEO warns of AI slowdown dilemma",
+      "description": "The CEO discussed policy and development risks.",
+      "expected": {
+        "main_entity": "Anthropic",
+        "event_type": "NEWS_EVENT",
+        "is_news_event": true,
+        "is_evergreen": false
+      }
+    },
+    {
+      "id": "p01",
+      "kind": "pair",
+      "a": {
+        "title": "Introducing Meta One: a subscription service with AI",
+        "description": "Meta announced Meta One."
+      },
+      "b": {
+        "title": "Présentation de Meta One : un service d’abonnement avec IA",
+        "description": "Meta a annoncé Meta One."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "p02",
+      "kind": "pair",
+      "a": {
+        "title": "Sam Altman says OpenAI going public would be ill-advised",
+        "description": "TechCrunch reports his IPO comments."
+      },
+      "b": {
+        "title": "OpenAI going public in 2026 would be ill-advised, says Altman",
+        "description": "The Verge reports the same comments."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "p03",
+      "kind": "pair",
+      "a": {
+        "title": "2028 Volvo XC60 and XC90 first look",
+        "description": "Engadget covers the plug-in refresh."
+      },
+      "b": {
+        "title": "Volvo increases batteries for XC60 and XC90",
+        "description": "Ars Technica covers the same refresh."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "p04",
+      "kind": "pair",
+      "a": {
+        "title": "Apple releases redesigned Siri AI",
+        "description": "A test arrives before iPhone 18."
+      },
+      "b": {
+        "title": "Can you use an Apple Pencil with an iPhone?",
+        "description": "A practical compatibility guide."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "p05",
+      "kind": "pair",
+      "a": {
+        "title": "Introducing the Agents API",
+        "description": "A new API for developers."
+      },
+      "b": {
+        "title": "How a hedge fund uses AI agents",
+        "description": "A profile of an investment firm."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "p06",
+      "kind": "pair",
+      "a": {
+        "title": "Home Depot promo codes: save 20%",
+        "description": "A coupon page."
+      },
+      "b": {
+        "title": "Surfshark promo codes: 87% off",
+        "description": "A coupon page."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "p07",
+      "kind": "pair",
+      "a": {
+        "title": "Introducing ChatGPT for Financial Services",
+        "description": "OpenAI launches a product for finance."
+      },
+      "b": {
+        "title": "OpenAI targets Wall Street with ChatGPT for Financial Services",
+        "description": "Coverage of the same product launch."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "p08",
+      "kind": "pair",
+      "a": {
+        "title": "Meta adds subscription tiers for businesses",
+        "description": "Meta describes new tiers."
+      },
+      "b": {
+        "title": "Introducing Meta One",
+        "description": "Meta announces a distinct consumer subscription product."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "p09",
+      "kind": "pair",
+      "a": {
+        "title": "GPT-6 Astra: a new generation of intelligence",
+        "description": "OpenAI announces the model."
+      },
+      "b": {
+        "title": "Customer case study using GPT-6 Astra",
+        "description": "A customer describes using the model."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "p10",
+      "kind": "pair",
+      "a": {
+        "title": "Anthropic CEO calls for an AI slowdown",
+        "description": "A policy discussion about development pace."
+      },
+      "b": {
+        "title": "AI leaders debate slowing frontier model development",
+        "description": "Coverage of the same slowdown debate."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2s01",
+      "kind": "single",
+      "language": "en",
+      "title": "OpenAI releases secure agents SDK",
+      "description": "OpenAI releases secure agents SDK.",
+      "expected": {
+        "main_entity": "OpenAI",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s02",
+      "kind": "single",
+      "language": "en",
+      "title": "Anthropic raises Series E funding",
+      "description": "Anthropic raises Series E funding.",
+      "expected": {
+        "main_entity": "Anthropic",
+        "event_type": "FUNDING",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s03",
+      "kind": "single",
+      "language": "en",
+      "title": "Google publishes quantum research results",
+      "description": "Google publishes quantum research results.",
+      "expected": {
+        "main_entity": "Google",
+        "event_type": "RESEARCH",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s04",
+      "kind": "single",
+      "language": "en",
+      "title": "Microsoft changes EU cloud terms",
+      "description": "Microsoft changes EU cloud terms.",
+      "expected": {
+        "main_entity": "Microsoft",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s05",
+      "kind": "single",
+      "language": "en",
+      "title": "Apple introduces a new MacBook Air",
+      "description": "Apple introduces a new MacBook Air.",
+      "expected": {
+        "main_entity": "Apple",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s06",
+      "kind": "single",
+      "language": "en",
+      "title": "Nvidia reports quarterly revenue growth",
+      "description": "Nvidia reports quarterly revenue growth.",
+      "expected": {
+        "main_entity": "Nvidia",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s07",
+      "kind": "single",
+      "language": "pt-BR",
+      "title": "Brazil approves new AI regulation",
+      "description": "Brazil approves new AI regulation.",
+      "expected": {
+        "main_entity": "Brazil",
+        "event_type": "REGULATION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s08",
+      "kind": "single",
+      "language": "pt-BR",
+      "title": "OpenAI lança ferramenta para desenvolvedores",
+      "description": "OpenAI lança ferramenta para desenvolvedores.",
+      "expected": {
+        "main_entity": "OpenAI",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s09",
+      "kind": "single",
+      "language": "pt-BR",
+      "title": "Microsoft anuncia parceria com universidade brasileira",
+      "description": "Microsoft anuncia parceria com universidade brasileira.",
+      "expected": {
+        "main_entity": "Microsoft",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s10",
+      "kind": "single",
+      "language": "pt-BR",
+      "title": "Guia de compra de notebooks para estudantes",
+      "description": "Guia de compra de notebooks para estudantes.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "BUYING_GUIDE",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s11",
+      "kind": "single",
+      "language": "pt-BR",
+      "title": "Como configurar autenticação de dois fatores",
+      "description": "Como configurar autenticação de dois fatores.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "HOW_TO",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s12",
+      "kind": "single",
+      "language": "pt-BR",
+      "title": "A Apple apresenta o iPhone para o mercado brasileiro",
+      "description": "A Apple apresenta o iPhone para o mercado brasileiro.",
+      "expected": {
+        "main_entity": "Apple",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s13",
+      "kind": "single",
+      "language": "es",
+      "title": "OpenAI anuncia parceria com empresa espanhola",
+      "description": "OpenAI anuncia parceria com empresa espanhola.",
+      "expected": {
+        "main_entity": "OpenAI",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s14",
+      "kind": "single",
+      "language": "es",
+      "title": "España debate una nueva ley de inteligencia artificial",
+      "description": "España debate una nueva ley de inteligencia artificial.",
+      "expected": {
+        "main_entity": "España",
+        "event_type": "REGULATION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s15",
+      "kind": "single",
+      "language": "es",
+      "title": "Guía de compra de routers Wi-Fi",
+      "description": "Guía de compra de routers Wi-Fi.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "BUYING_GUIDE",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s16",
+      "kind": "single",
+      "language": "es",
+      "title": "Cómo proteger una cuenta en línea",
+      "description": "Cómo proteger una cuenta en línea.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "HOW_TO",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s17",
+      "kind": "single",
+      "language": "es",
+      "title": "Google adquiere una startup de robótica",
+      "description": "Google adquiere una startup de robótica.",
+      "expected": {
+        "main_entity": "Google",
+        "event_type": "ACQUISITION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s18",
+      "kind": "single",
+      "language": "fr",
+      "title": "OpenAI annonce un nouveau modèle de raisonnement",
+      "description": "OpenAI annonce un nouveau modèle de raisonnement.",
+      "expected": {
+        "main_entity": "OpenAI",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s19",
+      "kind": "single",
+      "language": "fr",
+      "title": "La France adopte une règle sur les plateformes",
+      "description": "La France adopte une règle sur les plateformes.",
+      "expected": {
+        "main_entity": "France",
+        "event_type": "REGULATION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s20",
+      "kind": "single",
+      "language": "fr",
+      "title": "Guide d'achat des ordinateurs portables",
+      "description": "Guide d'achat des ordinateurs portables.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "BUYING_GUIDE",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s21",
+      "kind": "single",
+      "language": "fr",
+      "title": "Comment activer le chiffrement du téléphone",
+      "description": "Comment activer le chiffrement du téléphone.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "HOW_TO",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s22",
+      "kind": "single",
+      "language": "fr",
+      "title": "Anthropic publie une étude sur la sécurité",
+      "description": "Anthropic publie une étude sur la sécurité.",
+      "expected": {
+        "main_entity": "Anthropic",
+        "event_type": "RESEARCH",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s23",
+      "kind": "single",
+      "language": "en",
+      "title": "Meta cuts thousands of jobs",
+      "description": "Meta cuts thousands of jobs.",
+      "expected": {
+        "main_entity": "Meta",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s24",
+      "kind": "single",
+      "language": "en",
+      "title": "Tesla recalls vehicles over a software defect",
+      "description": "Tesla recalls vehicles over a software defect.",
+      "expected": {
+        "main_entity": "Tesla",
+        "event_type": "LEGAL",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s25",
+      "kind": "single",
+      "language": "en",
+      "title": "Amazon launches a Prime discount campaign",
+      "description": "Amazon launches a Prime discount campaign.",
+      "expected": {
+        "main_entity": "Amazon",
+        "event_type": "PROMOTION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": true
+      }
+    },
+    {
+      "id": "v2s26",
+      "kind": "single",
+      "language": "en",
+      "title": "The history of HTTP explained",
+      "description": "The history of HTTP explained.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "EVERGREEN",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s27",
+      "kind": "single",
+      "language": "en",
+      "title": "Opinion: why AI regulation needs patience",
+      "description": "Opinion: why AI regulation needs patience.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "OPINION",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": true,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s28",
+      "kind": "single",
+      "language": "en",
+      "title": "Interview with the CEO of Acme",
+      "description": "Interview with the CEO of Acme.",
+      "expected": {
+        "main_entity": "Acme",
+        "event_type": "INTERVIEW",
+        "is_news_event": false,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s29",
+      "kind": "single",
+      "language": "en",
+      "title": "Weekly roundup of technology stories",
+      "description": "Weekly roundup of technology stories.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "ROUNDUP",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s30",
+      "kind": "single",
+      "language": "en",
+      "title": "Review: the new Pixel camera",
+      "description": "Review: the new Pixel camera.",
+      "expected": {
+        "main_entity": "Pixel",
+        "event_type": "REVIEW",
+        "is_news_event": false,
+        "is_evergreen": true,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s31",
+      "kind": "single",
+      "language": "en",
+      "title": "Court files antitrust case against Google",
+      "description": "Court files antitrust case against Google.",
+      "expected": {
+        "main_entity": "Google",
+        "event_type": "LEGAL",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s32",
+      "kind": "single",
+      "language": "en",
+      "title": "Startup Profound raises 180 million dollars",
+      "description": "Startup Profound raises 180 million dollars.",
+      "expected": {
+        "main_entity": "Profound",
+        "event_type": "FUNDING",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s33",
+      "kind": "single",
+      "language": "en",
+      "title": "Astra announces GPT-6 partnership",
+      "description": "Astra announces GPT-6 partnership.",
+      "expected": {
+        "main_entity": "Astra",
+        "event_type": "COMPANY_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s34",
+      "kind": "single",
+      "language": "en",
+      "title": "Samsung unveils a foldable phone",
+      "description": "Samsung unveils a foldable phone.",
+      "expected": {
+        "main_entity": "Samsung",
+        "event_type": "PRODUCT_ANNOUNCEMENT",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s35",
+      "kind": "single",
+      "language": "en",
+      "title": "New study measures ocean temperatures",
+      "description": "New study measures ocean temperatures.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "RESEARCH",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2s36",
+      "kind": "single",
+      "language": "en",
+      "title": "Surfshark offers a summer subscription sale",
+      "description": "Surfshark offers a summer subscription sale.",
+      "expected": {
+        "main_entity": "Surfshark",
+        "event_type": "PROMOTION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": true
+      }
+    },
+    {
+      "id": "v2s37",
+      "kind": "single",
+      "language": "en",
+      "title": "Home Depot publishes its spring catalog",
+      "description": "Home Depot publishes its spring catalog.",
+      "expected": {
+        "main_entity": "Home Depot",
+        "event_type": "PROMOTION",
+        "is_news_event": true,
+        "is_evergreen": false,
+        "is_analysis": false,
+        "is_opinion": false,
+        "is_promotional": true
+      }
+    },
+    {
+      "id": "v2s38",
+      "kind": "single",
+      "language": "en",
+      "title": "An analysis of the trillion-dollar AI gamble",
+      "description": "An analysis of the trillion-dollar AI gamble.",
+      "expected": {
+        "main_entity": null,
+        "event_type": "ANALYSIS",
+        "is_news_event": false,
+        "is_evergreen": false,
+        "is_analysis": true,
+        "is_opinion": false,
+        "is_promotional": false
+      }
+    },
+    {
+      "id": "v2p01",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "OpenAI launches Agents API",
+        "description": "OpenAI launches Agents API."
+      },
+      "b": {
+        "title": "OpenAI adds Agents API tools",
+        "description": "OpenAI adds Agents API tools."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p02",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Meta One subscription launches in English",
+        "description": "Meta One subscription launches in English."
+      },
+      "b": {
+        "title": "Meta One subscription arrives in France",
+        "description": "Meta One subscription arrives in France."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p03",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Apple announces Siri upgrade",
+        "description": "Apple announces Siri upgrade."
+      },
+      "b": {
+        "title": "Apple introduces new Apple Pencil",
+        "description": "Apple introduces new Apple Pencil."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p04",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Google funds climate startup",
+        "description": "Google funds climate startup."
+      },
+      "b": {
+        "title": "Google acquires climate startup",
+        "description": "Google acquires climate startup."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p05",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Volvo reveals XC60 refresh",
+        "description": "Volvo reveals XC60 refresh."
+      },
+      "b": {
+        "title": "Volvo reveals XC90 refresh",
+        "description": "Volvo reveals XC90 refresh."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p06",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Home Depot spring sale begins",
+        "description": "Home Depot spring sale begins."
+      },
+      "b": {
+        "title": "Surfshark spring sale begins",
+        "description": "Surfshark spring sale begins."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p07",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Sam Altman discusses OpenAI IPO",
+        "description": "Sam Altman discusses OpenAI IPO."
+      },
+      "b": {
+        "title": "OpenAI IPO discussed by Sam Altman",
+        "description": "OpenAI IPO discussed by Sam Altman."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p08",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Anthropic slows hiring",
+        "description": "Anthropic slows hiring."
+      },
+      "b": {
+        "title": "Anthropic explains slower hiring",
+        "description": "Anthropic explains slower hiring."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p09",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "GPT-6 Astra announcement",
+        "description": "GPT-6 Astra announcement."
+      },
+      "b": {
+        "title": "Customer describes using GPT-6",
+        "description": "Customer describes using GPT-6."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p10",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Meta subscription tiers",
+        "description": "Meta subscription tiers."
+      },
+      "b": {
+        "title": "Meta One subscription",
+        "description": "Meta One subscription."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p11",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Brazil AI bill passes chamber",
+        "description": "Brazil AI bill passes chamber."
+      },
+      "b": {
+        "title": "Brazil AI bill passes senate",
+        "description": "Brazil AI bill passes senate."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p12",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Microsoft cloud outage in Paris",
+        "description": "Microsoft cloud outage in Paris."
+      },
+      "b": {
+        "title": "Microsoft cloud outage in Tokyo",
+        "description": "Microsoft cloud outage in Tokyo."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p13",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Google Pixel 10 launch",
+        "description": "Google Pixel 10 launch."
+      },
+      "b": {
+        "title": "Google Pixel 10 camera review",
+        "description": "Google Pixel 10 camera review."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p14",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "OpenAI security report",
+        "description": "OpenAI security report."
+      },
+      "b": {
+        "title": "OpenAI security partnership",
+        "description": "OpenAI security partnership."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p15",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Tesla recalls Model 3",
+        "description": "Tesla recalls Model 3."
+      },
+      "b": {
+        "title": "Tesla recalls Model Y",
+        "description": "Tesla recalls Model Y."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p16",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Apple quarterly results",
+        "description": "Apple quarterly results."
+      },
+      "b": {
+        "title": "Apple announces iPhone",
+        "description": "Apple announces iPhone."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p17",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Nvidia funding round",
+        "description": "Nvidia funding round."
+      },
+      "b": {
+        "title": "Nvidia quarterly results",
+        "description": "Nvidia quarterly results."
+      },
+      "expected_same": false
+    },
+    {
+      "id": "v2p18",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "France AI regulation draft",
+        "description": "France AI regulation draft."
+      },
+      "b": {
+        "title": "France AI regulation takes effect",
+        "description": "France AI regulation takes effect."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p19",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Meta English press release",
+        "description": "Meta English press release."
+      },
+      "b": {
+        "title": "Meta communique en français",
+        "description": "Meta communique en français."
+      },
+      "expected_same": true
+    },
+    {
+      "id": "v2p20",
+      "kind": "pair",
+      "language": "en",
+      "a": {
+        "title": "Acme interview",
+        "description": "Acme interview."
+      },
+      "b": {
+        "title": "Acme product launch",
+        "description": "Acme product launch."
+      },
+      "expected_same": false
+    }
+  ]
+}

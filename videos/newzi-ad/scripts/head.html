@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, height=1080" />
+<title>NEWZI — anúncio 16:9</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+@font-face{font-family:"NewziInter";src:url("assets/fonts/inter-latin.woff2") format("woff2");font-weight:400 800;font-style:normal}
+*{box-sizing:border-box}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#06122F}
+#root{position:relative;width:100%;height:100%;overflow:hidden;background:#06122F}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform:scale(1.5);transform-origin:0 0;overflow:hidden;font-family:"NewziInter",sans-serif}
+#stage section.clip{position:absolute;left:0;top:0;width:1280px;height:720px}
+.scene{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;animation:fin .6s ease both,sceneOut .6s ease forwards}
+.ic{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.a-up{animation:up .8s cubic-bezier(.2,.8,.2,1) both}
+.a-fin{animation:fin .8s ease both}
+.a-pop{animation:pop .75s cubic-bezier(.2,.9,.3,1.15) both}
+.a-word{display:inline-block;margin-right:.22em;animation:word .75s cubic-bezier(.2,.8,.2,1) both}
+.a-drop{animation:drop .9s cubic-bezier(.2,.8,.2,1) both}
+.a-float{animation:float 4.5s ease-in-out 3 both}
+.a-ripple{animation:ripple 1s ease-out both}
+.a-tap{animation:tap .8s ease both}
+.a-zoomaway{animation:zoomaway .7s cubic-bezier(.6,0,.4,1) forwards}
+.a-rise{animation:rise 1s cubic-bezier(.2,.8,.2,1) both}
+.a-fromcenter{animation:fromcenter 1s cubic-bezier(.65,0,.35,1) both}
+.a-fromleft{animation:fromleft 1s cubic-bezier(.65,0,.35,1) both}
+.a-glow{animation:glow 1.8s ease-out both}
+.a-steam{animation:steam 2.6s ease-in-out 4 both}
+.a-road{animation:road .7s linear 12}
+.a-eq{transform-origin:50% 100%;animation:eq .55s ease-in-out 14 alternate}
+.a-pulse{animation:pulse 1.8s ease-out 5}
+.a-ken{animation:ken 9s ease-out both}
+.a-blurout{animation:blurout .8s ease forwards}
+@keyframes fin{from{opacity:0}to{opacity:1}}
+@keyframes sceneOut{to{opacity:0}}
+@keyframes up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.05)}100%{opacity:1;transform:scale(1)}}
+@keyframes word{from{opacity:0;transform:translateY(.35em);filter:blur(10px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes drop{from{opacity:0;transform:translateY(-70px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes ripple{0%{opacity:0;transform:scale(.3)}12%{opacity:.6}100%{opacity:0;transform:scale(2.6)}}
+@keyframes tap{0%{opacity:0;transform:translate(46px,46px)}45%{opacity:1;transform:none}62%{opacity:1;transform:scale(.78)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+@keyframes zoomaway{to{opacity:0;transform:scale(2.8)}}
+@keyframes rise{from{opacity:0;transform:translateY(140px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes fromcenter{from{transform:translateX(337px)}to{transform:none}}
+@keyframes fromleft{from{transform:translateX(-337px)}to{transform:none}}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(8,124,240,0)}35%{box-shadow:0 0 0 7px rgba(8,124,240,.22)}100%{box-shadow:0 16px 34px -14px rgba(8,124,240,.45)}}
+@keyframes steam{0%{opacity:0;transform:translateY(12px)}40%{opacity:.9}100%{opacity:0;transform:translateY(-30px)}}
+@keyframes road{to{stroke-dashoffset:-40}}
+@keyframes eq{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(8,124,240,.45)}100%{box-shadow:0 0 0 24px rgba(8,124,240,0)}}
+@keyframes ken{from{transform:scale(1.14)}to{transform:scale(1)}}
+@keyframes blurout{to{opacity:.25;filter:blur(6px);transform:scale(.96)}}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="34" data-width="1920" data-height="1080">
+<div id="stage">

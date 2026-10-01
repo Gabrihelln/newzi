@@ -1,0 +1,3920 @@
+{
+  "version": 3,
+  "nodes": [
+    {
+      "id": "ARTIFICIAL_INTELLIGENCE",
+      "slug": "artificial-intelligence",
+      "name": "Inteligência Artificial",
+      "description": "Modelos, agentes e aplicações de IA",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [
+        "AI",
+        "IA",
+        "Artificial Intelligence",
+        "Inteligência Artificial"
+      ],
+      "active": true,
+      "display_order": 1,
+      "terms": {
+        "ai": 5,
+        "artificial intelligence": 6,
+        "machine learning": 5,
+        "generative": 4,
+        "language model": 6,
+        "llm": 6,
+        "model": 2,
+        "openai": 5,
+        "anthropic": 5,
+        "claude": 5,
+        "gpt": 5,
+        "gemini": 5,
+        "deep learning": 5,
+        "neural": 4,
+        "agentic": 4
+      }
+    },
+    {
+      "id": "TECHNOLOGY",
+      "slug": "technology",
+      "name": "Tecnologia",
+      "description": "Produtos, software, hardware e infraestrutura",
+      "type": "domain",
+      "aliases": [
+        "tech"
+      ],
+      "active": true,
+      "display_order": 2,
+      "terms": {
+        "software": 3,
+        "hardware": 3,
+        "cloud": 3,
+        "cybersecurity": 5,
+        "data center": 4,
+        "platform": 3,
+        "robot": 4,
+        "chip": 4,
+        "semiconductor": 5,
+        "iphone": 4,
+        "android": 4,
+        "battery": 3,
+        "batteries": 3,
+        "vehicle": 2,
+        "electric vehicle": 4,
+        "technology": 2,
+        "tech": 2,
+        "app": 2
+      }
+    },
+    {
+      "id": "BUSINESS",
+      "slug": "business",
+      "name": "Negócios",
+      "description": "Empresas, gestão, mercados e estratégia",
+      "type": "domain",
+      "aliases": [
+        "Negócios"
+      ],
+      "active": true,
+      "display_order": 3,
+      "terms": {
+        "business": 4,
+        "market": 3,
+        "investment": 4,
+        "investor": 4,
+        "startup": 4,
+        "acquisition": 5,
+        "ipo": 6,
+        "revenue": 5,
+        "earnings": 5,
+        "subscription": 3,
+        "company": 2,
+        "economy": 4,
+        "finance": 5,
+        "ceo": 3,
+        "funding": 4,
+        "enterprise": 3,
+        "stock": 4
+      }
+    },
+    {
+      "id": "ECONOMY",
+      "slug": "economy",
+      "name": "Economia",
+      "description": "Indicadores, política econômica e atividade econômica",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 4,
+      "terms": {
+        "economy": 5,
+        "economic": 4,
+        "economia": 5,
+        "inflation": 5,
+        "inflação": 5,
+        "interest rate": 5,
+        "juros": 5,
+        "gdp": 5,
+        "pib": 5,
+        "budget": 5,
+        "economic growth": 6,
+        "cost of borrowing": 6,
+        "borrowing costs": 6,
+        "yield": 4,
+        "bond yield": 5,
+        "bond sell-off": 5,
+        "market shock": 4,
+        "orcamento": 5,
+        "crescimento economico": 6,
+        "custo de emprestimo": 6,
+        "titulo publico": 4
+      }
+    },
+    {
+      "id": "FINANCE",
+      "slug": "finance",
+      "name": "Finanças",
+      "description": "Investimentos, bancos, crédito e resultados financeiros",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 5,
+      "terms": {
+        "finance": 5,
+        "financial": 4,
+        "finanças": 5,
+        "bank": 4,
+        "banco": 4,
+        "investment": 4,
+        "investimento": 4,
+        "stock": 4,
+        "ações": 4,
+        "credit": 4,
+        "crédito": 4
+      }
+    },
+    {
+      "id": "STARTUPS",
+      "slug": "startups",
+      "name": "Startups",
+      "description": "Empreendedorismo, venture capital e novas empresas",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 6,
+      "terms": {
+        "startup": 6,
+        "start-up": 6,
+        "venture capital": 6,
+        "capital de risco": 6,
+        "seed round": 5,
+        "rodada": 4,
+        "funding": 4
+      }
+    },
+    {
+      "id": "SCIENCE",
+      "slug": "science",
+      "name": "Ciência",
+      "description": "Pesquisa, descobertas e inovação científica",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 7,
+      "terms": {
+        "science": 5,
+        "scientist": 5,
+        "research": 5,
+        "study": 4,
+        "ciência": 5,
+        "cientista": 5,
+        "pesquisa": 5,
+        "estudo": 4
+      }
+    },
+    {
+      "id": "HEALTH",
+      "slug": "health",
+      "name": "Saúde",
+      "description": "Medicina, saúde pública e bem-estar",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 8,
+      "terms": {
+        "health": 5,
+        "medicine": 5,
+        "medical": 5,
+        "hospital": 5,
+        "saúde": 5,
+        "medicina": 5,
+        "médico": 5,
+        "vaccine": 5,
+        "vacina": 5
+      }
+    },
+    {
+      "id": "POLITICS",
+      "slug": "politics",
+      "name": "Política",
+      "description": "Governos, eleições, leis e decisões públicas",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 9,
+      "terms": {
+        "politics": 5,
+        "political": 5,
+        "election": 5,
+        "government": 4,
+        "política": 5,
+        "eleição": 5,
+        "governo": 4,
+        "congresso": 4,
+        "senate": 4
+      }
+    },
+    {
+      "id": "WORLD",
+      "slug": "world",
+      "name": "Mundo",
+      "description": "Acontecimentos internacionais",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 10,
+      "terms": {
+        "world": 2,
+        "international": 2,
+        "global": 2,
+        "mundo": 2,
+        "internacional": 2,
+        "guerra": 5,
+        "war": 5,
+        "diplomacy": 4,
+        "diplomacia": 4
+      }
+    },
+    {
+      "id": "BRAZIL",
+      "slug": "brazil",
+      "name": "Brasil",
+      "description": "Acontecimentos cujo assunto principal é o Brasil",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 11,
+      "terms": {
+        "brazil": 2,
+        "brasil": 2,
+        "brasileiro": 5,
+        "brazilian": 5,
+        "são paulo": 4,
+        "rio de janeiro": 4
+      }
+    },
+    {
+      "id": "ENVIRONMENT",
+      "slug": "environment",
+      "name": "Meio Ambiente",
+      "description": "Clima, biodiversidade e sustentabilidade",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 12,
+      "terms": {
+        "climate": 5,
+        "sustainability": 5,
+        "environmental": 4,
+        "meio ambiente": 5,
+        "clima": 5,
+        "sustentabilidade": 5,
+        "biodiversidade": 5
+      }
+    },
+    {
+      "id": "EDUCATION",
+      "slug": "education",
+      "name": "Educação",
+      "description": "Escolas, universidades e políticas educacionais",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 13,
+      "terms": {
+        "education": 5,
+        "school": 4,
+        "university": 4,
+        "educação": 5,
+        "escola": 4,
+        "universidade": 4,
+        "ensino": 4
+      }
+    },
+    {
+      "id": "CULTURE",
+      "slug": "culture",
+      "name": "Cultura",
+      "description": "Artes, livros, patrimônio e comportamento cultural",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 14,
+      "terms": {
+        "culture": 5,
+        "art": 4,
+        "book": 4,
+        "literature": 5,
+        "cultura": 5,
+        "arte": 4,
+        "livro": 4,
+        "literatura": 5
+      }
+    },
+    {
+      "id": "ENTERTAINMENT",
+      "slug": "entertainment",
+      "name": "Entretenimento",
+      "description": "Cinema, televisão, música e celebridades",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 15,
+      "terms": {
+        "entertainment": 5,
+        "movie": 4,
+        "film": 4,
+        "television": 4,
+        "music": 4,
+        "entretenimento": 5,
+        "cinema": 4,
+        "filme": 4,
+        "música": 4,
+        "televisão": 4
+      }
+    },
+    {
+      "id": "SPORTS",
+      "slug": "sports",
+      "name": "Esportes",
+      "description": "Competições, atletas e organizações esportivas",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 16,
+      "terms": {
+        "sport": 5,
+        "sports": 5,
+        "football": 5,
+        "soccer": 5,
+        "esporte": 5,
+        "futebol": 5,
+        "olimpíadas": 5,
+        "olympics": 5,
+        "world cup": 5,
+        "rugby": 5,
+        "rugby union": 6,
+        "premier league": 5
+      }
+    },
+    {
+      "id": "CYBERSECURITY",
+      "slug": "cybersecurity",
+      "name": "Cibersegurança",
+      "description": "Segurança digital, privacidade e incidentes",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 17,
+      "terms": {
+        "cybersecurity": 6,
+        "ransomware": 6,
+        "data breach": 6,
+        "malware": 6,
+        "security vulnerability": 6,
+        "cibersegurança": 6,
+        "vazamento de dados": 6,
+        "privacidade": 5,
+        "privacy": 5
+      }
+    },
+    {
+      "id": "REGIOES_DO_BRASIL",
+      "slug": "regioes-do-brasil",
+      "name": "Regiões do Brasil",
+      "description": "Notícias e contexto sobre regiões do brasil.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 18,
+      "terms": {
+        "regiões do brasil": 5,
+        "regiões": 3
+      }
+    },
+    {
+      "id": "ESTADOS",
+      "slug": "estados",
+      "name": "Estados",
+      "description": "Notícias e contexto sobre estados.",
+      "parent_id": "REGIOES_DO_BRASIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 19,
+      "terms": {
+        "estados": 3
+      }
+    },
+    {
+      "id": "CIDADES",
+      "slug": "cidades",
+      "name": "Cidades",
+      "description": "Notícias e contexto sobre cidades.",
+      "parent_id": "REGIOES_DO_BRASIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 20,
+      "terms": {
+        "cidades": 3
+      }
+    },
+    {
+      "id": "POLITICAS_PUBLICAS",
+      "slug": "politicas-publicas",
+      "name": "Políticas públicas",
+      "description": "Notícias e contexto sobre políticas públicas.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 21,
+      "terms": {
+        "políticas públicas": 5,
+        "políticas": 3,
+        "públicas": 3
+      }
+    },
+    {
+      "id": "ELEICOES_NO_BRASIL",
+      "slug": "eleicoes-no-brasil",
+      "name": "Eleições no Brasil",
+      "description": "Notícias e contexto sobre eleições no brasil.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 22,
+      "terms": {
+        "eleições no brasil": 5,
+        "eleições": 3
+      }
+    },
+    {
+      "id": "GOVERNO_FEDERAL",
+      "slug": "governo-federal",
+      "name": "Governo federal",
+      "description": "Notícias e contexto sobre governo federal.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 23,
+      "terms": {
+        "governo federal": 5,
+        "governo": 3,
+        "federal": 3
+      }
+    },
+    {
+      "id": "CONGRESSO_NACIONAL",
+      "slug": "congresso-nacional",
+      "name": "Congresso Nacional",
+      "description": "Notícias e contexto sobre congresso nacional.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 24,
+      "terms": {
+        "congresso nacional": 5,
+        "congresso": 3,
+        "nacional": 3
+      }
+    },
+    {
+      "id": "JUSTICA_BRASILEIRA",
+      "slug": "justica-brasileira",
+      "name": "Justiça brasileira",
+      "description": "Notícias e contexto sobre justiça brasileira.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 25,
+      "terms": {
+        "justiça brasileira": 5,
+        "justiça": 3,
+        "brasileira": 3
+      }
+    },
+    {
+      "id": "SEGURANCA_PUBLICA",
+      "slug": "seguranca-publica",
+      "name": "Segurança pública",
+      "description": "Notícias e contexto sobre segurança pública.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 26,
+      "terms": {
+        "segurança pública": 5,
+        "segurança": 3,
+        "pública": 3
+      }
+    },
+    {
+      "id": "DIREITOS_HUMANOS",
+      "slug": "direitos-humanos",
+      "name": "Direitos humanos",
+      "description": "Notícias e contexto sobre direitos humanos.",
+      "parent_id": "SOCIETY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 27,
+      "terms": {
+        "direitos humanos": 5,
+        "direitos": 3,
+        "humanos": 3
+      }
+    },
+    {
+      "id": "SOCIEDADE_BRASILEIRA",
+      "slug": "sociedade-brasileira",
+      "name": "Sociedade brasileira",
+      "description": "Notícias e contexto sobre sociedade brasileira.",
+      "parent_id": "SOCIETY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 28,
+      "terms": {
+        "sociedade brasileira": 5,
+        "sociedade": 3,
+        "brasileira": 3
+      }
+    },
+    {
+      "id": "GEOPOLITICA",
+      "slug": "geopolitica",
+      "name": "Geopolítica",
+      "description": "Notícias e contexto sobre geopolítica.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [
+        "Política internacional",
+        "Geopolitics",
+        "Sanctions",
+        "Sanções"
+      ],
+      "active": true,
+      "display_order": 29,
+      "terms": {
+        "geopolítica": 3,
+        "geopolitics": 5,
+        "geopolitical": 5,
+        "foreign policy": 4,
+        "relacoes internacionais": 4,
+        "politica externa": 4,
+        "sanctions": 5,
+        "sanctioned": 5,
+        "sanções": 5,
+        "sancionado": 5
+      }
+    },
+    {
+      "id": "DIPLOMACIA",
+      "slug": "diplomacia",
+      "name": "Diplomacia",
+      "description": "Notícias e contexto sobre diplomacia.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 30,
+      "terms": {
+        "diplomacia": 3
+      }
+    },
+    {
+      "id": "CONFLITOS_INTERNACIONAIS",
+      "slug": "conflitos-internacionais",
+      "name": "Guerras e conflitos",
+      "description": "Notícias e contexto sobre conflitos internacionais.",
+      "parent_id": "GEOPOLITICA",
+      "type": "subject",
+      "aliases": [
+        "Conflitos armados",
+        "Guerras e conflitos",
+        "Armed conflicts",
+        "Conflitos internacionais",
+        "Guerra",
+        "Guerras",
+        "War",
+        "Armed Conflict"
+      ],
+      "active": true,
+      "display_order": 31,
+      "terms": {
+        "conflitos internacionais": 5,
+        "war": 6,
+        "warfare": 6,
+        "armed conflict": 7,
+        "military conflict": 6,
+        "missile": 5,
+        "airstrike": 7,
+        "air raid": 6,
+        "bombing": 6,
+        "bombardment": 7,
+        "shelling": 6,
+        "invasion": 6,
+        "ceasefire": 6,
+        "troops": 4,
+        "guerra": 6,
+        "conflito armado": 7,
+        "conflito militar": 6,
+        "missil": 5,
+        "ataque aereo": 7,
+        "ataque militar": 6,
+        "bombardeio": 7,
+        "invasao": 6,
+        "cessar fogo": 6,
+        "tropas": 4,
+        "international conflict": 6,
+        "international conflicts": 6,
+        "batalha militar": 6
+      }
+    },
+    {
+      "id": "ELEICOES_NO_MUNDO",
+      "slug": "eleicoes-no-mundo",
+      "name": "Eleições no mundo",
+      "description": "Notícias e contexto sobre eleições no mundo.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 32,
+      "terms": {
+        "eleições no mundo": 5,
+        "eleições": 3
+      }
+    },
+    {
+      "id": "GOVERNOS_ESTRANGEIROS",
+      "slug": "governos-estrangeiros",
+      "name": "Governos estrangeiros",
+      "description": "Notícias e contexto sobre governos estrangeiros.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 33,
+      "terms": {
+        "governos estrangeiros": 5,
+        "governos": 3,
+        "estrangeiros": 3
+      }
+    },
+    {
+      "id": "DEFESA",
+      "slug": "defesa",
+      "name": "Defesa",
+      "description": "Notícias e contexto sobre defesa.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [
+        "Defesa e segurança",
+        "Military and defense"
+      ],
+      "active": true,
+      "display_order": 34,
+      "terms": {
+        "defesa": 3,
+        "defense": 4,
+        "military": 3,
+        "armed forces": 5,
+        "military operation": 5,
+        "forcas armadas": 5,
+        "operacao militar": 5
+      }
+    },
+    {
+      "id": "ORGANIZACOES_INTERNACIONAIS",
+      "slug": "organizacoes-internacionais",
+      "name": "Organizações internacionais",
+      "description": "Notícias e contexto sobre organizações internacionais.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 35,
+      "terms": {
+        "organizações internacionais": 5,
+        "organizações": 3,
+        "internacionais": 3
+      }
+    },
+    {
+      "id": "AMERICA_LATINA",
+      "slug": "america-latina",
+      "name": "América Latina",
+      "description": "Notícias e contexto sobre américa latina.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 36,
+      "terms": {
+        "américa latina": 5,
+        "américa": 3,
+        "latina": 3
+      }
+    },
+    {
+      "id": "ESTADOS_UNIDOS",
+      "slug": "estados-unidos",
+      "name": "Estados Unidos",
+      "description": "Notícias e contexto sobre estados unidos.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 37,
+      "terms": {
+        "estados unidos": 2,
+        "estados": 3,
+        "unidos": 3
+      }
+    },
+    {
+      "id": "EUROPA",
+      "slug": "europa",
+      "name": "Europa",
+      "description": "Notícias e contexto sobre europa.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 38,
+      "terms": {
+        "europa": 3
+      }
+    },
+    {
+      "id": "ASIA",
+      "slug": "asia",
+      "name": "Ásia",
+      "description": "Notícias e contexto sobre ásia.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 39,
+      "terms": {
+        "ásia": 5
+      }
+    },
+    {
+      "id": "AFRICA",
+      "slug": "africa",
+      "name": "África",
+      "description": "Notícias e contexto sobre áfrica.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 40,
+      "terms": {
+        "áfrica": 3
+      }
+    },
+    {
+      "id": "ORIENTE_MEDIO",
+      "slug": "oriente-medio",
+      "name": "Oriente Médio",
+      "description": "Notícias e contexto sobre oriente médio.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 41,
+      "terms": {
+        "oriente médio": 5,
+        "oriente": 3
+      }
+    },
+    {
+      "id": "ELEICOES",
+      "slug": "eleicoes",
+      "name": "Eleições",
+      "description": "Notícias e contexto sobre eleições.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 42,
+      "terms": {
+        "eleições": 3
+      }
+    },
+    {
+      "id": "GOVERNO",
+      "slug": "governo",
+      "name": "Governo",
+      "description": "Notícias e contexto sobre governo.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 43,
+      "terms": {
+        "governo": 3
+      }
+    },
+    {
+      "id": "CONGRESSO",
+      "slug": "congresso",
+      "name": "Congresso",
+      "description": "Notícias e contexto sobre congresso.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 44,
+      "terms": {
+        "congresso": 3
+      }
+    },
+    {
+      "id": "JUSTICA",
+      "slug": "justica",
+      "name": "Justiça",
+      "description": "Notícias e contexto sobre justiça.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 45,
+      "terms": {
+        "justiça": 3,
+        "convicted": 5,
+        "conviction": 5,
+        "sentenced": 5,
+        "military service": 4,
+        "draft evasion": 5,
+        "condenado": 5,
+        "condenação": 5,
+        "serviço militar": 4
+      }
+    },
+    {
+      "id": "PARTIDOS_POLITICOS",
+      "slug": "partidos-politicos",
+      "name": "Partidos políticos",
+      "description": "Notícias e contexto sobre partidos políticos.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 46,
+      "terms": {
+        "partidos políticos": 5,
+        "partidos": 3,
+        "políticos": 3
+      }
+    },
+    {
+      "id": "LEGISLACAO",
+      "slug": "legislacao",
+      "name": "Legislação",
+      "description": "Notícias e contexto sobre legislação.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 47,
+      "terms": {
+        "legislação": 3
+      }
+    },
+    {
+      "id": "RELACOES_EXTERIORES",
+      "slug": "relacoes-exteriores",
+      "name": "Relações exteriores",
+      "description": "Notícias e contexto sobre relações exteriores.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 48,
+      "terms": {
+        "relações exteriores": 5,
+        "relações": 3,
+        "exteriores": 3
+      }
+    },
+    {
+      "id": "MACROECONOMIA",
+      "slug": "macroeconomia",
+      "name": "Macroeconomia",
+      "description": "Notícias e contexto sobre macroeconomia.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 49,
+      "terms": {
+        "macroeconomia": 3
+      }
+    },
+    {
+      "id": "INFLACAO",
+      "slug": "inflacao",
+      "name": "Inflação",
+      "description": "Notícias e contexto sobre inflação.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 50,
+      "terms": {
+        "inflação": 3
+      }
+    },
+    {
+      "id": "JUROS",
+      "slug": "juros",
+      "name": "Juros",
+      "description": "Notícias e contexto sobre juros.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 51,
+      "terms": {
+        "juros": 5
+      }
+    },
+    {
+      "id": "EMPREGO",
+      "slug": "emprego",
+      "name": "Emprego",
+      "description": "Notícias e contexto sobre emprego.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 52,
+      "terms": {
+        "emprego": 3
+      }
+    },
+    {
+      "id": "MERCADO_FINANCEIRO",
+      "slug": "mercado-financeiro",
+      "name": "Mercado financeiro",
+      "description": "Notícias e contexto sobre mercado financeiro.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 53,
+      "terms": {
+        "mercado financeiro": 5,
+        "mercado": 3,
+        "financeiro": 3
+      }
+    },
+    {
+      "id": "INVESTIMENTOS",
+      "slug": "investimentos",
+      "name": "Investimentos",
+      "description": "Notícias e contexto sobre investimentos.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 54,
+      "terms": {
+        "investimentos": 3
+      }
+    },
+    {
+      "id": "BANCOS",
+      "slug": "bancos",
+      "name": "Bancos",
+      "description": "Notícias e contexto sobre bancos.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 55,
+      "terms": {
+        "bancos": 3
+      }
+    },
+    {
+      "id": "CREDITO",
+      "slug": "credito",
+      "name": "Crédito",
+      "description": "Notícias e contexto sobre crédito.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 56,
+      "terms": {
+        "crédito": 3
+      }
+    },
+    {
+      "id": "IMPOSTOS",
+      "slug": "impostos",
+      "name": "Impostos",
+      "description": "Notícias e contexto sobre impostos.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 57,
+      "terms": {
+        "impostos": 3
+      }
+    },
+    {
+      "id": "COMERCIO",
+      "slug": "comercio",
+      "name": "Comércio",
+      "description": "Notícias e contexto sobre comércio.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 58,
+      "terms": {
+        "comércio": 3
+      }
+    },
+    {
+      "id": "PIB",
+      "slug": "pib",
+      "name": "PIB",
+      "description": "Notícias e contexto sobre pib.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 59,
+      "terms": {
+        "pib": 5
+      }
+    },
+    {
+      "id": "FINANCAS_PESSOAIS",
+      "slug": "financas-pessoais",
+      "name": "Finanças pessoais",
+      "description": "Notícias e contexto sobre finanças pessoais.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 60,
+      "terms": {
+        "finanças pessoais": 5,
+        "finanças": 3,
+        "pessoais": 3
+      }
+    },
+    {
+      "id": "EMPRESAS",
+      "slug": "empresas",
+      "name": "Empresas",
+      "description": "Notícias e contexto sobre empresas.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 61,
+      "terms": {
+        "empresas": 3
+      }
+    },
+    {
+      "id": "EMPREENDEDORISMO",
+      "slug": "empreendedorismo",
+      "name": "Empreendedorismo",
+      "description": "Notícias e contexto sobre empreendedorismo.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 62,
+      "terms": {
+        "empreendedorismo": 3
+      }
+    },
+    {
+      "id": "MERCADO_DE_TRABALHO",
+      "slug": "mercado-de-trabalho",
+      "name": "Mercado de trabalho",
+      "description": "Notícias e contexto sobre mercado de trabalho.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 63,
+      "terms": {
+        "mercado de trabalho": 5,
+        "mercado": 3,
+        "trabalho": 3
+      }
+    },
+    {
+      "id": "IMOVEIS",
+      "slug": "imoveis",
+      "name": "Imóveis",
+      "description": "Notícias e contexto sobre imóveis.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 64,
+      "terms": {
+        "imóveis": 3
+      }
+    },
+    {
+      "id": "CONSUMO",
+      "slug": "consumo",
+      "name": "Consumo",
+      "description": "Notícias e contexto sobre consumo.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 65,
+      "terms": {
+        "consumo": 3
+      }
+    },
+    {
+      "id": "SOFTWARE",
+      "slug": "software",
+      "name": "Software",
+      "description": "Notícias e contexto sobre software.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 66,
+      "terms": {
+        "software": 3
+      }
+    },
+    {
+      "id": "HARDWARE",
+      "slug": "hardware",
+      "name": "Hardware",
+      "description": "Notícias e contexto sobre hardware.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 67,
+      "terms": {
+        "hardware": 3
+      }
+    },
+    {
+      "id": "INTERNET",
+      "slug": "internet",
+      "name": "Internet",
+      "description": "Notícias e contexto sobre internet.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 68,
+      "terms": {
+        "internet": 3
+      }
+    },
+    {
+      "id": "BIG_TECH",
+      "slug": "big-tech",
+      "name": "Big Tech",
+      "description": "Notícias e contexto sobre big tech.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 69,
+      "terms": {
+        "big tech": 5
+      }
+    },
+    {
+      "id": "TELECOMUNICACOES",
+      "slug": "telecomunicacoes",
+      "name": "Telecomunicações",
+      "description": "Notícias e contexto sobre telecomunicações.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 70,
+      "terms": {
+        "telecomunicações": 3
+      }
+    },
+    {
+      "id": "ROBOTICA",
+      "slug": "robotica",
+      "name": "Robótica",
+      "description": "Notícias e contexto sobre robótica.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 71,
+      "terms": {
+        "robótica": 3
+      }
+    },
+    {
+      "id": "COMPUTACAO_EM_NUVEM",
+      "slug": "computacao-em-nuvem",
+      "name": "Computação em nuvem",
+      "description": "Notícias e contexto sobre computação em nuvem.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 72,
+      "terms": {
+        "computação em nuvem": 5,
+        "computação": 3
+      }
+    },
+    {
+      "id": "PRIVACIDADE_DIGITAL",
+      "slug": "privacidade-digital",
+      "name": "Privacidade digital",
+      "description": "Notícias e contexto sobre privacidade digital.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 73,
+      "terms": {
+        "privacidade digital": 5,
+        "privacidade": 3,
+        "digital": 3
+      }
+    },
+    {
+      "id": "GAMES",
+      "slug": "games",
+      "name": "Games",
+      "description": "Notícias e contexto sobre games.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 74,
+      "terms": {
+        "games": 5
+      }
+    },
+    {
+      "id": "AUTOMOVEIS",
+      "slug": "automoveis",
+      "name": "Automóveis",
+      "description": "Notícias e contexto sobre automóveis.",
+      "parent_id": "TRANSPORTES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 75,
+      "terms": {
+        "automóveis": 3
+      }
+    },
+    {
+      "id": "MOBILIDADE",
+      "slug": "mobilidade",
+      "name": "Mobilidade",
+      "description": "Notícias e contexto sobre mobilidade.",
+      "parent_id": "TRANSPORTES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 76,
+      "terms": {
+        "mobilidade": 3
+      }
+    },
+    {
+      "id": "AVIACAO",
+      "slug": "aviacao",
+      "name": "Aviação",
+      "description": "Notícias e contexto sobre aviação.",
+      "parent_id": "TRANSPORTES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 77,
+      "terms": {
+        "aviação": 3
+      }
+    },
+    {
+      "id": "PESQUISA_CIENTIFICA",
+      "slug": "pesquisa-cientifica",
+      "name": "Pesquisa científica",
+      "description": "Notícias e contexto sobre pesquisa científica.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 78,
+      "terms": {
+        "pesquisa científica": 5,
+        "pesquisa": 3,
+        "científica": 3
+      }
+    },
+    {
+      "id": "ESPACO",
+      "slug": "espaco",
+      "name": "Espaço",
+      "description": "Notícias e contexto sobre espaço.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 79,
+      "terms": {
+        "espaço": 3
+      }
+    },
+    {
+      "id": "ASTRONOMIA",
+      "slug": "astronomia",
+      "name": "Astronomia",
+      "description": "Notícias e contexto sobre astronomia.",
+      "parent_id": "ESPACO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 80,
+      "terms": {
+        "astronomia": 3
+      }
+    },
+    {
+      "id": "FISICA",
+      "slug": "fisica",
+      "name": "Física",
+      "description": "Notícias e contexto sobre física.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 81,
+      "terms": {
+        "física": 3
+      }
+    },
+    {
+      "id": "BIOLOGIA",
+      "slug": "biologia",
+      "name": "Biologia",
+      "description": "Notícias e contexto sobre biologia.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 82,
+      "terms": {
+        "biologia": 3
+      }
+    },
+    {
+      "id": "QUIMICA",
+      "slug": "quimica",
+      "name": "Química",
+      "description": "Notícias e contexto sobre química.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 83,
+      "terms": {
+        "química": 3
+      }
+    },
+    {
+      "id": "MATEMATICA",
+      "slug": "matematica",
+      "name": "Matemática",
+      "description": "Notícias e contexto sobre matemática.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 84,
+      "terms": {
+        "matemática": 3
+      }
+    },
+    {
+      "id": "ARQUEOLOGIA",
+      "slug": "arqueologia",
+      "name": "Arqueologia",
+      "description": "Notícias e contexto sobre arqueologia.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 85,
+      "terms": {
+        "arqueologia": 3
+      }
+    },
+    {
+      "id": "INOVACAO",
+      "slug": "inovacao",
+      "name": "Inovação",
+      "description": "Notícias e contexto sobre inovação.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 86,
+      "terms": {
+        "inovação": 3
+      }
+    },
+    {
+      "id": "EXPLORACAO_ESPACIAL",
+      "slug": "exploracao-espacial",
+      "name": "Exploração espacial",
+      "description": "Notícias e contexto sobre exploração espacial.",
+      "parent_id": "ESPACO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 87,
+      "terms": {
+        "exploração espacial": 5,
+        "exploração": 3,
+        "espacial": 3
+      }
+    },
+    {
+      "id": "MEDICINA",
+      "slug": "medicina",
+      "name": "Medicina",
+      "description": "Notícias e contexto sobre medicina.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 88,
+      "terms": {
+        "medicina": 3
+      }
+    },
+    {
+      "id": "SAUDE_PUBLICA",
+      "slug": "saude-publica",
+      "name": "Saúde pública",
+      "description": "Notícias e contexto sobre saúde pública.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 89,
+      "terms": {
+        "saúde pública": 5,
+        "pública": 3
+      }
+    },
+    {
+      "id": "FARMACEUTICA",
+      "slug": "farmaceutica",
+      "name": "Farmacêutica",
+      "description": "Notícias e contexto sobre farmacêutica.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 90,
+      "terms": {
+        "farmacêutica": 3
+      }
+    },
+    {
+      "id": "NUTRICAO",
+      "slug": "nutricao",
+      "name": "Nutrição",
+      "description": "Notícias e contexto sobre nutrição.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 91,
+      "terms": {
+        "nutrição": 3
+      }
+    },
+    {
+      "id": "BEM_ESTAR",
+      "slug": "bem-estar",
+      "name": "Bem-estar",
+      "description": "Notícias e contexto sobre bem-estar.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 92,
+      "terms": {
+        "bem-estar": 3
+      }
+    },
+    {
+      "id": "SAUDE_MENTAL",
+      "slug": "saude-mental",
+      "name": "Saúde mental",
+      "description": "Notícias e contexto sobre saúde mental.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 93,
+      "terms": {
+        "saúde mental": 5,
+        "mental": 3
+      }
+    },
+    {
+      "id": "DOENCAS",
+      "slug": "doencas",
+      "name": "Doenças",
+      "description": "Notícias e contexto sobre doenças.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 94,
+      "terms": {
+        "doenças": 3
+      }
+    },
+    {
+      "id": "VACINAS",
+      "slug": "vacinas",
+      "name": "Vacinas",
+      "description": "Notícias e contexto sobre vacinas.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 95,
+      "terms": {
+        "vacinas": 3
+      }
+    },
+    {
+      "id": "HOSPITAIS",
+      "slug": "hospitais",
+      "name": "Hospitais",
+      "description": "Notícias e contexto sobre hospitais.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 96,
+      "terms": {
+        "hospitais": 3
+      }
+    },
+    {
+      "id": "PESQUISA_MEDICA",
+      "slug": "pesquisa-medica",
+      "name": "Pesquisa médica",
+      "description": "Notícias e contexto sobre pesquisa médica.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 97,
+      "terms": {
+        "pesquisa médica": 5,
+        "pesquisa": 3,
+        "médica": 3
+      }
+    },
+    {
+      "id": "UNIVERSIDADES",
+      "slug": "universidades",
+      "name": "Universidades",
+      "description": "Notícias e contexto sobre universidades.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 98,
+      "terms": {
+        "universidades": 3
+      }
+    },
+    {
+      "id": "ESCOLAS",
+      "slug": "escolas",
+      "name": "Escolas",
+      "description": "Notícias e contexto sobre escolas.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 99,
+      "terms": {
+        "escolas": 3
+      }
+    },
+    {
+      "id": "CARREIRA",
+      "slug": "carreira",
+      "name": "Carreira",
+      "description": "Notícias e contexto sobre carreira.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 100,
+      "terms": {
+        "carreira": 3
+      }
+    },
+    {
+      "id": "TRABALHO",
+      "slug": "trabalho",
+      "name": "Trabalho",
+      "description": "Notícias e contexto sobre trabalho.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 101,
+      "terms": {
+        "trabalho": 3
+      }
+    },
+    {
+      "id": "ENSINO_SUPERIOR",
+      "slug": "ensino-superior",
+      "name": "Ensino superior",
+      "description": "Notícias e contexto sobre ensino superior.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 102,
+      "terms": {
+        "ensino superior": 5,
+        "ensino": 3,
+        "superior": 3
+      }
+    },
+    {
+      "id": "PESQUISA_ACADEMICA",
+      "slug": "pesquisa-academica",
+      "name": "Pesquisa acadêmica",
+      "description": "Notícias e contexto sobre pesquisa acadêmica.",
+      "parent_id": "UNIVERSIDADES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 103,
+      "terms": {
+        "pesquisa acadêmica": 5,
+        "pesquisa": 3,
+        "acadêmica": 3
+      }
+    },
+    {
+      "id": "EDUCACAO_BASICA",
+      "slug": "educacao-basica",
+      "name": "Educação básica",
+      "description": "Notícias e contexto sobre educação básica.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 104,
+      "terms": {
+        "educação básica": 5,
+        "educação": 3,
+        "básica": 3
+      }
+    },
+    {
+      "id": "FORMACAO_PROFISSIONAL",
+      "slug": "formacao-profissional",
+      "name": "Formação profissional",
+      "description": "Notícias e contexto sobre formação profissional.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 105,
+      "terms": {
+        "formação profissional": 5,
+        "formação": 3,
+        "profissional": 3
+      }
+    },
+    {
+      "id": "GESTAO",
+      "slug": "gestao",
+      "name": "Gestão",
+      "description": "Notícias e contexto sobre gestão.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 106,
+      "terms": {
+        "gestão": 3
+      }
+    },
+    {
+      "id": "VAREJO",
+      "slug": "varejo",
+      "name": "Varejo",
+      "description": "Notícias e contexto sobre varejo.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 107,
+      "terms": {
+        "varejo": 3
+      }
+    },
+    {
+      "id": "INDUSTRIA",
+      "slug": "industria",
+      "name": "Indústria",
+      "description": "Notícias e contexto sobre indústria.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 108,
+      "terms": {
+        "indústria": 3
+      }
+    },
+    {
+      "id": "FUSOES_E_AQUISICOES",
+      "slug": "fusoes-e-aquisicoes",
+      "name": "Fusões e aquisições",
+      "description": "Notícias e contexto sobre fusões e aquisições.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 109,
+      "terms": {
+        "fusões e aquisições": 5,
+        "fusões": 3,
+        "aquisições": 3
+      }
+    },
+    {
+      "id": "CLIMA",
+      "slug": "clima",
+      "name": "Clima",
+      "description": "Notícias e contexto sobre clima.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 110,
+      "terms": {
+        "clima": 5
+      }
+    },
+    {
+      "id": "SUSTENTABILIDADE",
+      "slug": "sustentabilidade",
+      "name": "Sustentabilidade",
+      "description": "Notícias e contexto sobre sustentabilidade.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 111,
+      "terms": {
+        "sustentabilidade": 3
+      }
+    },
+    {
+      "id": "BIODIVERSIDADE",
+      "slug": "biodiversidade",
+      "name": "Biodiversidade",
+      "description": "Notícias e contexto sobre biodiversidade.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 112,
+      "terms": {
+        "biodiversidade": 3
+      }
+    },
+    {
+      "id": "ENERGIA",
+      "slug": "energia",
+      "name": "Energia",
+      "description": "Notícias e contexto sobre energia.",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 113,
+      "terms": {
+        "energia": 3,
+        "fuel reserves": 6,
+        "diesel stockpiles": 6,
+        "oil reserves": 5,
+        "energy reserves": 6,
+        "fuel stockpiles": 5,
+        "diesel": 4,
+        "kerosene": 4,
+        "querosene": 4,
+        "reservas de combustivel": 6,
+        "estoques de diesel": 6,
+        "reservas de energia": 6,
+        "combustiveis": 4
+      }
+    },
+    {
+      "id": "PETROLEO_E_GAS",
+      "slug": "petroleo-e-gas",
+      "name": "Petróleo e gás",
+      "description": "Notícias e contexto sobre petróleo e gás.",
+      "parent_id": "ENERGIA",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 114,
+      "terms": {
+        "petróleo e gás": 5,
+        "petróleo": 3
+      }
+    },
+    {
+      "id": "ENERGIA_RENOVAVEL",
+      "slug": "energia-renovavel",
+      "name": "Energia renovável",
+      "description": "Notícias e contexto sobre energia renovável.",
+      "parent_id": "ENERGIA",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 115,
+      "terms": {
+        "energia renovável": 5,
+        "energia": 3,
+        "renovável": 3
+      }
+    },
+    {
+      "id": "MINERACAO",
+      "slug": "mineracao",
+      "name": "Mineração",
+      "description": "Notícias e contexto sobre mineração.",
+      "parent_id": "ENERGIA",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 116,
+      "terms": {
+        "mineração": 3
+      }
+    },
+    {
+      "id": "AGRONEGOCIO",
+      "slug": "agronegocio",
+      "name": "Agronegócio",
+      "description": "Notícias e contexto sobre agronegócio.",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 117,
+      "terms": {
+        "agronegócio": 3
+      }
+    },
+    {
+      "id": "AGRICULTURA",
+      "slug": "agricultura",
+      "name": "Agricultura",
+      "description": "Notícias e contexto sobre agricultura.",
+      "parent_id": "AGRONEGOCIO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 118,
+      "terms": {
+        "agricultura": 3
+      }
+    },
+    {
+      "id": "ALIMENTACAO",
+      "slug": "alimentacao",
+      "name": "Alimentação",
+      "description": "Notícias e contexto sobre alimentação.",
+      "parent_id": "AGRONEGOCIO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 119,
+      "terms": {
+        "alimentação": 3
+      }
+    },
+    {
+      "id": "TRANSPORTES",
+      "slug": "transportes",
+      "name": "Transportes",
+      "description": "Notícias e contexto sobre transportes.",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 120,
+      "terms": {
+        "transportes": 3
+      }
+    },
+    {
+      "id": "INFRAESTRUTURA",
+      "slug": "infraestrutura",
+      "name": "Infraestrutura",
+      "description": "Notícias e contexto sobre infraestrutura.",
+      "parent_id": "TRANSPORTES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 121,
+      "terms": {
+        "infraestrutura": 3
+      }
+    },
+    {
+      "id": "SANEAMENTO",
+      "slug": "saneamento",
+      "name": "Saneamento",
+      "description": "Notícias e contexto sobre saneamento.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 122,
+      "terms": {
+        "saneamento": 3
+      }
+    },
+    {
+      "id": "DESMATAMENTO",
+      "slug": "desmatamento",
+      "name": "Desmatamento",
+      "description": "Notícias e contexto sobre desmatamento.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 123,
+      "terms": {
+        "desmatamento": 3
+      }
+    },
+    {
+      "id": "CONSERVACAO",
+      "slug": "conservacao",
+      "name": "Conservação",
+      "description": "Notícias e contexto sobre conservação.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 124,
+      "terms": {
+        "conservação": 3
+      }
+    },
+    {
+      "id": "CINEMA",
+      "slug": "cinema",
+      "name": "Cinema",
+      "description": "Notícias e contexto sobre cinema.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 125,
+      "terms": {
+        "cinema": 3
+      }
+    },
+    {
+      "id": "TELEVISAO",
+      "slug": "televisao",
+      "name": "Televisão",
+      "description": "Notícias e contexto sobre televisão.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 126,
+      "terms": {
+        "televisão": 3
+      }
+    },
+    {
+      "id": "STREAMING",
+      "slug": "streaming",
+      "name": "Streaming",
+      "description": "Notícias e contexto sobre streaming.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 127,
+      "terms": {
+        "streaming": 3
+      }
+    },
+    {
+      "id": "MUSICA",
+      "slug": "musica",
+      "name": "Música",
+      "description": "Notícias e contexto sobre música.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 128,
+      "terms": {
+        "música": 3,
+        "k-pop": 5,
+        "k pop": 5,
+        "kpop": 5,
+        "rapper": 4,
+        "rap artist": 4,
+        "cantor": 3,
+        "cantora": 3
+      }
+    },
+    {
+      "id": "LIVROS",
+      "slug": "livros",
+      "name": "Livros",
+      "description": "Notícias e contexto sobre livros.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 129,
+      "terms": {
+        "livros": 3
+      }
+    },
+    {
+      "id": "ARTE",
+      "slug": "arte",
+      "name": "Arte",
+      "description": "Notícias e contexto sobre arte.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 130,
+      "terms": {
+        "arte": 5
+      }
+    },
+    {
+      "id": "ARTES_VISUAIS",
+      "slug": "artes-visuais",
+      "name": "Artes visuais",
+      "description": "Notícias e contexto sobre artes visuais.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 131,
+      "terms": {
+        "artes visuais": 5,
+        "visuais": 3
+      }
+    },
+    {
+      "id": "PATRIMONIO",
+      "slug": "patrimonio",
+      "name": "Patrimônio",
+      "description": "Notícias e contexto sobre patrimônio.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 132,
+      "terms": {
+        "patrimônio": 3
+      }
+    },
+    {
+      "id": "CELEBRIDADES",
+      "slug": "celebridades",
+      "name": "Celebridades",
+      "description": "Notícias e contexto sobre celebridades.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 133,
+      "terms": {
+        "celebridades": 3
+      }
+    },
+    {
+      "id": "GASTRONOMIA",
+      "slug": "gastronomia",
+      "name": "Gastronomia",
+      "description": "Notícias e contexto sobre gastronomia.",
+      "parent_id": "TURISMO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 134,
+      "terms": {
+        "gastronomia": 3
+      }
+    },
+    {
+      "id": "MODA",
+      "slug": "moda",
+      "name": "Moda",
+      "description": "Notícias e contexto sobre moda.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 135,
+      "terms": {
+        "moda": 5
+      }
+    },
+    {
+      "id": "VIAGENS",
+      "slug": "viagens",
+      "name": "Viagens",
+      "description": "Notícias e contexto sobre viagens.",
+      "parent_id": "TURISMO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 136,
+      "terms": {
+        "viagens": 3
+      }
+    },
+    {
+      "id": "TURISMO",
+      "slug": "turismo",
+      "name": "Turismo",
+      "description": "Notícias e contexto sobre turismo.",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 137,
+      "terms": {
+        "turismo": 3
+      }
+    },
+    {
+      "id": "ARQUITETURA",
+      "slug": "arquitetura",
+      "name": "Arquitetura",
+      "description": "Notícias e contexto sobre arquitetura.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 138,
+      "terms": {
+        "arquitetura": 3
+      }
+    },
+    {
+      "id": "CRIADORES_DIGITAIS",
+      "slug": "criadores-digitais",
+      "name": "Criadores digitais",
+      "description": "Notícias e contexto sobre criadores digitais.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 139,
+      "terms": {
+        "criadores digitais": 5,
+        "criadores": 3,
+        "digitais": 3
+      }
+    },
+    {
+      "id": "PLATAFORMAS_DIGITAIS",
+      "slug": "plataformas-digitais",
+      "name": "Plataformas digitais",
+      "description": "Notícias e contexto sobre plataformas digitais.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 140,
+      "terms": {
+        "plataformas digitais": 5,
+        "plataformas": 3,
+        "digitais": 3
+      }
+    },
+    {
+      "id": "FUTEBOL",
+      "slug": "futebol",
+      "name": "Futebol",
+      "description": "Notícias e contexto sobre futebol.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 141,
+      "terms": {
+        "futebol": 3
+      }
+    },
+    {
+      "id": "FORMULA_1",
+      "slug": "formula-1",
+      "name": "Fórmula 1",
+      "description": "Notícias e contexto sobre fórmula 1.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 142,
+      "terms": {
+        "fórmula 1": 5,
+        "fórmula": 3
+      }
+    },
+    {
+      "id": "BASQUETE",
+      "slug": "basquete",
+      "name": "Basquete",
+      "description": "Notícias e contexto sobre basquete.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 143,
+      "terms": {
+        "basquete": 3
+      }
+    },
+    {
+      "id": "TENIS",
+      "slug": "tenis",
+      "name": "Tênis",
+      "description": "Notícias e contexto sobre tênis.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 144,
+      "terms": {
+        "tênis": 5
+      }
+    },
+    {
+      "id": "OLIMPIADAS",
+      "slug": "olimpiadas",
+      "name": "Olimpíadas",
+      "description": "Notícias e contexto sobre olimpíadas.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 145,
+      "terms": {
+        "olimpíadas": 3
+      }
+    },
+    {
+      "id": "VOLEI",
+      "slug": "volei",
+      "name": "Vôlei",
+      "description": "Notícias e contexto sobre vôlei.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 146,
+      "terms": {
+        "vôlei": 5
+      }
+    },
+    {
+      "id": "ATLETISMO",
+      "slug": "atletismo",
+      "name": "Atletismo",
+      "description": "Notícias e contexto sobre atletismo.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 147,
+      "terms": {
+        "atletismo": 3
+      }
+    },
+    {
+      "id": "AUTOMOBILISMO",
+      "slug": "automobilismo",
+      "name": "Automobilismo",
+      "description": "Notícias e contexto sobre automobilismo.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 148,
+      "terms": {
+        "automobilismo": 3
+      }
+    },
+    {
+      "id": "ESPORTES_OLIMPICOS",
+      "slug": "esportes-olimpicos",
+      "name": "Esportes olímpicos",
+      "description": "Notícias e contexto sobre esportes olímpicos.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 149,
+      "terms": {
+        "esportes olímpicos": 5,
+        "esportes": 3,
+        "olímpicos": 3
+      }
+    },
+    {
+      "id": "SUS",
+      "slug": "sus",
+      "name": "SUS",
+      "description": "Notícias e contexto sobre sus.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 150,
+      "terms": {
+        "sus": 5
+      }
+    },
+    {
+      "id": "LEGISLACAO_BRASILEIRA",
+      "slug": "legislacao-brasileira",
+      "name": "Legislação brasileira",
+      "description": "Notícias e contexto sobre legislação brasileira.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 151,
+      "terms": {
+        "legislação brasileira": 5
+      }
+    },
+    {
+      "id": "ECONOMIA_BRASILEIRA",
+      "slug": "economia-brasileira",
+      "name": "Economia brasileira",
+      "description": "Notícias e contexto sobre economia brasileira.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 152,
+      "terms": {
+        "economia brasileira": 5
+      }
+    },
+    {
+      "id": "CULTURA_BRASILEIRA",
+      "slug": "cultura-brasileira",
+      "name": "Cultura brasileira",
+      "description": "Notícias e contexto sobre cultura brasileira.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 153,
+      "terms": {
+        "cultura brasileira": 5
+      }
+    },
+    {
+      "id": "POVOS_INDIGENAS",
+      "slug": "povos-indigenas",
+      "name": "Povos indígenas",
+      "description": "Notícias e contexto sobre povos indígenas.",
+      "parent_id": "SOCIETY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 154,
+      "terms": {
+        "povos indígenas": 5
+      }
+    },
+    {
+      "id": "POLITICA_REGIONAL",
+      "slug": "politica-regional",
+      "name": "Política regional",
+      "description": "Notícias e contexto sobre política regional.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 155,
+      "terms": {
+        "política regional": 5
+      }
+    },
+    {
+      "id": "ELEICOES_MUNICIPAIS",
+      "slug": "eleicoes-municipais",
+      "name": "Eleições municipais",
+      "description": "Notícias e contexto sobre eleições municipais.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 156,
+      "terms": {
+        "eleições municipais": 5
+      }
+    },
+    {
+      "id": "ADMINISTRACAO_PUBLICA",
+      "slug": "administracao-publica",
+      "name": "Administração pública",
+      "description": "Notícias e contexto sobre administração pública.",
+      "parent_id": "BRAZIL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 157,
+      "terms": {
+        "administração pública": 5
+      }
+    },
+    {
+      "id": "GEOPOLITICA_GLOBAL",
+      "slug": "geopolitica-global",
+      "name": "Geopolítica global",
+      "description": "Notícias e contexto sobre geopolítica global.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 158,
+      "terms": {
+        "geopolítica global": 5
+      }
+    },
+    {
+      "id": "MIGRACAO",
+      "slug": "migracao",
+      "name": "Migração",
+      "description": "Notícias e contexto sobre migração.",
+      "parent_id": "SOCIETY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 159,
+      "terms": {
+        "migração": 5
+      }
+    },
+    {
+      "id": "AJUDA_HUMANITARIA",
+      "slug": "ajuda-humanitaria",
+      "name": "Ajuda humanitária",
+      "description": "Notícias e contexto sobre ajuda humanitária.",
+      "parent_id": "SOCIETY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 160,
+      "terms": {
+        "ajuda humanitária": 5
+      }
+    },
+    {
+      "id": "TRATADOS_INTERNACIONAIS",
+      "slug": "tratados-internacionais",
+      "name": "Tratados internacionais",
+      "description": "Notícias e contexto sobre tratados internacionais.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 161,
+      "terms": {
+        "tratados internacionais": 5
+      }
+    },
+    {
+      "id": "SANCOES_ECONOMICAS",
+      "slug": "sancoes-economicas",
+      "name": "Sanções econômicas",
+      "description": "Notícias e contexto sobre sanções econômicas.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 162,
+      "terms": {
+        "sanções econômicas": 5
+      }
+    },
+    {
+      "id": "RELACOES_CHINA_ESTADOS_UNIDOS",
+      "slug": "relacoes-china-estados-unidos",
+      "name": "Relações China-Estados Unidos",
+      "description": "Notícias e contexto sobre relações china-estados unidos.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 163,
+      "terms": {
+        "relações china-estados unidos": 5
+      }
+    },
+    {
+      "id": "UNIAO_EUROPEIA",
+      "slug": "uniao-europeia",
+      "name": "União Europeia",
+      "description": "Notícias e contexto sobre união europeia.",
+      "parent_id": "WORLD",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 164,
+      "terms": {
+        "união europeia": 5
+      }
+    },
+    {
+      "id": "CORRUPCAO",
+      "slug": "corrupcao",
+      "name": "Corrupção",
+      "description": "Notícias e contexto sobre corrupção.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 165,
+      "terms": {
+        "corrupção": 5
+      }
+    },
+    {
+      "id": "TRANSPARENCIA_PUBLICA",
+      "slug": "transparencia-publica",
+      "name": "Transparência pública",
+      "description": "Notícias e contexto sobre transparência pública.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 166,
+      "terms": {
+        "transparência pública": 5
+      }
+    },
+    {
+      "id": "POLITICA_TRIBUTARIA",
+      "slug": "politica-tributaria",
+      "name": "Política tributária",
+      "description": "Notícias e contexto sobre política tributária.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 167,
+      "terms": {
+        "política tributária": 5
+      }
+    },
+    {
+      "id": "POLITICA_EXTERNA",
+      "slug": "politica-externa",
+      "name": "Política externa",
+      "description": "Notícias e contexto sobre política externa.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 168,
+      "terms": {
+        "política externa": 5
+      }
+    },
+    {
+      "id": "REFORMA_POLITICA",
+      "slug": "reforma-politica",
+      "name": "Reforma política",
+      "description": "Notícias e contexto sobre reforma política.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 169,
+      "terms": {
+        "reforma política": 5
+      }
+    },
+    {
+      "id": "DIREITO_CONSTITUCIONAL",
+      "slug": "direito-constitucional",
+      "name": "Direito constitucional",
+      "description": "Notícias e contexto sobre direito constitucional.",
+      "parent_id": "POLITICS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 170,
+      "terms": {
+        "direito constitucional": 5
+      }
+    },
+    {
+      "id": "COMMODITIES",
+      "slug": "commodities",
+      "name": "Commodities",
+      "description": "Notícias e contexto sobre commodities.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 171,
+      "terms": {
+        "commodities": 5
+      }
+    },
+    {
+      "id": "CAMBIO",
+      "slug": "cambio",
+      "name": "Câmbio",
+      "description": "Notícias e contexto sobre câmbio.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 172,
+      "terms": {
+        "câmbio": 5
+      }
+    },
+    {
+      "id": "MERCADO_DE_CAPITAIS",
+      "slug": "mercado-de-capitais",
+      "name": "Mercado de capitais",
+      "description": "Notícias e contexto sobre mercado de capitais.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 173,
+      "terms": {
+        "mercado de capitais": 5
+      }
+    },
+    {
+      "id": "SEGUROS",
+      "slug": "seguros",
+      "name": "Seguros",
+      "description": "Notícias e contexto sobre seguros.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 174,
+      "terms": {
+        "seguros": 5
+      }
+    },
+    {
+      "id": "FINTECHS",
+      "slug": "fintechs",
+      "name": "Fintechs",
+      "description": "Notícias e contexto sobre fintechs.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 175,
+      "terms": {
+        "fintechs": 5
+      }
+    },
+    {
+      "id": "FUNDO_DE_INVESTIMENTO",
+      "slug": "fundo-de-investimento",
+      "name": "Fundo de investimento",
+      "description": "Notícias e contexto sobre fundo de investimento.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 176,
+      "terms": {
+        "fundo de investimento": 5
+      }
+    },
+    {
+      "id": "COMERCIO_EXTERIOR",
+      "slug": "comercio-exterior",
+      "name": "Comércio exterior",
+      "description": "Notícias e contexto sobre comércio exterior.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 177,
+      "terms": {
+        "comércio exterior": 5
+      }
+    },
+    {
+      "id": "DESIGUALDADE_ECONOMICA",
+      "slug": "desigualdade-economica",
+      "name": "Desigualdade econômica",
+      "description": "Notícias e contexto sobre desigualdade econômica.",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 178,
+      "terms": {
+        "desigualdade econômica": 5
+      }
+    },
+    {
+      "id": "SEMICONDUTORES",
+      "slug": "semicondutores",
+      "name": "Semicondutores",
+      "description": "Notícias e contexto sobre semicondutores.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 179,
+      "terms": {
+        "semicondutores": 5
+      }
+    },
+    {
+      "id": "DESENVOLVIMENTO_DE_SOFTWARE",
+      "slug": "desenvolvimento-de-software",
+      "name": "Desenvolvimento de software",
+      "description": "Notícias e contexto sobre desenvolvimento de software.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 180,
+      "terms": {
+        "desenvolvimento de software": 5
+      }
+    },
+    {
+      "id": "REDES_SOCIAIS",
+      "slug": "redes-sociais",
+      "name": "Redes sociais",
+      "description": "Notícias e contexto sobre redes sociais.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 181,
+      "terms": {
+        "redes sociais": 5
+      }
+    },
+    {
+      "id": "COMPUTACAO_QUANTICA",
+      "slug": "computacao-quantica",
+      "name": "Computação quântica",
+      "description": "Notícias e contexto sobre computação quântica.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 182,
+      "terms": {
+        "computação quântica": 5
+      }
+    },
+    {
+      "id": "TECNOLOGIA_FINANCEIRA",
+      "slug": "tecnologia-financeira",
+      "name": "Tecnologia financeira",
+      "description": "Notícias e contexto sobre tecnologia financeira.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 183,
+      "terms": {
+        "tecnologia financeira": 5
+      }
+    },
+    {
+      "id": "TECNOLOGIA_EDUCACIONAL",
+      "slug": "tecnologia-educacional",
+      "name": "Tecnologia educacional",
+      "description": "Notícias e contexto sobre tecnologia educacional.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 184,
+      "terms": {
+        "tecnologia educacional": 5
+      }
+    },
+    {
+      "id": "TECNOLOGIA_MEDICA",
+      "slug": "tecnologia-medica",
+      "name": "Tecnologia médica",
+      "description": "Notícias e contexto sobre tecnologia médica.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 185,
+      "terms": {
+        "tecnologia médica": 5
+      }
+    },
+    {
+      "id": "E_COMMERCE",
+      "slug": "e-commerce",
+      "name": "E-commerce",
+      "description": "Notícias e contexto sobre e-commerce.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 186,
+      "terms": {
+        "e-commerce": 5
+      }
+    },
+    {
+      "id": "OPEN_SOURCE",
+      "slug": "open-source",
+      "name": "Open source",
+      "description": "Notícias e contexto sobre open source.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 187,
+      "terms": {
+        "open source": 5
+      }
+    },
+    {
+      "id": "REALIDADE_VIRTUAL",
+      "slug": "realidade-virtual",
+      "name": "Realidade virtual",
+      "description": "Notícias e contexto sobre realidade virtual.",
+      "parent_id": "TECHNOLOGY",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 188,
+      "terms": {
+        "realidade virtual": 5
+      }
+    },
+    {
+      "id": "GENETICA",
+      "slug": "genetica",
+      "name": "Genética",
+      "description": "Notícias e contexto sobre genética.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 189,
+      "terms": {
+        "genética": 5
+      }
+    },
+    {
+      "id": "NEUROCIENCIA",
+      "slug": "neurociencia",
+      "name": "Neurociência",
+      "description": "Notícias e contexto sobre neurociência.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 190,
+      "terms": {
+        "neurociência": 5
+      }
+    },
+    {
+      "id": "OCEANOGRAFIA",
+      "slug": "oceanografia",
+      "name": "Oceanografia",
+      "description": "Notícias e contexto sobre oceanografia.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 191,
+      "terms": {
+        "oceanografia": 5
+      }
+    },
+    {
+      "id": "PALEONTOLOGIA",
+      "slug": "paleontologia",
+      "name": "Paleontologia",
+      "description": "Notícias e contexto sobre paleontologia.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 192,
+      "terms": {
+        "paleontologia": 5
+      }
+    },
+    {
+      "id": "CIENCIAS_DA_TERRA",
+      "slug": "ciencias-da-terra",
+      "name": "Ciências da Terra",
+      "description": "Notícias e contexto sobre ciências da terra.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 193,
+      "terms": {
+        "ciências da terra": 5
+      }
+    },
+    {
+      "id": "PESQUISA_CLINICA",
+      "slug": "pesquisa-clinica",
+      "name": "Pesquisa clínica",
+      "description": "Notícias e contexto sobre pesquisa clínica.",
+      "parent_id": "PESQUISA_MEDICA",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 194,
+      "terms": {
+        "pesquisa clínica": 5
+      }
+    },
+    {
+      "id": "NANOTECNOLOGIA",
+      "slug": "nanotecnologia",
+      "name": "Nanotecnologia",
+      "description": "Notícias e contexto sobre nanotecnologia.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 195,
+      "terms": {
+        "nanotecnologia": 5
+      }
+    },
+    {
+      "id": "METEOROLOGIA",
+      "slug": "meteorologia",
+      "name": "Meteorologia",
+      "description": "Notícias e contexto sobre meteorologia.",
+      "parent_id": "SCIENCE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 196,
+      "terms": {
+        "meteorologia": 5
+      }
+    },
+    {
+      "id": "SAUDE_MATERNA",
+      "slug": "saude-materna",
+      "name": "Saúde materna",
+      "description": "Notícias e contexto sobre saúde materna.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 197,
+      "terms": {
+        "saúde materna": 5
+      }
+    },
+    {
+      "id": "SAUDE_INFANTIL",
+      "slug": "saude-infantil",
+      "name": "Saúde infantil",
+      "description": "Notícias e contexto sobre saúde infantil.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 198,
+      "terms": {
+        "saúde infantil": 5
+      }
+    },
+    {
+      "id": "ENVELHECIMENTO",
+      "slug": "envelhecimento",
+      "name": "Envelhecimento",
+      "description": "Notícias e contexto sobre envelhecimento.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 199,
+      "terms": {
+        "envelhecimento": 5
+      }
+    },
+    {
+      "id": "TERAPIAS",
+      "slug": "terapias",
+      "name": "Terapias",
+      "description": "Notícias e contexto sobre terapias.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 200,
+      "terms": {
+        "terapias": 5
+      }
+    },
+    {
+      "id": "SAUDE_PREVENTIVA",
+      "slug": "saude-preventiva",
+      "name": "Saúde preventiva",
+      "description": "Notícias e contexto sobre saúde preventiva.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 201,
+      "terms": {
+        "saúde preventiva": 5
+      }
+    },
+    {
+      "id": "SAUDE_GLOBAL",
+      "slug": "saude-global",
+      "name": "Saúde global",
+      "description": "Notícias e contexto sobre saúde global.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 202,
+      "terms": {
+        "saúde global": 5
+      }
+    },
+    {
+      "id": "SAUDE_DIGITAL",
+      "slug": "saude-digital",
+      "name": "Saúde digital",
+      "description": "Notícias e contexto sobre saúde digital.",
+      "parent_id": "HEALTH",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 203,
+      "terms": {
+        "saúde digital": 5
+      }
+    },
+    {
+      "id": "ALIMENTACAO_SAUDAVEL",
+      "slug": "alimentacao-saudavel",
+      "name": "Alimentação saudável",
+      "description": "Notícias e contexto sobre alimentação saudável.",
+      "parent_id": "NUTRICAO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 204,
+      "terms": {
+        "alimentação saudável": 5
+      }
+    },
+    {
+      "id": "ALFABETIZACAO",
+      "slug": "alfabetizacao",
+      "name": "Alfabetização",
+      "description": "Notícias e contexto sobre alfabetização.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 205,
+      "terms": {
+        "alfabetização": 5
+      }
+    },
+    {
+      "id": "POLITICA_EDUCACIONAL",
+      "slug": "politica-educacional",
+      "name": "Política educacional",
+      "description": "Notícias e contexto sobre política educacional.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 206,
+      "terms": {
+        "política educacional": 5
+      }
+    },
+    {
+      "id": "EDUCACAO_INCLUSIVA",
+      "slug": "educacao-inclusiva",
+      "name": "Educação inclusiva",
+      "description": "Notícias e contexto sobre educação inclusiva.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 207,
+      "terms": {
+        "educação inclusiva": 5
+      }
+    },
+    {
+      "id": "BOLSAS_DE_ESTUDO",
+      "slug": "bolsas-de-estudo",
+      "name": "Bolsas de estudo",
+      "description": "Notícias e contexto sobre bolsas de estudo.",
+      "parent_id": "UNIVERSIDADES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 208,
+      "terms": {
+        "bolsas de estudo": 5
+      }
+    },
+    {
+      "id": "ENSINO_TECNICO",
+      "slug": "ensino-tecnico",
+      "name": "Ensino técnico",
+      "description": "Notícias e contexto sobre ensino técnico.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 209,
+      "terms": {
+        "ensino técnico": 5
+      }
+    },
+    {
+      "id": "MERCADO_PROFISSIONAL",
+      "slug": "mercado-profissional",
+      "name": "Mercado profissional",
+      "description": "Notícias e contexto sobre mercado profissional.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 210,
+      "terms": {
+        "mercado profissional": 5
+      }
+    },
+    {
+      "id": "DESENVOLVIMENTO_DE_CARREIRA",
+      "slug": "desenvolvimento-de-carreira",
+      "name": "Desenvolvimento de carreira",
+      "description": "Notícias e contexto sobre desenvolvimento de carreira.",
+      "parent_id": "EDUCATION",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 211,
+      "terms": {
+        "desenvolvimento de carreira": 5
+      }
+    },
+    {
+      "id": "PEQUENAS_EMPRESAS",
+      "slug": "pequenas-empresas",
+      "name": "Pequenas empresas",
+      "description": "Notícias e contexto sobre pequenas empresas.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 212,
+      "terms": {
+        "pequenas empresas": 5
+      }
+    },
+    {
+      "id": "GOVERNANCA_CORPORATIVA",
+      "slug": "governanca-corporativa",
+      "name": "Governança corporativa",
+      "description": "Notícias e contexto sobre governança corporativa.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 213,
+      "terms": {
+        "governança corporativa": 5
+      }
+    },
+    {
+      "id": "COMERCIO_ELETRONICO",
+      "slug": "comercio-eletronico",
+      "name": "Comércio eletrônico",
+      "description": "Notícias e contexto sobre comércio eletrônico.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 214,
+      "terms": {
+        "comércio eletrônico": 5
+      }
+    },
+    {
+      "id": "LOGISTICA",
+      "slug": "logistica",
+      "name": "Logística",
+      "description": "Notícias e contexto sobre logística.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 215,
+      "terms": {
+        "logística": 5
+      }
+    },
+    {
+      "id": "FRANQUIAS",
+      "slug": "franquias",
+      "name": "Franquias",
+      "description": "Notícias e contexto sobre franquias.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 216,
+      "terms": {
+        "franquias": 5
+      }
+    },
+    {
+      "id": "CAPITAL_DE_RISCO",
+      "slug": "capital-de-risco",
+      "name": "Capital de risco",
+      "description": "Notícias e contexto sobre capital de risco.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 217,
+      "terms": {
+        "capital de risco": 5
+      }
+    },
+    {
+      "id": "LIDERANCA_EMPRESARIAL",
+      "slug": "lideranca-empresarial",
+      "name": "Liderança empresarial",
+      "description": "Notícias e contexto sobre liderança empresarial.",
+      "parent_id": "BUSINESS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 218,
+      "terms": {
+        "liderança empresarial": 5
+      }
+    },
+    {
+      "id": "AMAZONIA",
+      "slug": "amazonia",
+      "name": "Amazônia",
+      "description": "Notícias e contexto sobre amazônia.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 219,
+      "terms": {
+        "amazônia": 5
+      }
+    },
+    {
+      "id": "OCEANOS",
+      "slug": "oceanos",
+      "name": "Oceanos",
+      "description": "Notícias e contexto sobre oceanos.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 220,
+      "terms": {
+        "oceanos": 5
+      }
+    },
+    {
+      "id": "RECURSOS_HIDRICOS",
+      "slug": "recursos-hidricos",
+      "name": "Recursos hídricos",
+      "description": "Notícias e contexto sobre recursos hídricos.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 221,
+      "terms": {
+        "recursos hídricos": 5
+      }
+    },
+    {
+      "id": "POLUICAO",
+      "slug": "poluicao",
+      "name": "Poluição",
+      "description": "Notícias e contexto sobre poluição.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 222,
+      "terms": {
+        "poluição": 5
+      }
+    },
+    {
+      "id": "TRANSICAO_ENERGETICA",
+      "slug": "transicao-energetica",
+      "name": "Transição energética",
+      "description": "Notícias e contexto sobre transição energética.",
+      "parent_id": "ENERGIA",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 223,
+      "terms": {
+        "transição energética": 5
+      }
+    },
+    {
+      "id": "DESASTRES_NATURAIS",
+      "slug": "desastres-naturais",
+      "name": "Desastres naturais",
+      "description": "Notícias e contexto sobre desastres naturais.",
+      "parent_id": "ENVIRONMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 224,
+      "terms": {
+        "desastres naturais": 5
+      }
+    },
+    {
+      "id": "AGRICULTURA_SUSTENTAVEL",
+      "slug": "agricultura-sustentavel",
+      "name": "Agricultura sustentável",
+      "description": "Notícias e contexto sobre agricultura sustentável.",
+      "parent_id": "AGRONEGOCIO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 225,
+      "terms": {
+        "agricultura sustentável": 5
+      }
+    },
+    {
+      "id": "SEGURANCA_ALIMENTAR",
+      "slug": "seguranca-alimentar",
+      "name": "Segurança alimentar",
+      "description": "Notícias e contexto sobre segurança alimentar.",
+      "parent_id": "AGRONEGOCIO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 226,
+      "terms": {
+        "segurança alimentar": 5
+      }
+    },
+    {
+      "id": "TRANSPORTE_PUBLICO",
+      "slug": "transporte-publico",
+      "name": "Transporte público",
+      "description": "Notícias e contexto sobre transporte público.",
+      "parent_id": "TRANSPORTES",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 227,
+      "terms": {
+        "transporte público": 5
+      }
+    },
+    {
+      "id": "DANCA",
+      "slug": "danca",
+      "name": "Dança",
+      "description": "Notícias e contexto sobre dança.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 228,
+      "terms": {
+        "dança": 5
+      }
+    },
+    {
+      "id": "TEATRO",
+      "slug": "teatro",
+      "name": "Teatro",
+      "description": "Notícias e contexto sobre teatro.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 229,
+      "terms": {
+        "teatro": 5
+      }
+    },
+    {
+      "id": "FOTOGRAFIA",
+      "slug": "fotografia",
+      "name": "Fotografia",
+      "description": "Notícias e contexto sobre fotografia.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 230,
+      "terms": {
+        "fotografia": 5
+      }
+    },
+    {
+      "id": "DESIGN",
+      "slug": "design",
+      "name": "Design",
+      "description": "Notícias e contexto sobre design.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 231,
+      "terms": {
+        "design": 5
+      }
+    },
+    {
+      "id": "QUADRINHOS",
+      "slug": "quadrinhos",
+      "name": "Quadrinhos",
+      "description": "Notícias e contexto sobre quadrinhos.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 232,
+      "terms": {
+        "quadrinhos": 5
+      }
+    },
+    {
+      "id": "CULTURA_POP",
+      "slug": "cultura-pop",
+      "name": "Cultura pop",
+      "description": "Notícias e contexto sobre cultura pop.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 233,
+      "terms": {
+        "cultura pop": 5
+      }
+    },
+    {
+      "id": "FESTIVAIS",
+      "slug": "festivais",
+      "name": "Festivais",
+      "description": "Notícias e contexto sobre festivais.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 234,
+      "terms": {
+        "festivais": 5
+      }
+    },
+    {
+      "id": "GASTRONOMIA_BRASILEIRA",
+      "slug": "gastronomia-brasileira",
+      "name": "Gastronomia brasileira",
+      "description": "Notícias e contexto sobre gastronomia brasileira.",
+      "parent_id": "TURISMO",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 235,
+      "terms": {
+        "gastronomia brasileira": 5
+      }
+    },
+    {
+      "id": "PATRIMONIO_HISTORICO",
+      "slug": "patrimonio-historico",
+      "name": "Patrimônio histórico",
+      "description": "Notícias e contexto sobre patrimônio histórico.",
+      "parent_id": "CULTURE",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 236,
+      "terms": {
+        "patrimônio histórico": 5
+      }
+    },
+    {
+      "id": "ANIMACAO",
+      "slug": "animacao",
+      "name": "Animação",
+      "description": "Notícias e contexto sobre animação.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 237,
+      "terms": {
+        "animação": 5
+      }
+    },
+    {
+      "id": "DOCUMENTARIOS",
+      "slug": "documentarios",
+      "name": "Documentários",
+      "description": "Notícias e contexto sobre documentários.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 238,
+      "terms": {
+        "documentários": 5
+      }
+    },
+    {
+      "id": "PRODUCAO_AUDIOVISUAL",
+      "slug": "producao-audiovisual",
+      "name": "Produção audiovisual",
+      "description": "Notícias e contexto sobre produção audiovisual.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 239,
+      "terms": {
+        "produção audiovisual": 5
+      }
+    },
+    {
+      "id": "INDUSTRIA_MUSICAL",
+      "slug": "industria-musical",
+      "name": "Indústria musical",
+      "description": "Notícias e contexto sobre indústria musical.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 240,
+      "terms": {
+        "indústria musical": 5
+      }
+    },
+    {
+      "id": "CULTURA_DIGITAL",
+      "slug": "cultura-digital",
+      "name": "Cultura digital",
+      "description": "Notícias e contexto sobre cultura digital.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 241,
+      "terms": {
+        "cultura digital": 5
+      }
+    },
+    {
+      "id": "PODCASTS",
+      "slug": "podcasts",
+      "name": "Podcasts",
+      "description": "Notícias e contexto sobre podcasts.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 242,
+      "terms": {
+        "podcasts": 5
+      }
+    },
+    {
+      "id": "TELEVISAO_BRASILEIRA",
+      "slug": "televisao-brasileira",
+      "name": "Televisão brasileira",
+      "description": "Notícias e contexto sobre televisão brasileira.",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 243,
+      "terms": {
+        "televisão brasileira": 5
+      }
+    },
+    {
+      "id": "SURFE",
+      "slug": "surfe",
+      "name": "Surfe",
+      "description": "Notícias e contexto sobre surfe.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 244,
+      "terms": {
+        "surfe": 5
+      }
+    },
+    {
+      "id": "LUTAS",
+      "slug": "lutas",
+      "name": "Lutas",
+      "description": "Notícias e contexto sobre lutas.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 245,
+      "terms": {
+        "lutas": 5
+      }
+    },
+    {
+      "id": "RUGBY",
+      "slug": "rugby",
+      "name": "Rugby",
+      "description": "Notícias e contexto sobre rugby.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 246,
+      "terms": {
+        "rugby": 5
+      }
+    },
+    {
+      "id": "GOLFE",
+      "slug": "golfe",
+      "name": "Golfe",
+      "description": "Notícias e contexto sobre golfe.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 247,
+      "terms": {
+        "golfe": 5
+      }
+    },
+    {
+      "id": "CICLISMO",
+      "slug": "ciclismo",
+      "name": "Ciclismo",
+      "description": "Notícias e contexto sobre ciclismo.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 248,
+      "terms": {
+        "ciclismo": 5
+      }
+    },
+    {
+      "id": "ESPORTES_ELETRONICOS",
+      "slug": "esportes-eletronicos",
+      "name": "Esportes eletrônicos",
+      "description": "Notícias e contexto sobre esportes eletrônicos.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 249,
+      "terms": {
+        "esportes eletrônicos": 5
+      }
+    },
+    {
+      "id": "FUTEBOL_FEMININO",
+      "slug": "futebol-feminino",
+      "name": "Futebol feminino",
+      "description": "Notícias e contexto sobre futebol feminino.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 250,
+      "terms": {
+        "futebol feminino": 5
+      }
+    },
+    {
+      "id": "FUTEBOL_INTERNACIONAL",
+      "slug": "futebol-internacional",
+      "name": "Futebol internacional",
+      "description": "Notícias e contexto sobre futebol internacional.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 251,
+      "terms": {
+        "futebol internacional": 5
+      }
+    },
+    {
+      "id": "CORRIDA",
+      "slug": "corrida",
+      "name": "Corrida",
+      "description": "Notícias e contexto sobre corrida.",
+      "parent_id": "SPORTS",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 252,
+      "terms": {
+        "corrida": 5
+      }
+    },
+    {
+      "id": "SOCIETY",
+      "slug": "sociedade",
+      "name": "Sociedade",
+      "description": "Direitos, migração, grupos sociais e vida coletiva.",
+      "aliases": [
+        "Society",
+        "Vida em sociedade"
+      ],
+      "active": true,
+      "display_order": 145,
+      "type": "domain",
+      "terms": {
+        "sociedade": 7,
+        "direitos humanos": 8,
+        "migração": 7,
+        "humanitário": 6
+      }
+    },
+    {
+      "id": "GENERATIVE_AI",
+      "slug": "ia-generativa",
+      "name": "IA generativa",
+      "description": "Modelos generativos, aplicações e conteúdo criado por inteligência artificial.",
+      "aliases": [
+        "Generative AI",
+        "Generative artificial intelligence"
+      ],
+      "active": true,
+      "display_order": 1001,
+      "type": "subject",
+      "parent_id": "ARTIFICIAL_INTELLIGENCE",
+      "terms": {
+        "ia generativa": 10,
+        "generative ai": 10,
+        "geração por inteligência artificial": 8
+      }
+    },
+    {
+      "id": "MACHINE_LEARNING",
+      "slug": "aprendizado-de-maquina",
+      "name": "Aprendizado de máquina",
+      "description": "Métodos e sistemas de aprendizado de máquina.",
+      "aliases": [
+        "Machine learning",
+        "ML"
+      ],
+      "active": true,
+      "display_order": 1002,
+      "type": "subject",
+      "parent_id": "ARTIFICIAL_INTELLIGENCE",
+      "terms": {
+        "aprendizado de máquina": 10,
+        "aprendizagem de máquina": 9,
+        "machine learning": 10
+      }
+    },
+    {
+      "id": "AI_REGULATION",
+      "slug": "regulacao-de-ia",
+      "name": "Regulação de IA",
+      "description": "Leis, políticas e governança da inteligência artificial.",
+      "aliases": [
+        "AI regulation",
+        "Regulação da inteligência artificial"
+      ],
+      "active": true,
+      "display_order": 1003,
+      "type": "subject",
+      "parent_id": "ARTIFICIAL_INTELLIGENCE",
+      "terms": {
+        "regulação de ia": 10,
+        "regulação da inteligência artificial": 10,
+        "ai regulation": 9
+      }
+    }
+  ]
+}

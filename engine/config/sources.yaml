@@ -1,0 +1,470 @@
+sources:
+  - id: mit_ai
+    name: MIT Technology Review AI
+    url: https://www.technologyreview.com/topic/artificial-intelligence/
+    feed_url: https://www.technologyreview.com/topic/artificial-intelligence/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology]
+    priority: 9
+    enabled: true
+  - id: google_ai
+    name: Google AI Blog
+    url: https://blog.google/technology/ai/
+    feed_url: https://blog.google/technology/ai/rss/
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology]
+    priority: 9
+    enabled: true
+  - id: openai_news
+    name: OpenAI News
+    url: https://openai.com/news/
+    feed_url: https://openai.com/news/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology]
+    priority: 9
+    enabled: true
+  - id: huggingface_blog
+    name: Hugging Face Blog
+    url: https://huggingface.co/blog
+    feed_url: https://huggingface.co/blog/feed.xml
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology]
+    priority: 8
+    enabled: true
+  - id: microsoft_ai
+    name: Microsoft Official Blog — AI
+    url: https://blogs.microsoft.com/
+    feed_url: https://blogs.microsoft.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology, business]
+    priority: 8
+    enabled: true
+  - id: nvidia_ai
+    name: NVIDIA Deep Learning Blog
+    url: https://blogs.nvidia.com/blog/category/deep-learning/
+    feed_url: https://blogs.nvidia.com/blog/category/deep-learning/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology, business]
+    priority: 8
+    enabled: true
+  - id: techcrunch_ai
+    name: TechCrunch AI
+    url: https://techcrunch.com/category/artificial-intelligence/
+    feed_url: https://techcrunch.com/category/artificial-intelligence/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology, business]
+    priority: 7
+    enabled: true
+  - id: verge_ai
+    name: The Verge AI
+    url: https://www.theverge.com/ai-artificial-intelligence
+    feed_url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    type: rss
+    language: en
+    country: US
+    categories: [artificial_intelligence, technology]
+    priority: 7
+    enabled: true
+  - id: ars_technology
+    name: Ars Technica Technology Lab
+    url: https://arstechnica.com/technology-lab/
+    feed_url: https://feeds.arstechnica.com/arstechnica/technology-lab
+    type: rss
+    language: en
+    country: US
+    categories: [technology, artificial_intelligence]
+    priority: 8
+    enabled: true
+  - id: ars_main
+    name: Ars Technica
+    url: https://arstechnica.com/
+    feed_url: https://feeds.arstechnica.com/arstechnica/index
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business]
+    priority: 8
+    enabled: true
+  - id: wired
+    name: WIRED
+    url: https://www.wired.com/
+    feed_url: https://www.wired.com/feed/rss
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business]
+    priority: 7
+    enabled: true
+  - id: engadget
+    name: Engadget
+    url: https://www.engadget.com/
+    feed_url: https://www.engadget.com/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [technology]
+    priority: 7
+    enabled: true
+  - id: cisco_newsroom
+    name: Cisco Newsroom
+    url: https://newsroom.cisco.com/
+    feed_url: https://newsroom.cisco.com/c/services/i/servlets/newsroom/rssfeed.json
+    type: rss
+    language: en
+    country: US
+    categories: [business, technology, artificial_intelligence]
+    priority: 8
+    enabled: true
+  - id: cnbc_business
+    name: CNBC Business
+    url: https://www.cnbc.com/business/
+    feed_url: https://www.cnbc.com/id/10001147/device/rss/rss.html
+    type: rss
+    language: en
+    country: US
+    categories: [business]
+    priority: 7
+    enabled: true
+  - id: cnbc_technology
+    name: CNBC Technology
+    url: https://www.cnbc.com/technology/
+    feed_url: https://www.cnbc.com/id/19854910/device/rss/rss.html
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business]
+    priority: 7
+    enabled: true
+  - id: techcrunch_startups
+    name: TechCrunch Startups
+    url: https://techcrunch.com/category/startups/
+    feed_url: https://techcrunch.com/category/startups/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [business, technology]
+    priority: 7
+    enabled: true
+  - id: microsoft_news
+    name: Microsoft News Center
+    url: https://news.microsoft.com/
+    feed_url: https://news.microsoft.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [business, technology]
+    priority: 8
+    enabled: true
+  - id: meta_newsroom
+    name: Meta Newsroom
+    url: https://about.fb.com/news/
+    feed_url: https://about.fb.com/news/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business, artificial_intelligence]
+    priority: 8
+    enabled: true
+  - id: apple_newsroom
+    name: Apple Newsroom
+    url: https://www.apple.com/newsroom/
+    feed_url: https://www.apple.com/newsroom/rss-feed.rss
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business]
+    priority: 9
+    enabled: true
+  - id: aws_news
+    name: AWS News Blog
+    url: https://aws.amazon.com/blogs/aws/
+    feed_url: https://aws.amazon.com/blogs/aws/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business, artificial_intelligence]
+    priority: 8
+    enabled: true
+  - id: agencia_brasil
+    name: Agência Brasil
+    url: https://agenciabrasil.ebc.com.br/
+    feed_url: https://agenciabrasil.ebc.com.br/rss/ultimasnoticias/feed.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, politics, economy, health, science, environment, education]
+    supported_topics: [BRAZIL, POLITICS, ECONOMY, HEALTH, SCIENCE, ENVIRONMENT, EDUCATION]
+    trust_tier: 1
+    priority: 9
+    enabled: true
+  - id: canaltech
+    name: Canaltech
+    url: https://canaltech.com.br/
+    feed_url: https://canaltech.com.br/rss/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology, artificial_intelligence, cybersecurity]
+    supported_topics: [TECHNOLOGY, ARTIFICIAL_INTELLIGENCE, CYBERSECURITY]
+    trust_tier: 2
+    priority: 8
+    enabled: true
+  - id: valor_economico
+    name: Valor Econômico
+    url: https://valor.globo.com/
+    feed_url: https://valor.globo.com/rss/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [business, economy, finance, startups]
+    supported_topics: [BUSINESS, ECONOMY, FINANCE, STARTUPS]
+    trust_tier: 1
+    priority: 9
+    enabled: true
+  - id: pesquisa_fapesp
+    name: Pesquisa FAPESP
+    url: https://revistapesquisa.fapesp.br/
+    feed_url: https://revistapesquisa.fapesp.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [science, health, environment, education]
+    supported_topics: [SCIENCE, HEALTH, ENVIRONMENT, EDUCATION]
+    trust_tier: 1
+    priority: 8
+    enabled: true
+  - id: bbc_world
+    name: BBC News World
+    url: https://www.bbc.com/news/world
+    feed_url: https://feeds.bbci.co.uk/news/world/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [world, politics, environment]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: bbc_business
+    name: BBC News Business
+    url: https://www.bbc.com/news/business
+    feed_url: https://feeds.bbci.co.uk/news/business/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [business, economy, finance]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bbc_science
+    name: BBC News Science & Environment
+    url: https://www.bbc.com/news/science_and_environment
+    feed_url: https://feeds.bbci.co.uk/news/science_and_environment/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [science, environment, health]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bbc_technology
+    name: BBC News Technology
+    url: https://www.bbc.com/news/technology
+    feed_url: https://feeds.bbci.co.uk/news/technology/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [technology, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bbc_entertainment
+    name: BBC News Entertainment & Arts
+    url: https://www.bbc.com/news/entertainment_and_arts
+    feed_url: https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [culture, entertainment]
+    priority: 7
+    trust_tier: 1
+    enabled: true
+  - id: bbc_sport
+    name: BBC Sport
+    url: https://www.bbc.com/sport
+    feed_url: https://feeds.bbci.co.uk/sport/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [sports]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: agencia_brasil_economia
+    name: Agência Brasil Economia
+    url: https://agenciabrasil.ebc.com.br/economia
+    feed_url: https://agenciabrasil.ebc.com.br/rss/economia/feed.xml
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [economy, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: agencia_brasil_cultura
+    name: Agência Brasil Cultura
+    url: https://agenciabrasil.ebc.com.br/cultura
+    feed_url: https://agenciabrasil.ebc.com.br/rss/cultura/feed.xml
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [culture, entertainment]
+    priority: 7
+    trust_tier: 1
+    enabled: true
+  - id: agencia_brasil_esportes
+    name: Agência Brasil Esportes
+    url: https://agenciabrasil.ebc.com.br/esportes
+    feed_url: https://agenciabrasil.ebc.com.br/rss/esportes/feed.xml
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [sports]
+    priority: 7
+    trust_tier: 1
+    enabled: true
+  - id: guardian_world
+    name: The Guardian World
+    url: https://www.theguardian.com/world
+    feed_url: https://www.theguardian.com/world/rss
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [world, politics, society]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: guardian_business
+    name: The Guardian Business
+    url: https://www.theguardian.com/business
+    feed_url: https://www.theguardian.com/business/rss
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [business, economy, finance]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: guardian_science
+    name: The Guardian Science
+    url: https://www.theguardian.com/science
+    feed_url: https://www.theguardian.com/science/rss
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [science, health, environment]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: guardian_technology
+    name: The Guardian Technology
+    url: https://www.theguardian.com/technology
+    feed_url: https://www.theguardian.com/technology/rss
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [technology, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: guardian_culture
+    name: The Guardian Culture
+    url: https://www.theguardian.com/culture
+    feed_url: https://www.theguardian.com/culture/rss
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [culture, entertainment]
+    priority: 7
+    trust_tier: 1
+    enabled: true
+  - id: guardian_sport
+    name: The Guardian Sport
+    url: https://www.theguardian.com/sport
+    feed_url: https://www.theguardian.com/sport/rss
+    type: rss
+    source_type: JOURNALISM
+    language: en
+    country: GB
+    region: GLOBAL
+    categories: [sports]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nasa_jpl_news
+    name: NASA Jet Propulsion Laboratory News
+    url: https://www.jpl.nasa.gov/news/
+    feed_url: https://www.jpl.nasa.gov/feeds/news/
+    type: rss
+    source_type: PRIMARY
+    language: en
+    country: US
+    region: GLOBAL
+    categories: [science, space, technology, environment]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: who_news
+    name: World Health Organization News
+    url: https://www.who.int/news
+    feed_url: https://www.who.int/rss-feeds/news-english.xml
+    type: rss
+    source_type: PRIMARY
+    language: en
+    country: CH
+    region: GLOBAL
+    categories: [health, science]
+    priority: 9
+    trust_tier: 1
+    enabled: true

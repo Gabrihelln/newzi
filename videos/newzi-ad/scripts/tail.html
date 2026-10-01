@@ -1,0 +1,87 @@
+
+</div>
+<audio id="vo1" src="audio/vo1.wav" data-start="0.35" data-track-index="10" data-volume="1"></audio>
+<audio id="vo2" src="audio/vo2.wav" data-start="5.9" data-track-index="10" data-volume="1"></audio>
+<audio id="vo3" src="audio/vo3.wav" data-start="9.7" data-track-index="10" data-volume="1"></audio>
+<audio id="vo4" src="audio/vo4.wav" data-start="16.1" data-track-index="10" data-volume="1"></audio>
+<audio id="vo5" src="audio/vo5.wav" data-start="23" data-track-index="10" data-volume="1"></audio>
+<audio id="vo6" src="audio/vo6.wav" data-start="28.7" data-track-index="10" data-volume="1"></audio>
+<audio id="bed" src="audio/bed.wav" data-start="0" data-duration="34" data-track-index="11" data-volume="0.5"></audio>
+</div>
+<script>
+(function () {
+  var DUR = 520;
+  var CH = [0, 104, 208, 312, 416];
+  var NAMES = ["Economia", "Tecnologia", "Política", "Negócios", "Ciência"];
+  function fmt(x) { x = Math.max(0, x); return Math.floor(x / 60) + ":" + String(Math.floor(x % 60)).padStart(2, "0"); }
+  function chapIdx(p) { var c = 0; for (var k = 0; k < CH.length; k++) if (p >= CH[k]) c = k; return c; }
+  function bars(host, n, hf) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var b = document.createElement("div");
+      b.style.cssText = "width:2.5px;border-radius:2px;height:" + hf(i) + "px";
+      host.parentNode.insertBefore(b, host);
+      out.push(b);
+    }
+    return out;
+  }
+  var homeBars = bars(document.getElementById("home-bars"), 34, function (i) { return 7 + ((i * 17 + i * i * 3) % 19); });
+  var plBars = bars(document.getElementById("pl-bars"), 50, function (i) { return 6 + ((i * 13 + i * i * 7) % 28); });
+  function paint(list, frac, on, off) { for (var i = 0; i < list.length; i++) list[i].style.background = i / list.length < frac ? on : off; }
+  function byId(id) { return document.getElementById(id); }
+
+  var tl = gsap.timeline({ paused: true });
+
+  // Home (scene 3 at 9s): the tap at 11.5s starts playback; the clock runs 30x
+  var home = { p: 0 };
+  tl.fromTo(home, { p: 0 }, { p: 138, duration: 4.6, ease: "none", onUpdate: function () {
+    paint(homeBars, home.p / DUR, "#087CF0", "#B9CBE3");
+    byId("home-pos").textContent = fmt(home.p);
+    var playing = home.p > 0;
+    byId("home-play").style.opacity = playing ? "0" : "1";
+    byId("home-pause").style.opacity = playing ? "1" : "0";
+  } }, 11.5);
+
+  // Player (scene 4 at 15.5s): chapters advance, speed switches to 1,25x at +2.8s
+  var pl = { p: 120 };
+  tl.fromTo(pl, { p: 120 }, { p: 351, duration: 6.6, ease: "none", onUpdate: function () {
+    paint(plBars, pl.p / DUR, "#087CF0", "#C9D7EA");
+    byId("pl-pos").textContent = fmt(pl.p);
+    byId("pl-rem").textContent = "-" + fmt(DUR - pl.p);
+    var c = chapIdx(pl.p);
+    byId("pl-chap").textContent = NAMES[c];
+    for (var i = 0; i < 5; i++) {
+      var row = byId("ch" + i), on = i === c;
+      row.style.background = on ? "#E7F2FF" : "transparent";
+      row.querySelector(".chnum").style.background = on ? "#087CF0" : "#EDF3FA";
+      row.querySelector(".chnum").style.color = on ? "#FFFFFF" : "#55719A";
+      row.querySelector(".chname").style.color = on ? "#087CF0" : "#071A42";
+      row.querySelector(".chname").style.fontWeight = on ? "800" : "600";
+      row.querySelector(".cheq").style.opacity = on ? "1" : "0";
+    }
+    var sel = pl.p > 120 + 2.8 * 35 ? 2 : 1;
+    for (var j = 0; j < 4; j++) {
+      var r = byId("sp" + j), s = j === sel;
+      r.style.background = s ? "#E7F2FF" : "transparent";
+      r.querySelector(".spv").style.color = s ? "#087CF0" : "#071A42";
+      r.querySelector(".spck").style.opacity = s ? "1" : "0";
+    }
+    byId("pl-speed").textContent = sel === 2 ? "1,25x" : "1x";
+  } }, 15.5);
+
+  // Routine (scene 5 at 21.5s): the three mini players keep advancing
+  var rt = { l: 0 };
+  tl.fromTo(rt, { l: 0 }, { l: 7.1, duration: 7.1, ease: "none", onUpdate: function () {
+    [150, 250, 330].forEach(function (base, i) {
+      var p = Math.min(DUR, base + rt.l * 18);
+      byId("r" + (i + 1) + "-label").textContent = NAMES[chapIdx(p)] + " · " + fmt(p);
+      byId("r" + (i + 1) + "-bar").style.width = (p / DUR * 100).toFixed(1) + "%";
+    });
+  } }, 21.5);
+
+  window.__timelines["main"] = tl;
+  tl.seek(0);
+})();
+</script>
+</body>
+</html>

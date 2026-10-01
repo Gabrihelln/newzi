@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080, height=1920">
+<title>Alexandre e Diógenes</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+@font-face{font-family:"Newsreader";src:url("assets/fonts/newsreader-300-normal.woff2") format("woff2");font-weight:300;font-style:normal}
+@font-face{font-family:"Newsreader";src:url("assets/fonts/newsreader-400-normal.woff2") format("woff2");font-weight:400;font-style:normal}
+@font-face{font-family:"Newsreader";src:url("assets/fonts/newsreader-300-italic.woff2") format("woff2");font-weight:300;font-style:italic}
+@font-face{font-family:"Newsreader";src:url("assets/fonts/newsreader-400-italic.woff2") format("woff2");font-weight:400;font-style:italic}
+:root{
+  --sand:#ECE1CB; --sand-hi:#F3EAD8; --stone:#D3C2A2; --stone-dk:#BCA781;
+  --olive:#7E7A56; --bronze:#A2733A; --brown:#3E2C1F; --ink:#2B2017;
+  --cloak:#6E2A22; --linen:#B8A27C; --clay:#97593A; --sun:#E8B460;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#000}
+#root{position:relative;width:100%;height:100%;overflow:hidden;background:var(--sand);font-family:"Newsreader",serif;color:var(--ink)}
+#sky{position:absolute;inset:0;background:linear-gradient(180deg,#E4D8C2 0%,#ECE1CB 45%,#DCCBAD 100%)}
+#sky-warm{position:absolute;inset:0;background:linear-gradient(180deg,#F6EDDB 0%,#F1E5CD 50%,#E2CFAC 100%);opacity:0}
+section.clip{position:absolute;left:0;top:0;width:1080px;height:1920px}
+.scene{position:absolute;inset:0;overflow:hidden}
+.cam{position:absolute;inset:0}
+
+/* type */
+.label{font-family:"Montserrat",sans-serif;font-weight:500;font-size:26px;letter-spacing:.32em;text-transform:uppercase;color:var(--brown)}
+.serif{font-weight:300;letter-spacing:-.01em;line-height:1.12}
+.quote{font-style:italic;font-weight:300;line-height:1.2;color:var(--ink)}
+.attr{font-family:"Montserrat",sans-serif;font-weight:500;font-size:24px;letter-spacing:.3em;text-transform:uppercase;color:var(--bronze)}
+.t{position:absolute;opacity:0}
+
+/* figures */
+.alex{position:absolute;width:calc(36px*var(--s));height:calc(210px*var(--s))}
+.alex .h{position:absolute;left:calc(5px*var(--s));top:0;width:calc(26px*var(--s));height:calc(26px*var(--s));border-radius:50%;background:var(--ink)}
+.alex .b{position:absolute;left:0;top:calc(32px*var(--s));width:calc(36px*var(--s));bottom:0;border-radius:calc(18px*var(--s)) calc(18px*var(--s)) calc(5px*var(--s)) calc(5px*var(--s));background:var(--cloak)}
+.alex .b::after{content:"";position:absolute;left:0;right:0;top:calc(34px*var(--s));height:calc(5px*var(--s));background:var(--bronze);opacity:.85}
+.alex.sol .h{background:var(--brown)}
+.alex.sol .b{background:#6A5440}
+.alex.sol .b::after{display:none}
+.dio{position:absolute;width:calc(220px*var(--s));height:calc(40px*var(--s))}
+.dio .h{position:absolute;left:0;top:calc(6px*var(--s));width:calc(30px*var(--s));height:calc(30px*var(--s));border-radius:50%;background:#5C4734}
+.dio .b{position:absolute;left:calc(36px*var(--s));right:0;top:calc(10px*var(--s));height:calc(28px*var(--s));border-radius:calc(14px*var(--s));background:var(--linen)}
+.dio-sit{position:absolute;width:calc(60px*var(--s));height:calc(118px*var(--s))}
+.dio-sit .h{position:absolute;left:calc(14px*var(--s));top:0;width:calc(30px*var(--s));height:calc(30px*var(--s));border-radius:50%;background:#5C4734}
+.dio-sit .b{position:absolute;left:0;top:calc(36px*var(--s));width:calc(60px*var(--s));bottom:0;border-radius:calc(30px*var(--s)) calc(30px*var(--s)) calc(8px*var(--s)) calc(8px*var(--s));background:var(--linen)}
+.cup{position:absolute;width:26px;height:30px;background:var(--clay);clip-path:polygon(0 0,100% 0,82% 100%,18% 100%);border-radius:2px}
+.sun{position:absolute;border-radius:50%;background:radial-gradient(circle,#F2CB7E 0%,var(--sun) 58%,#DDA24E 100%)}
+.glow{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(240,196,110,.55) 0%,rgba(240,196,110,.18) 40%,rgba(240,196,110,0) 70%)}
+.ground{position:absolute;height:2px;background:var(--brown);opacity:.55}
+.strike{position:absolute;left:-6px;right:-6px;top:54%;height:3px;background:var(--bronze)}
+.dust{position:absolute;width:5px;height:5px;border-radius:50%;background:#FFF1CF}
+
+/* persistent timeline rail */
+#rail{position:absolute;left:0;top:0;width:150px;height:1920px}
+#rail-line{position:absolute;left:84px;top:330px;width:2px;height:1160px;background:var(--brown);opacity:.35}
+.tick{position:absolute;left:44px;width:52px;height:30px;display:flex;align-items:center;justify-content:flex-start}
+.tick span{font-family:"Newsreader",serif;font-size:22px;font-weight:400;color:var(--brown);opacity:.82;width:28px;text-align:right}
+.tick i{display:block;width:10px;height:2px;background:var(--brown);opacity:.45;margin-left:6px}
+#rail-dot{position:absolute;left:78px;top:0;width:14px;height:14px;border-radius:50%;background:var(--bronze)}
+#place{position:absolute;left:150px;right:80px;top:200px;text-align:center}
+
+#grain-overlay{position:absolute;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+@keyframes hf-grain-noise{0%,100%{transform:translate(0,0)}10%{transform:translate(-5%,-5%)}20%{transform:translate(-10%,5%)}30%{transform:translate(5%,-10%)}40%{transform:translate(-5%,15%)}50%{transform:translate(-10%,5%)}60%{transform:translate(15%,0)}70%{transform:translate(0,10%)}80%{transform:translate(-15%,0)}90%{transform:translate(10%,5%)}}
+#grain-overlay .grain-texture{position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");opacity:.11;mix-blend-mode:multiply;animation:hf-grain-noise .5s steps(1) 180}
+#vignette{position:absolute;inset:0;pointer-events:none;z-index:99;background:radial-gradient(ellipse 80% 62% at 50% 46%,rgba(0,0,0,0) 55%,rgba(62,44,31,.32) 100%)}
+#black{position:absolute;inset:0;background:#000;opacity:0;z-index:101}
+</style>
+</head>
+<body>
+<div data-hf-id="hf-orkk" id="root" data-composition-id="main" data-start="0" data-duration="87.5" data-width="1080" data-height="1920">
+  <div data-hf-id="hf-f7j0" id="sky"></div>
+  <div data-hf-id="hf-yvnu" id="sky-warm"></div>
+
+  <!-- I — O homem poderoso -->
+  <section data-hf-id="hf-l82a" id="s1" class="clip" data-start="0" data-duration="16.4" data-track-index="1">
+    <div data-hf-id="hf-t6fx" class="scene" id="s1-sc"><div data-hf-id="hf-7pow" class="cam" data-layout-allow-overflow="" id="s1-cam">
+      <svg data-hf-id="hf-ugn5" class="t" id="s1-mtn" style="left:150px;top:1080px;opacity:0" width="900" height="170" viewBox="0 0 900 170"><path data-hf-id="hf-p1bl" d="M0 170 L120 92 L210 128 L340 40 L470 118 L560 84 L700 140 L790 100 L900 150 L900 170 Z" fill="#7E7A56" opacity=".28" /></svg>
+      <div data-hf-id="hf-23mi" class="t" id="s1-entab" style="left:170px;top:520px;width:800px;height:26px;background:var(--stone-dk)"></div>
+      <div data-hf-id="hf-xgkw" class="t" id="s1-entab2" style="left:190px;top:550px;width:760px;height:8px;background:var(--stone-dk);opacity:0"></div>
+      <div data-hf-id="hf-55v3" class="t s1-col" style="left:200px;top:566px;width:52px;height:674px;background:linear-gradient(90deg,#CDBB98,#DCCDAF 45%,#C3AF8A)"></div>
+      <div data-hf-id="hf-uzi3" class="t s1-col" style="left:378px;top:566px;width:52px;height:674px;background:linear-gradient(90deg,#CDBB98,#DCCDAF 45%,#C3AF8A)"></div>
+      <div data-hf-id="hf-fva9" class="t s1-col" style="left:714px;top:566px;width:52px;height:674px;background:linear-gradient(90deg,#CDBB98,#DCCDAF 45%,#C3AF8A)"></div>
+      <div data-hf-id="hf-uizg" class="t s1-col" style="left:892px;top:566px;width:52px;height:674px;background:linear-gradient(90deg,#CDBB98,#DCCDAF 45%,#C3AF8A)"></div>
+      <div data-hf-id="hf-ktq8" class="ground t" id="s1-ground" style="left:150px;top:1240px;width:880px"></div>
+      <div data-hf-id="hf-fzkx" class="alex sol t" id="s1-sol1" style="--s:.55;left:0;top:1124px"><div data-hf-id="hf-kj5c" class="h"></div><div data-hf-id="hf-goiq" class="b"></div></div>
+      <div data-hf-id="hf-xu7a" class="alex sol t" id="s1-sol2" style="--s:.55;left:0;top:1124px"><div data-hf-id="hf-3gso" class="h"></div><div data-hf-id="hf-ys5i" class="b"></div></div>
+      <div data-hf-id="hf-xje3" class="alex t" id="s1-alex" style="--s:.72;left:0;top:1089px"><div data-hf-id="hf-29vl" class="h"></div><div data-hf-id="hf-z6gj" class="b"></div></div>
+    </div>
+      <div data-hf-id="hf-tvf9" class="t label" id="s1-when" style="left:150px;width:850px;top:330px;text-align:center">Há mais de dois mil anos</div>
+      <div data-hf-id="hf-sc9y" class="t serif" id="s1-name" style="left:150px;width:850px;top:390px;text-align:center;font-size:92px">Alexandre, o Grande</div>
+      <div data-hf-id="hf-zqqa" class="t serif s1-line" style="left:150px;width:850px;top:1300px;text-align:center;font-size:38px;color:var(--brown)">Rei da Macedônia</div>
+      <div data-hf-id="hf-ee5z" class="t serif s1-line" style="left:150px;width:850px;top:1356px;text-align:center;font-size:38px;color:var(--brown)">conquistador de impérios</div>
+      <div data-hf-id="hf-ytgu" class="t serif s1-line" style="left:150px;width:850px;top:1412px;text-align:center;font-size:38px;color:var(--brown)">senhor de milhares de soldados</div>
+    </div>
+  </section>
+
+  <!-- II — O homem que não possuía nada -->
+  <section data-hf-id="hf-zbb8" id="s2" class="clip" data-start="15.6" data-duration="10.8" data-track-index="2">
+    <div data-hf-id="hf-6vow" class="scene" id="s2-sc"><div data-hf-id="hf-74hf" class="cam" data-layout-allow-overflow="" id="s2-cam">
+      <div data-hf-id="hf-9l68" class="glow t" id="s2-glow" style="left:600px;top:240px;width:440px;height:440px"></div>
+      <div data-hf-id="hf-1jjy" class="sun t" id="s2-sun" style="left:755px;top:395px;width:130px;height:130px"></div>
+      <div data-hf-id="hf-jpz7" class="t" id="s2-wall" style="left:520px;top:1150px;width:480px;height:90px;background:var(--stone);border-top:3px solid var(--stone-dk)"></div>
+      <div data-hf-id="hf-x7j5" class="t" id="s2-wall-j" style="left:520px;top:1150px;width:480px;height:90px;background:repeating-linear-gradient(90deg,rgba(0,0,0,0) 0 118px,rgba(62,44,31,.18) 118px 120px)"></div>
+      <div data-hf-id="hf-ridx" class="ground t" id="s2-ground" style="left:150px;top:1240px;width:880px"></div>
+      <div data-hf-id="hf-xb64" class="glow t" id="s2-warm" style="left:540px;top:1080px;width:300px;height:300px"></div>
+      <div data-hf-id="hf-p963" class="dio t" id="s2-dio" style="--s:1;left:600px;top:1200px"><div data-hf-id="hf-2o6m" class="h"></div><div data-hf-id="hf-zkrk" class="b"></div></div>
+      <div data-hf-id="hf-flhz" class="cup t" id="s2-cup" style="left:860px;top:1210px"></div>
+    </div>
+      <div data-hf-id="hf-709e" class="t serif" id="s2-name" style="left:160px;top:470px;font-size:120px">Diógenes</div>
+      <div data-hf-id="hf-bmgj" class="t label" id="s2-from" style="left:166px;top:620px">de Sínope</div>
+      <div data-hf-id="hf-abf8" class="t serif s2-w" style="left:166px;top:760px;font-size:50px;color:var(--brown)"><span data-hf-id="hf-b71l" style="position:relative">riquezas<span data-hf-id="hf-2svb" class="strike"></span></span></div>
+      <div data-hf-id="hf-4l58" class="t serif s2-w" style="left:166px;top:830px;font-size:50px;color:var(--brown)"><span data-hf-id="hf-wydx" style="position:relative">títulos<span data-hf-id="hf-tt8n" class="strike"></span></span></div>
+      <div data-hf-id="hf-q3rw" class="t serif s2-w" style="left:166px;top:900px;font-size:50px;color:var(--brown)"><span data-hf-id="hf-io0q" style="position:relative">o desnecessário<span data-hf-id="hf-texm" class="strike"></span></span></div>
+    </div>
+  </section>
+
+  <!-- III — O encontro -->
+  <section data-hf-id="hf-6pbq" id="s3" class="clip" data-start="25.6" data-duration="11.2" data-track-index="3">
+    <div data-hf-id="hf-bhg7" class="scene" id="s3-sc"><div data-hf-id="hf-1ku2" class="cam" data-layout-allow-overflow="" id="s3-cam">
+      <div data-hf-id="hf-9rqi" class="glow t" id="s3-glow" style="left:150px;top:810px;width:340px;height:340px"></div>
+      <div data-hf-id="hf-h982" class="sun t" id="s3-sun" style="left:265px;top:925px;width:110px;height:110px"></div>
+      <div data-hf-id="hf-x7ga" class="ground t" id="s3-ground" style="left:150px;top:1240px;width:880px"></div>
+      <div data-hf-id="hf-ug7z" class="t" id="s3-shadow" style="left:370px;top:1236px;width:470px;height:12px;background:linear-gradient(90deg,rgba(43,32,23,.55),rgba(43,32,23,.25));border-radius:6px;transform-origin:0 50%"></div>
+      <div data-hf-id="hf-conz" class="alex t" id="s3-alex" style="--s:1.05;left:0;top:1020px"><div data-hf-id="hf-1h9j" class="h"></div><div data-hf-id="hf-wsmd" class="b"></div></div>
+      <div data-hf-id="hf-qj59" class="dio t" id="s3-dio" style="--s:.95;left:640px;top:1202px"><div data-hf-id="hf-1vkk" class="h"></div><div data-hf-id="hf-x6xe" class="b"></div></div>
+      <div data-hf-id="hf-vxp3" class="cup t" id="s3-cup" style="left:878px;top:1210px"></div>
+    </div>
+      <div data-hf-id="hf-p9uc" class="t quote" id="s3-q" style="left:170px;width:820px;top:440px;font-size:66px;text-align:center">“Eu sou Alexandre. Peça o que quiser, e eu lhe darei.”</div>
+      <div data-hf-id="hf-r77r" class="t attr" id="s3-a" style="left:170px;width:820px;top:720px;text-align:center">— Alexandre</div>
+    </div>
+  </section>
+
+  <!-- IV — A oferta -->
+  <section data-hf-id="hf-xla3" id="s4" class="clip" data-start="36.3" data-duration="13" data-track-index="4">
+    <div data-hf-id="hf-b5qi" class="scene" id="s4-sc"><div data-hf-id="hf-sgz1" class="cam" data-layout-allow-overflow="" id="s4-cam">
+      <div data-hf-id="hf-5l4y" class="alex t" id="s4-alex" style="--s:3.4;left:820px;top:820px"><div data-hf-id="hf-wmod" class="h"></div><div data-hf-id="hf-xl8f" class="b"></div></div>
+      <svg data-hf-id="hf-mfii" class="t" id="s4-gaze" style="left:300px;top:930px" width="560" height="320" viewBox="0 0 560 320"><path data-hf-id="hf-vcnh" id="s4-gaze-p" d="M10 310 L540 10" stroke="#A2733A" stroke-width="2" stroke-dasharray="6 10" fill="none" /></svg>
+      <div data-hf-id="hf-hk41" class="dio-sit t" id="s4-dio" style="--s:1.2;left:250px;top:1112px"><div data-hf-id="hf-12yi" class="h"></div><div data-hf-id="hf-xzjg" class="b"></div></div>
+      <div data-hf-id="hf-qcmg" class="ground t" id="s4-ground" style="left:150px;top:1254px;width:880px"></div>
+    </div>
+      <div data-hf-id="hf-vd58" class="t" id="s4-offer-line" style="left:200px;top:520px;width:560px;height:2px;background:var(--brown);opacity:.4;transform-origin:0 50%"></div>
+      <div data-hf-id="hf-522k" class="t s4-of" style="left:200px;top:470px;width:120px;text-align:center"><div data-hf-id="hf-9hm3" style="width:14px;height:14px;border-radius:50%;background:var(--bronze);margin:43px auto 22px"></div><div data-hf-id="hf-mfy1" class="serif" style="font-size:40px">ouro</div></div>
+      <div data-hf-id="hf-4mz8" class="t s4-of" style="left:420px;top:470px;width:120px;text-align:center"><div data-hf-id="hf-s4pi" style="width:14px;height:14px;border-radius:50%;background:var(--olive);margin:43px auto 22px"></div><div data-hf-id="hf-q3b1" class="serif" style="font-size:40px">terras</div></div>
+      <div data-hf-id="hf-4dys" class="t s4-of" style="left:640px;top:470px;width:120px;text-align:center"><div data-hf-id="hf-rf8t" style="width:14px;height:14px;border-radius:50%;background:var(--cloak);margin:43px auto 22px"></div><div data-hf-id="hf-qpgu" class="serif" style="font-size:40px">poder</div></div>
+      <div data-hf-id="hf-44t8" class="t quote" id="s4-q" style="left:170px;width:820px;top:420px;font-size:64px;text-align:center">“Sim. Há uma coisa que você pode fazer por mim.”</div>
+      <div data-hf-id="hf-ovkw" class="t attr" id="s4-a" style="left:170px;width:820px;top:630px;text-align:center">— Diógenes</div>
+      <div data-hf-id="hf-n601" class="t" id="s4-wait" style="left:170px;width:820px;top:740px;display:flex;justify-content:center;gap:26px">
+        <div data-hf-id="hf-31qg" class="s4-dot" style="width:12px;height:12px;border-radius:50%;background:var(--brown);opacity:0"></div>
+        <div data-hf-id="hf-d728" class="s4-dot" style="width:12px;height:12px;border-radius:50%;background:var(--brown);opacity:0"></div>
+        <div data-hf-id="hf-c055" class="s4-dot" style="width:12px;height:12px;border-radius:50%;background:var(--brown);opacity:0"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- V — Saia da frente do meu sol -->
+  <section data-hf-id="hf-be25" id="s5" class="clip" data-start="48.7" data-duration="6.9" data-track-index="5">
+    <div data-hf-id="hf-mks1" class="scene" id="s5-sc"><div data-hf-id="hf-o5g4" class="cam" data-layout-allow-overflow="" id="s5-cam">
+      <div data-hf-id="hf-pduu" class="glow t" id="s5-glow" style="left:90px;top:330px;width:420px;height:420px"></div>
+      <div data-hf-id="hf-nx5t" class="sun t" id="s5-sun" style="left:220px;top:460px;width:160px;height:160px"></div>
+      <div data-hf-id="hf-tb6r" class="t" id="s5-beam" style="left:0;top:0;width:1080px;height:1920px;background:linear-gradient(152deg,rgba(246,212,140,0) 18%,rgba(246,212,140,.55) 40%,rgba(246,212,140,.35) 70%,rgba(246,212,140,0) 82%);clip-path:polygon(250px 520px,350px 560px,840px 1300px,630px 1300px)"></div>
+      <div data-hf-id="hf-imyp" class="t" id="s5-dustbox" style="left:0;top:0;width:1080px;height:1920px"></div>
+      <div data-hf-id="hf-rxnl" class="ground t" id="s5-ground" style="left:150px;top:1300px;width:880px"></div>
+      <div data-hf-id="hf-wv9k" class="t" id="s5-shadow" style="left:600px;top:1230px;width:280px;height:76px;background:linear-gradient(90deg,rgba(43,32,23,.3),rgba(43,32,23,.1));filter:blur(10px);border-radius:10px"></div>
+      <div data-hf-id="hf-nomw" class="glow t" id="s5-warm" style="left:520px;top:1120px;width:300px;height:300px"></div>
+      <div data-hf-id="hf-il9i" class="dio t" id="s5-dio" style="--s:1;left:640px;top:1260px"><div data-hf-id="hf-68xv" class="h"></div><div data-hf-id="hf-v7e9" class="b"></div></div>
+      <div data-hf-id="hf-j9fo" class="t" id="s5-hand" style="left:660px;top:1210px;width:4px;height:44px;background:#5C4734;border-radius:2px;transform-origin:50% 100%"></div>
+      <div data-hf-id="hf-4eiy" class="alex t" id="s5-alex" style="--s:1.2;left:0;top:1048px"><div data-hf-id="hf-6n8w" class="h"></div><div data-hf-id="hf-vlpa" class="b"></div></div>
+    </div>
+      <div data-hf-id="hf-x22e" class="t serif" id="s5-q" style="left:170px;width:830px;top:760px;font-size:84px;text-align:right;font-style:italic">Saia da frente do meu sol.</div>
+    </div>
+  </section>
+
+  <!-- VI — Poder sem controle -->
+  <section data-hf-id="hf-x616" id="s6" class="clip" data-start="54.9" data-duration="15.1" data-track-index="6">
+    <div data-hf-id="hf-gwbo" class="scene" id="s6-sc"><div data-hf-id="hf-pcfr" class="cam" data-layout-allow-overflow="" id="s6-cam">
+      <div data-hf-id="hf-ysmy" class="alex sol t" id="s6-sol1" style="--s:.45;left:880px;top:1150px;filter:blur(5px)"><div data-hf-id="hf-n4h4" class="h"></div><div data-hf-id="hf-wao2" class="b"></div></div>
+      <div data-hf-id="hf-ggv3" class="alex sol t" id="s6-sol2" style="--s:.45;left:930px;top:1150px;filter:blur(5px)"><div data-hf-id="hf-mq63" class="h"></div><div data-hf-id="hf-vwd1" class="b"></div></div>
+      <div data-hf-id="hf-tr4s" class="ground t" id="s6-ground" style="left:150px;top:1245px;width:880px"></div>
+      <div data-hf-id="hf-gd4d" class="glow t" id="s6-warm" style="left:220px;top:1080px;width:300px;height:300px"></div>
+      <div data-hf-id="hf-hyq9" class="dio t" id="s6-dio" style="--s:.8;left:270px;top:1213px"><div data-hf-id="hf-mbv2" class="h"></div><div data-hf-id="hf-x3a4" class="b"></div></div>
+      <div data-hf-id="hf-ja4t" class="t" id="s6-time" style="left:540px;top:330px;width:2px;height:820px;background:var(--brown);opacity:.4;transform-origin:50% 0"></div>
+    </div>
+      <div data-hf-id="hf-mkc1" class="t label" id="s6-silence" style="left:150px;width:850px;top:250px;text-align:center">silêncio</div>
+      <div data-hf-id="hf-lwd1" class="t serif s6-w" style="left:170px;width:820px;top:470px;font-size:50px;text-align:center;color:var(--brown)"><span data-hf-id="hf-7ih1" style="position:relative">dinheiro<span data-hf-id="hf-t0ml" class="strike"></span></span></div>
+      <div data-hf-id="hf-iwqt" class="t serif s6-w" style="left:170px;width:820px;top:540px;font-size:50px;text-align:center;color:var(--brown)"><span data-hf-id="hf-hdf6" style="position:relative">terras<span data-hf-id="hf-vsrs" class="strike"></span></span></div>
+      <div data-hf-id="hf-49q5" class="t serif s6-w" style="left:170px;width:820px;top:610px;font-size:50px;text-align:center;color:var(--brown)"><span data-hf-id="hf-c7pm" style="position:relative">influência<span data-hf-id="hf-vegr" class="strike"></span></span></div>
+      <div data-hf-id="hf-h3i1" class="t serif" id="s6-l1" style="left:170px;width:820px;top:470px;font-size:66px;text-align:center">Quem não deseja o que você possui…</div>
+      <div data-hf-id="hf-6gqk" class="t quote" id="s6-l2" style="left:170px;width:820px;top:660px;font-size:66px;text-align:center;color:var(--bronze);font-weight:400">não pode ser controlado por você.</div>
+    </div>
+  </section>
+
+  <!-- VII — A realização -->
+  <section data-hf-id="hf-yk0j" id="s7" class="clip" data-start="69.3" data-duration="9.3" data-track-index="7">
+    <div data-hf-id="hf-5isr" class="scene" id="s7-sc"><div data-hf-id="hf-jz26" class="cam" data-layout-allow-overflow="" id="s7-cam">
+      <svg data-hf-id="hf-4en2" class="t" id="s7-mtn" style="left:-200px;top:1040px" width="1480" height="200" viewBox="0 0 1480 200"><path data-hf-id="hf-tzal" d="M0 200 L160 110 L300 150 L470 60 L640 140 L780 96 L960 160 L1100 80 L1260 140 L1480 120 L1480 200 Z" fill="#7E7A56" opacity=".25" /></svg>
+      <div data-hf-id="hf-1vsh" class="ground t" id="s7-ground" data-layout-allow-overflow="" style="left:-200px;top:1240px;width:1480px"></div>
+      <div data-hf-id="hf-2b7b" class="glow t" id="s7-warm" style="left:600px;top:1090px;width:300px;height:300px"></div>
+      <div data-hf-id="hf-gebj" class="dio t" id="s7-dio" style="--s:.8;left:660px;top:1208px"><div data-hf-id="hf-lxk1" class="h"></div><div data-hf-id="hf-woz3" class="b"></div></div>
+      <div data-hf-id="hf-1628" class="alex t" id="s7-alex" style="--s:.8;left:0;top:1072px"><div data-hf-id="hf-lj90" class="h"></div><div data-hf-id="hf-xvw6" class="b"></div></div>
+    </div>
+      <div data-hf-id="hf-vajr" class="t quote" id="s7-q" style="left:170px;width:820px;top:440px;font-size:66px;text-align:center">“Se eu não fosse Alexandre… gostaria de ser Diógenes.”</div>
+      <div data-hf-id="hf-dgh7" class="t attr" id="s7-a" style="left:170px;width:820px;top:720px;text-align:center">— Alexandre</div>
+    </div>
+  </section>
+
+  <!-- VIII — Final -->
+  <section data-hf-id="hf-1a8p" id="s8" class="clip" data-start="77.9" data-duration="9.6" data-track-index="8">
+    <div data-hf-id="hf-aaji" class="scene" id="s8-sc"><div data-hf-id="hf-u4sx" class="cam" data-layout-allow-overflow="" id="s8-cam">
+      <div data-hf-id="hf-twca" class="glow t" id="s8-glow" style="left:670px;top:180px;width:300px;height:300px"></div>
+      <div data-hf-id="hf-7aqg" class="sun t" id="s8-sun" style="left:775px;top:285px;width:90px;height:90px"></div>
+      <div data-hf-id="hf-h5rz" class="ground t" id="s8-ground" style="left:150px;top:1420px;width:880px"></div>
+      <div data-hf-id="hf-8bqe" class="glow t" id="s8-warm" style="left:440px;top:1250px;width:260px;height:260px"></div>
+      <div data-hf-id="hf-2fyn" class="dio-sit t" id="s8-dio" style="--s:.8;left:546px;top:1326px"><div data-hf-id="hf-l4xz" class="h"></div><div data-hf-id="hf-xhl5" class="b"></div></div>
+      <div data-hf-id="hf-7q30" class="cup t" id="s8-cup" style="left:620px;top:1394px;width:18px;height:22px"></div>
+    </div>
+      <div data-hf-id="hf-vldr" class="t serif" id="s8-l1" style="left:170px;width:820px;top:600px;font-size:52px;text-align:center;color:var(--brown)">Às vezes, o homem mais livre não é aquele que possui tudo.</div>
+      <div data-hf-id="hf-fmvj" class="t quote" id="s8-l2" style="left:170px;width:820px;top:800px;font-size:70px;text-align:center;font-weight:400">É aquele que precisa de quase nada.</div>
+    </div>
+  </section>
+
+  <!-- persistent timeline rail -->
+  <div data-hf-id="hf-gvf1" id="rail">
+    <div data-hf-id="hf-kcsc" id="rail-line"></div>
+    <div data-hf-id="hf-qj5q" class="tick" style="top:330px"><span data-hf-id="hf-jlq0">I</span><i data-hf-id="hf-wt6k"></i></div>
+    <div data-hf-id="hf-b8n6" class="tick" style="top:495px"><span data-hf-id="hf-910j">II</span><i data-hf-id="hf-zeb8"></i></div>
+    <div data-hf-id="hf-te3o" class="tick" style="top:660px"><span data-hf-id="hf-125a">III</span><i data-hf-id="hf-y7e5"></i></div>
+    <div data-hf-id="hf-42ir" class="tick" style="top:825px"><span data-hf-id="hf-a7xm">IV</span><i data-hf-id="hf-ylp6"></i></div>
+    <div data-hf-id="hf-ei9y" class="tick" style="top:990px"><span data-hf-id="hf-dn4l">V</span><i data-hf-id="hf-0l8b"></i></div>
+    <div data-hf-id="hf-qab0" class="tick" style="top:1155px"><span data-hf-id="hf-azv8">VI</span><i data-hf-id="hf-0zjc"></i></div>
+    <div data-hf-id="hf-t33i" class="tick" style="top:1320px"><span data-hf-id="hf-fgiv">VII</span><i data-hf-id="hf-zsm9"></i></div>
+    <div data-hf-id="hf-4ihu" class="tick" style="top:1485px"><span data-hf-id="hf-mvze">VIII</span><i data-hf-id="hf-06xa"></i></div>
+    <div data-hf-id="hf-29o7" id="rail-dot"></div>
+  </div>
+  <div data-hf-id="hf-kf9v" id="place" class="label" style="opacity:0;font-size:22px">Corinto · 336 a.C.</div>
+
+  <div data-hf-id="hf-h7i3" id="vignette"></div>
+  <div data-hf-id="hf-mkrp" id="grain-overlay"><div data-hf-id="hf-0qtj" class="grain-texture"></div></div>
+  <div data-hf-id="hf-t94y" id="black"></div>
+
+  <audio data-hf-id="hf-47n7" id="vo01" src="audio/vo01.wav" data-start="0.8" data-duration="6.84" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-sbw5" id="vo02" src="audio/vo02.wav" data-start="8.35" data-duration="1.49" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-qmcz" id="vo03" src="audio/vo03.wav" data-start="10.55" data-duration="4.43" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-ntb8" id="vo04" src="audio/vo04.wav" data-start="16.2" data-duration="2.35" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-xxr1" id="vo05" src="audio/vo05.wav" data-start="19.25" data-duration="5.6" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-e6yn" id="vo06" src="audio/vo06.wav" data-start="26.1" data-duration="3.44" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-ik2d" id="vo07" src="audio/vo07.wav" data-start="30.15" data-duration="1.71" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-ihlw" id="vo08" src="audio/vo08.wav" data-start="32.4" data-duration="3.29" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-prhp" id="vo09" src="audio/vo09.wav" data-start="36.8" data-duration="4.3" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-zfo8" id="vo10" src="audio/vo10.wav" data-start="41.6" data-duration="0.71" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-eeow" id="vo11" src="audio/vo11.wav" data-start="42.7" data-duration="3.16" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-zoil" id="vo12" src="audio/vo12.wav" data-start="46.9" data-duration="1.13" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-vrt3" id="vo13" src="audio/vo13.wav" data-start="49.3" data-duration="1.45" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-4e6l" id="vo14" src="audio/vo14.wav" data-start="51.3" data-duration="1.4" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-0cgb" id="vo15" src="audio/vo15.wav" data-start="55.2" data-duration="2.11" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-ljsq" id="vo16" src="audio/vo16.wav" data-start="58.2" data-duration="4.84" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-obwl" id="vo17" src="audio/vo17.wav" data-start="63.7" data-duration="2.24" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-f6tw" id="vo18" src="audio/vo18.wav" data-start="66.7" data-duration="1.72" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-1k5r" id="vo19" src="audio/vo19.wav" data-start="69.8" data-duration="2.56" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-72b2" id="vo20" src="audio/vo20.wav" data-start="73.1" data-duration="3.67" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-8unx" id="vo21" src="audio/vo21.wav" data-start="78.4" data-duration="3.57" data-track-index="20" data-volume="1"></audio>
+  <audio data-hf-id="hf-01m3" id="vo22" src="audio/vo22.wav" data-start="82.8" data-duration="2.35" data-track-index="20" data-volume="1"></audio>
+</div>
+
+<script>
+(function () {
+  var $ = function (s) { return document.querySelector(s); };
+  var $$ = function (s) { return document.querySelectorAll(s); };
+
+  // dust motes for the sunbeam, deterministic positions along the beam
+  var box = $("#s5-dustbox");
+  for (var i = 0; i < 26; i++) {
+    var f = (i * 0.618) % 1, g = (i * 0.377 + 0.13) % 1;
+    var x = 300 + f * 470 + (g - 0.5) * 90, y = 560 + f * 700;
+    var d = document.createElement("div");
+    d.className = "dust";
+    d.style.left = x.toFixed(0) + "px";
+    d.style.top = y.toFixed(0) + "px";
+    d.style.opacity = (0.35 + g * 0.5).toFixed(2);
+    box.appendChild(d);
+  }
+
+  var tl = gsap.timeline({ paused: true });
+  var slow = "sine.inOut";
+  function fin(t, sel, at, dur, y) {
+    tl.fromTo(sel, { opacity: 0, y: y == null ? 14 : y }, { opacity: 1, y: 0, duration: dur || 1.2, ease: "power2.out" }, at);
+  }
+  function fout(sel, at, dur) { tl.to(sel, { opacity: 0, duration: dur || 0.8, ease: "power1.in" }, at); }
+  function scene(id, start, end) {
+    tl.fromTo(id + "-sc", { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "none" }, start);
+    tl.to(id + "-sc", { opacity: 0, duration: 0.6, ease: "none" }, end - 0.6);
+  }
+
+  // ── persistent: rail, place, sky ──
+  tl.fromTo("#rail-line", { scaleY: 0, transformOrigin: "50% 0" }, { scaleY: 1, duration: 2.4, ease: "power2.inOut" }, 0.3);
+  tl.fromTo(".tick", { opacity: 0 }, { opacity: 1, duration: 0.8, stagger: 0.15 }, 0.8);
+  var railY = [323, 488, 653, 818, 983, 1148, 1313, 1478];
+  var sceneAt = [0.9, 15.9, 25.9, 36.6, 49.0, 55.2, 69.6, 78.2];
+  tl.fromTo("#rail-dot", { opacity: 0, y: railY[0] }, { opacity: 1, y: railY[0], duration: 0.8 }, 0.9);
+  for (var k = 1; k < 8; k++) tl.to("#rail-dot", { y: railY[k], duration: 1.4, ease: "power2.inOut" }, sceneAt[k]);
+  var ticks = $$(".tick span");
+  for (var k = 0; k < 8; k++) {
+    tl.to(ticks[k], { opacity: 1, color: "#6F4C26", duration: 0.6 }, sceneAt[k] + (k ? 1.0 : 0));
+    if (k < 7) tl.to(ticks[k], { opacity: 0.82, color: "#3E2C1F", duration: 0.6 }, sceneAt[k + 1]);
+  }
+  tl.fromTo("#place", { opacity: 0 }, { opacity: 0.75, duration: 1.5 }, 1.2);
+  tl.to("#sky-warm", { opacity: 1, duration: 2.5, ease: slow }, 15.4);
+  tl.to("#sky-warm", { opacity: 0.6, duration: 2.0, ease: slow }, 25.4);
+  tl.to("#sky-warm", { opacity: 0.25, duration: 2.0, ease: slow }, 36.0);
+  tl.to("#sky-warm", { opacity: 1, duration: 1.2, ease: slow }, 53.0);
+  tl.to("#sky-warm", { opacity: 0.7, duration: 2.0, ease: slow }, 69.0);
+  tl.to("#sky-warm", { opacity: 1, duration: 2.0, ease: slow }, 77.6);
+
+  // ── I · the powerful man (0–16.4) ──
+  scene("#s1", 0, 16.4);
+  tl.fromTo("#s1-cam", { scale: 1 }, { scale: 1.07, duration: 16.4, ease: "none", transformOrigin: "50% 62%" }, 0);
+  fin(0, "#s1-mtn", 0.4, 3, 0);
+  fin(0, "#s1-ground", 0.4, 2, 0);
+  fin(0, "#s1-entab", 0.8, 2.4, 0);
+  fin(0, "#s1-entab2", 0.8, 2.4, 0);
+  tl.fromTo(".s1-col", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 2.4, stagger: 0.25, ease: "power2.out" }, 0.6);
+  tl.fromTo("#s1-alex", { opacity: 0 }, { opacity: 1, duration: 1.2 }, 2.0);
+  tl.fromTo("#s1-alex", { x: 250 }, { x: 600, duration: 13.4, ease: "none" }, 2.0);
+  tl.fromTo("#s1-sol1", { opacity: 0 }, { opacity: 0.6, duration: 1.2 }, 2.4);
+  tl.fromTo("#s1-sol1", { x: 150 }, { x: 470, duration: 13.0, ease: "none" }, 2.4);
+  tl.fromTo("#s1-sol2", { opacity: 0 }, { opacity: 0.6, duration: 1.2 }, 2.6);
+  tl.fromTo("#s1-sol2", { x: 110 }, { x: 425, duration: 12.8, ease: "none" }, 2.6);
+  fin(0, "#s1-when", 1.0, 1.6);
+  fout("#s1-when", 7.6, 0.8);
+  fin(0, "#s1-name", 8.3, 1.4);
+  tl.fromTo(".s1-line", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 1.0, stagger: 1.35, ease: "power2.out" }, 10.6);
+
+  // ── II · the man who owned nothing (15.6–26.4) ──
+  scene("#s2", 15.6, 26.4);
+  tl.fromTo("#s2-cam", { scale: 1 }, { scale: 1.04, duration: 10.8, ease: "none", transformOrigin: "70% 64%" }, 15.6);
+  fin(0, "#s2-glow", 15.8, 2.4, 0);
+  fin(0, "#s2-sun", 15.8, 2.0, 0);
+  fin(0, "#s2-wall", 16.0, 1.6, 0);
+  fin(0, "#s2-wall-j", 16.0, 1.6, 0);
+  fin(0, "#s2-ground", 16.0, 1.6, 0);
+  fin(0, "#s2-dio", 16.4, 1.6, 0);
+  fin(0, "#s2-cup", 16.8, 1.4, 0);
+  tl.fromTo("#s2-warm", { opacity: 0 }, { opacity: 0.9, duration: 2.4, ease: slow, yoyo: true, repeat: 2 }, 17.5);
+  fin(0, "#s2-name", 16.3, 1.4);
+  fin(0, "#s2-from", 17.0, 1.2);
+  var s2w = $$(".s2-w"), s2s = $$("#s2-sc .strike");
+  [21.2, 21.9, 23.8].forEach(function (t, i) {
+    fin(0, s2w[i], t, 0.8, 10);
+    tl.fromTo(s2s[i], { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.5, ease: "power2.inOut" }, t + 0.7);
+    tl.to(s2w[i], { opacity: 0.38, duration: 0.6 }, t + 1.1);
+  });
+
+  // ── III · the meeting (25.6–36.8) ──
+  scene("#s3", 25.6, 36.8);
+  tl.fromTo("#s3-cam", { x: 30 }, { x: -30, duration: 11.2, ease: "none" }, 25.6);
+  fin(0, "#s3-glow", 25.8, 2, 0);
+  fin(0, "#s3-sun", 25.8, 2, 0);
+  fin(0, "#s3-ground", 25.8, 1.4, 0);
+  fin(0, "#s3-dio", 25.9, 1.4, 0);
+  fin(0, "#s3-cup", 26.0, 1.4, 0);
+  tl.fromTo("#s3-alex", { opacity: 0 }, { opacity: 1, duration: 1.0 }, 27.6);
+  tl.fromTo("#s3-alex", { x: 180 }, { x: 352, duration: 2.6, ease: "power1.out" }, 27.6);
+  tl.fromTo("#s3-shadow", { opacity: 0, scaleX: 0.15, x: -172 }, { opacity: 1, scaleX: 1, x: 0, duration: 2.6, ease: "power1.out" }, 27.6);
+  fin(0, "#s3-q", 32.3, 1.4);
+  fin(0, "#s3-a", 34.6, 1.0, 0);
+
+  // ── IV · the offer (36.3–49.3) ──
+  scene("#s4", 36.3, 49.3);
+  tl.fromTo("#s4-cam", { scale: 1.03 }, { scale: 1, duration: 13, ease: "none", transformOrigin: "50% 60%" }, 36.3);
+  tl.fromTo("#s4-alex", { opacity: 0, x: 40 }, { opacity: 1, x: 0, duration: 1.6, ease: "power2.out" }, 36.5);
+  fin(0, "#s4-ground", 36.5, 1.2, 0);
+  fin(0, "#s4-dio", 37.0, 1.4, 0);
+  tl.fromTo("#s4-offer-line", { opacity: 0, scaleX: 0 }, { opacity: 0.4, scaleX: 1, duration: 1.4, ease: "power2.inOut" }, 38.6);
+  var offers = $$(".s4-of");
+  [39.6, 40.2, 40.8].forEach(function (t, i) { fin(0, offers[i], t, 0.7, 10); });
+  tl.to([".s4-of", "#s4-offer-line"], { opacity: 0, duration: 0.9 }, 41.7);
+  tl.fromTo("#s4-gaze", { opacity: 0 }, { opacity: 1, duration: 0.6 }, 41.9);
+  tl.fromTo("#s4-gaze-p", { strokeDashoffset: 0, attr: { d: "M10 310 L10 310" } }, { attr: { d: "M10 310 L540 10" }, duration: 1.4, ease: "power2.out" }, 41.9);
+  fin(0, "#s4-q", 42.7, 1.3);
+  fin(0, "#s4-a", 45.0, 1.0, 0);
+  tl.fromTo("#s4-wait", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 46.9);
+  tl.to(".s4-dot", { opacity: 0.8, duration: 0.5, stagger: 0.5 }, 46.9);
+
+  // ── V · step out of my sun (48.7–55.6) ──
+  scene("#s5", 48.7, 55.6);
+  tl.fromTo("#s5-cam", { scale: 1.02 }, { scale: 1.06, duration: 6.9, ease: "none", transformOrigin: "60% 62%" }, 48.7);
+  fin(0, "#s5-glow", 48.8, 1.5, 0);
+  fin(0, "#s5-sun", 48.8, 1.5, 0);
+  fin(0, "#s5-ground", 48.8, 1.2, 0);
+  tl.fromTo("#s5-alex", { opacity: 0, x: 548 }, { opacity: 1, x: 548, duration: 1.2 }, 48.9);
+  tl.fromTo("#s5-shadow", { opacity: 0 }, { opacity: 1, duration: 1.2 }, 48.9);
+  tl.fromTo("#s5-dio", { opacity: 0 }, { opacity: 0.75, duration: 1.2 }, 48.9);
+  tl.fromTo("#s5-hand", { opacity: 0, rotation: -70 }, { opacity: 1, rotation: -70, duration: 0.3 }, 50.0);
+  tl.to("#s5-hand", { rotation: -20, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 1 }, 50.3);
+  tl.to("#s5-hand", { opacity: 0, duration: 0.4 }, 51.4);
+  fin(0, "#s5-q", 51.4, 1.2);
+  // the step aside — the film's turn
+  tl.to("#s5-alex", { x: 380, duration: 1.0, ease: "power2.inOut" }, 52.9);
+  tl.to("#s5-shadow", { opacity: 0, x: -120, duration: 1.0, ease: "power2.inOut" }, 52.9);
+  tl.fromTo("#s5-beam", { opacity: 0 }, { opacity: 1, duration: 0.9, ease: "power2.out" }, 53.3);
+  tl.to("#s5-dio", { opacity: 1, duration: 0.8 }, 53.4);
+  tl.fromTo("#s5-warm", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 1.2, ease: "power2.out" }, 53.4);
+  tl.fromTo("#s5-dustbox", { opacity: 0, y: 0 }, { opacity: 1, y: 0, duration: 1.0 }, 53.5);
+  tl.to("#s5-dustbox .dust", { y: 30, x: 10, duration: 2.1, ease: "none", stagger: 0.02 }, 53.5);
+  tl.to("#s5-q", { opacity: 0.55, duration: 1.0 }, 53.6);
+
+  // ── VI · power without control (54.9–70.0) ──
+  scene("#s6", 54.9, 70.0);
+  tl.fromTo("#s6-cam", { scale: 1 }, { scale: 1.02, duration: 15.1, ease: "none" }, 54.9);
+  fin(0, "#s6-ground", 55.0, 1.2, 0);
+  fin(0, "#s6-dio", 55.0, 1.2, 0);
+  tl.fromTo("#s6-warm", { opacity: 0 }, { opacity: 1, duration: 3, ease: slow }, 55.2);
+  tl.fromTo(["#s6-sol1", "#s6-sol2"], { opacity: 0 }, { opacity: 0.35, duration: 2 }, 55.4);
+  fin(0, "#s6-silence", 55.4, 1.2, 0);
+  tl.fromTo("#s6-time", { opacity: 0.4, scaleY: 0 }, { opacity: 0.4, scaleY: 1, duration: 2.6, ease: "none" }, 55.3);
+  tl.to(["#s6-time", "#s6-silence"], { opacity: 0, duration: 0.8 }, 58.0);
+  var s6w = $$(".s6-w"), s6s = $$("#s6-sc .strike");
+  [60.6, 61.5, 62.5].forEach(function (t, i) {
+    fin(0, s6w[i], t, 0.7, 10);
+    tl.fromTo(s6s[i], { scaleX: 0, transformOrigin: "0 50%" }, { scaleX: 1, duration: 0.45, ease: "power2.inOut" }, t + 0.6);
+  });
+  tl.to(".s6-w", { opacity: 0, duration: 0.6 }, 63.3);
+  fin(0, "#s6-l1", 63.8, 1.3);
+  fin(0, "#s6-l2", 66.7, 1.4);
+
+  // ── VII · the realization (69.3–78.6) ──
+  scene("#s7", 69.3, 78.6);
+  tl.fromTo("#s7-cam", { scale: 1.25 }, { scale: 0.82, duration: 9.3, ease: "sine.inOut", transformOrigin: "50% 64%" }, 69.3);
+  fin(0, "#s7-mtn", 69.4, 2, 0);
+  fin(0, "#s7-ground", 69.4, 1.2, 0);
+  fin(0, "#s7-dio", 69.4, 1.2, 0);
+  tl.fromTo("#s7-warm", { opacity: 0 }, { opacity: 1, duration: 2.4, ease: slow }, 69.6);
+  tl.fromTo("#s7-alex", { opacity: 0 }, { opacity: 1, duration: 0.8 }, 69.4);
+  tl.fromTo("#s7-alex", { x: 560 }, { x: 330, duration: 4.6, ease: "sine.inOut" }, 69.8);
+  tl.fromTo("#s7-alex .h", { x: 0 }, { x: 4, duration: 0.6, ease: "sine.inOut" }, 74.5);
+  tl.to("#s7-alex .h", { x: 0, duration: 0.6, ease: "sine.inOut" }, 76.0);
+  tl.to("#s7-alex", { x: 120, opacity: 0.5, duration: 2.0, ease: "sine.in" }, 76.6);
+  fin(0, "#s7-q", 73.0, 1.4);
+  fin(0, "#s7-a", 75.6, 1.0, 0);
+
+  // ── VIII · ending (77.9–87.5) ──
+  scene("#s8", 77.9, 87.5);
+  tl.fromTo("#s8-cam", { y: 0 }, { y: -20, duration: 9.6, ease: "none" }, 77.9);
+  fin(0, "#s8-glow", 78.0, 2.4, 0);
+  fin(0, "#s8-sun", 78.0, 2.0, 0);
+  fin(0, "#s8-ground", 78.0, 1.6, 0);
+  fin(0, "#s8-dio", 78.2, 1.6, 0);
+  fin(0, "#s8-cup", 78.4, 1.6, 0);
+  tl.fromTo("#s8-warm", { opacity: 0 }, { opacity: 1, duration: 3, ease: slow }, 78.4);
+  fin(0, "#s8-l1", 78.5, 1.5);
+  fin(0, "#s8-l2", 82.9, 1.6);
+  tl.to(["#place", "#rail"], { opacity: 0, duration: 1.4 }, 84.6);
+  tl.fromTo("#black", { opacity: 0 }, { opacity: 1, duration: 1.8, ease: "power1.in" }, 85.4);
+
+  window.__timelines["main"] = tl;
+  tl.seek(0);
+})();
+</script>
+</body>
+</html>
