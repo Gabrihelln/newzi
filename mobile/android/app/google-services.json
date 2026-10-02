@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "300896912437",
+    "project_id": "newziapp",
+    "storage_bucket": "newziapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:300896912437:android:3acfc81604050d6579dd7c",
+        "android_client_info": {
+          "package_name": "com.newzi.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDYy2umBfH4JMAK9C1B4RSBbGL339eKCDU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

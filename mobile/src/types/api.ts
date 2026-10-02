@@ -1,0 +1,32 @@
+export type User = {
+  id: string;
+  email: string;
+  display_name: string;
+  created_at?: string | null;
+  language?: string;
+  timezone?: string;
+  status?: 'ACTIVE' | 'DISABLED';
+  onboarding_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+};
+
+export type Session = { token: string; expires_at: string };
+export type Topic = { id?: string; code: string; name: string; label?: string; description?: string; aliases?: string[]; depth?: number; path?: string[]; children?: string[]; parent_id?: string | null; type?: string; enabled?: boolean; order?: number; content_count?: number };
+export type ClientConfig = { supported_languages: string[]; supported_briefing_sizes: number[]; country_scopes: string[]; topics: Topic[] };
+export type Preferences = { user_id?: string; topics: string[]; content_scope?: 'selected' | 'all'; language: string; country_scope: 'LOCAL' | 'GLOBAL' | 'BOTH'; briefing_time: string; timezone: string; briefing_size: 5 | 10 | 15; audio_enabled: boolean; audio_voice_id?: string | null };
+export type AudioVoice = { id: string; name: string; description: string; language: string; gender: 'female' | 'male'; preview_url: string };
+export type AudioVoiceCatalog = { voices: AudioVoice[]; default_voice_id: string | null };
+export type Onboarding = { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; preferences: Preferences };
+export type BriefingSource = { name?: string; publisher?: string; url: string; article_id?: string; published_at?: string };
+export type BriefingItem = { id: string; position: number; headline: string; summary: string; category?: string | null; primary_taxonomy_id?: string | null; primary_taxonomy_label?: string | null; why_it_matters?: string | null; key_points: string[]; confidence?: number; evidence_quality?: string; warnings?: string[]; summary_provider?: string; sources: BriefingSource[]; published_at?: string | null; image_url?: string | null; reading_time_minutes?: number };
+export type Briefing = { id?: string; delivery_id?: string; edition_id?: string; date: string; status: 'PENDING' | 'CONTENT_READY' | 'AUDIO_QUEUED' | 'GENERATING' | 'READY' | 'FAILED'; content_status?: string; audio_status?: string; selected_voice_id?: string | null; active_voice_id?: string | null; audio_variant_id?: string | null; active_audio_variant_id?: string | null; audio_url?: string | null; script_id?: string | null; generation_stage?: string | null; generation_started_at?: string | null; generation_updated_at?: string | null; generation_error_code?: string | null; generated_at?: string | null; audio_duration_ms?: number | null; listening_progress_seconds?: number; listening_duration_seconds?: number; completed_at?: string | null; items: BriefingItem[] };
+export type BriefingHistoryPage = { items: Briefing[]; next_cursor: string | null };
+export type NotificationSettings = { notifications_enabled: boolean; daily_briefing_enabled: boolean; breaking_news_enabled: boolean; briefing_time?: string };
+export type SavedTopicSummary = { id: string; name: string; count: number; order: number };
+export type SavedArticle = BriefingItem & { saved_at?: string; reading_progress?: number; reading_updated_at?: string | null };
+export type SavedOverviewItem = { type: 'article'; saved_at: string; item: BriefingItem; reading_progress: number } | { type: 'briefing'; saved_at: string; briefing: Briefing };
+export type SavedOverview = { saved_count: number; continue_reading: SavedArticle | null; topic_summary: SavedTopicSummary[]; recent_items: SavedOverviewItem[] };
+export type SavedStoryPage = { items: SavedArticle[]; next_cursor: string | null };
+export type HomeData = { preferences: Preferences; today_briefing: Briefing; latest_briefing: Briefing | null; topics: Topic[]; latest_news: BriefingItem[]; saved_story_ids: string[] };
+export type AudioSegment = { id: string; position: number; type: 'INTRO' | 'ITEM' | 'OUTRO' | string; briefing_item_id?: string | null; script_text?: string; segment_start_ms?: number | null; segment_end_ms?: number | null };
+export type AudioMetadata = { status: 'NOT_AVAILABLE' | 'PENDING' | 'GENERATING' | 'VALIDATING' | 'READY' | 'FAILED' | 'OFFLINE'; audio_status?: string; selected_voice_id?: string | null; active_voice_id?: string | null; active_audio_variant_id?: string | null; audio_variant_id?: string | null; generation_stage?: string | null; generation_started_at?: string | null; generation_updated_at?: string | null; generation_error_code?: string | null; edition_id?: string; audio_url?: string; duration_ms?: number; audio_duration_ms?: number; size_bytes?: number; mime_type?: string; language?: string; voice?: string; resolved_voice?: string | null; provider?: string; generated_at?: string; asset_version?: string; artifact_id?: string; error_code?: string | null; script_id?: string; segments?: AudioSegment[] };
+export type ApiError = { error: { code: string; message: string; request_id?: string } };
