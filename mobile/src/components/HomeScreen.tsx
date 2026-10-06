@@ -1,20 +1,37 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { api, ClientError } from '../api/client';
-import { getAudioProgress, loadAudio, pauseAudio, playAudio, seekTo, setAudioContext, subscribeAudio, subscribeAudioContext } from '../audio/player';
+import { getAudioProgress, loadAudio, pauseAudio, playAudio, releaseAudio, sameBriefing, seekTo, setAudioContext, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
 import { colors, radius, spacing, typography } from '../theme';
 import type { Briefing, BriefingItem, HomeData, Topic, User } from '../types/api';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import { useContentRevisionTick } from '../services/contentRevision';
 import { Icon } from './Icon';
-import { ArticleImage } from './ArticleImage';
+import { ArticleImage, isCanonicalArticleImageUrl } from './ArticleImage';
 import { formatHomeDate, greetingForLocalTime, nextBriefingLabel } from '../config/dateTime';
 
 const logo = require('../../assets/onboarding/newzi-lockup-reference.png');
 const fallbackMascot = require('../../assets/onboarding/new-waving.png');
+const FEATURED_LIMIT = 3;
+const FEATURED_AUTO_SCROLL_MS = 5000;
+const FEATURED_RESUME_AFTER_TOUCH_MS = 8000;
+const hasFeaturedImage = (item: BriefingItem) => isCanonicalArticleImageUrl(item.image_url);
+/** Merge candidate lists into unique featured stories that have a linked image, preserving priority order. */
+function pickFeatured(...sources: (BriefingItem[] | undefined)[]) {
+  const seen = new Set<string>();
+  const picked: BriefingItem[] = [];
+  for (const item of sources.flatMap(source => source || [])) {
+    if (picked.length >= FEATURED_LIMIT) break;
+    if (seen.has(item.id) || !hasFeaturedImage(item)) continue;
+    seen.add(item.id);
+    picked.push(item);
+  }
+  return picked;
+}
 const initialPlayback: PlaybackState = { position: 0, duration: 0, playing: false, paused: false, ended: false, buffering: false, loaded: false, started: false, speed: 1 };
 const palette = [
   { background: '#E8F3FF', icon: '#1674E8' }, { background: '#F1EAFE', icon: '#8953E9' },
@@ -101,18 +118,21 @@ function Waveform({ progress, onSeek }: { progress: number; onSeek: (fraction: n
   </Pressable>;
 }
 
-function AudioControls({ briefing, audio, loading }: { briefing: Briefing | null; audio: any; loading: boolean }) {
+function AudioControls({ briefing, audio, loading, regenerating }: { briefing: Briefing | null; audio: any; loading: boolean; regenerating: boolean }) {
   const [playback, setPlayback] = useState(initialPlayback);
   const [context, setContext] = useState<AudioContext | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => subscribeAudio(setPlayback), []);
   useEffect(() => subscribeAudioContext(setContext), []);
   useEffect(() => {
-    if (!briefing?.id || !context || context.briefing.id !== briefing.id || !playback.loaded) return;
+    if (!briefing?.id || !context || !sameBriefing(context.briefing, briefing) || !playback.loaded) return;
     const timer = setInterval(() => getAudioProgress().catch(() => undefined), 500);
     return () => clearInterval(timer);
   }, [briefing?.id, context?.url, playback.loaded]);
-  const matching = Boolean(briefing?.id && context?.briefing.id === briefing.id);
+  const matching = Boolean(briefing && context && sameBriefing(context.briefing, briefing));
+  // Today's briefing was regenerated (same delivery, new edition): drop the stale audio unless it is still being listened to.
+  const staleSession = Boolean(briefing?.id && context?.briefing.id === briefing.id && !matching);
+  useEffect(() => { if (staleSession && !playback.playing) releaseAudio(); }, [staleSession, playback.playing]);
   const ready = audio?.status === 'READY' && Boolean(audio.audio_url);
   const duration = matching && playback.loaded ? playback.duration : (audio?.duration_ms || 0) / 1000;
   const position = matching && playback.loaded ? playback.position : 0;
@@ -136,7 +156,7 @@ function AudioControls({ briefing, audio, loading }: { briefing: Briefing | null
   const seekFraction = (fraction: number) => { if (matching && playback.loaded) seekTo(duration * fraction); };
   const failed = audio?.status === 'FAILED';
   const pending = !briefing || !audio || ['PENDING', 'GENERATING', 'VALIDATING', 'NOT_AVAILABLE'].includes(audio?.status);
-  const stateMessage = loading ? 'Carregando seu briefing...' : !briefing ? 'Preparando seu briefing…' : failed ? 'Não foi possível preparar o áudio deste briefing.' : 'Preparando seu áudio…';
+  const stateMessage = regenerating ? 'Preparando seu novo briefing com as novas preferências. Você será notificado quando estiver pronto.' : loading ? 'Carregando seu briefing...' : !briefing ? 'Preparando seu briefing…' : failed ? 'Não foi possível preparar o áudio deste briefing.' : 'Preparando seu áudio…';
   return <View style={h.audioCard}>
     <View style={h.audioCardTop}>
       <View style={h.audioCardIcon}><Icon name="audio" color={colors.primary} size={31} /></View>
@@ -149,7 +169,7 @@ function AudioControls({ briefing, audio, loading }: { briefing: Briefing | null
       {ready ? <Waveform progress={progress} onSeek={seekFraction} /> : <View style={h.wavePlaceholder}><View style={h.waveBars}>{Array.from({ length: 34 }, (_, index) => <View key={index} style={{ width: 2.5, height: 7 + ((index * 17 + index * index * 3) % 19), borderRadius: 2, backgroundColor: '#C9D9EB' }} />)}</View></View>}
     </View>
     <View style={h.audioTimes}><Text style={h.audioTime}>{clock(position)}</Text><Text style={h.audioTime}>{duration ? clock(duration) : ''}</Text></View>
-    {(pending || failed) && <View style={h.audioInlineState}><Text numberOfLines={1} style={h.audioState}>{stateMessage}</Text></View>}
+    {(pending || failed || regenerating) && <View style={h.audioInlineState}><Text numberOfLines={2} style={h.audioState}>{stateMessage}</Text></View>}
   </View>;
 }
 
@@ -183,8 +203,14 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
   const scheduleTimezone = data?.preferences.timezone || user?.timezone || deviceTimezone;
   const briefing = data?.today_briefing?.items?.length ? data.today_briefing : data?.latest_briefing || null;
   const playableBriefing = briefing;
-  const featured = briefing?.items?.slice(0, 3) || [];
   const latest = data?.latest_news || [];
+  const [extraFeatured, setExtraFeatured] = useState<BriefingItem[]>([]);
+  const featured = useMemo(() => pickFeatured(briefing?.items, latest, extraFeatured), [briefing?.items, latest, extraFeatured]);
+  const focused = useIsFocused();
+  const featuredScroll = useRef<ScrollView>(null);
+  const featuredIndexRef = useRef(0);
+  const featuredTouching = useRef(false);
+  const featuredTouchedAt = useRef(0);
   const name = firstNameOf(user?.display_name);
   const avatarUrl = firebaseAuth.currentUser?.photoURL;
   const featureCardWidth = Math.max(280, width - 34);
@@ -200,6 +226,41 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
     } finally { setLoading(false); }
   }, [onAuthExpired]);
   useEffect(() => { void load(); }, [load,contentRevisionTick]);
+  useEffect(() => {
+    if (!data || pickFeatured(briefing?.items, data.latest_news).length >= FEATURED_LIMIT) { setExtraFeatured([]); return; }
+    let active = true;
+    (async () => {
+      const collected: BriefingItem[] = [];
+      try { collected.push(...(await api.news(30)).items); } catch { /* keep whatever is already available */ }
+      if (!active) return;
+      // Stories outside the user's topics are only a last resort so the carousel is never empty.
+      if (!pickFeatured(briefing?.items, data.latest_news, collected).length) {
+        try { collected.push(...(await api.news(30, { discovery: true })).items); } catch { /* keep whatever is already available */ }
+        if (!active) return;
+      }
+      setExtraFeatured(collected.filter(hasFeaturedImage));
+    })();
+    return () => { active = false; };
+  }, [data, briefing?.items]);
+  useEffect(() => {
+    if (featuredIndexRef.current < featured.length) return;
+    featuredIndexRef.current = 0;
+    setFeaturedIndex(0);
+    featuredScroll.current?.scrollTo({ x: 0, animated: false });
+  }, [featured.length]);
+  useEffect(() => {
+    if (!focused || featured.length < 2) return;
+    const timer = setInterval(() => {
+      if (featuredTouching.current || Date.now() - featuredTouchedAt.current < FEATURED_RESUME_AFTER_TOUCH_MS) return;
+      const next = (featuredIndexRef.current + 1) % featured.length;
+      featuredIndexRef.current = next;
+      setFeaturedIndex(next);
+      featuredScroll.current?.scrollTo({ x: next * (featureCardWidth + 2), animated: true });
+    }, FEATURED_AUTO_SCROLL_MS);
+    return () => clearInterval(timer);
+  }, [focused, featured.length, featureCardWidth]);
+  const holdFeatured = () => { featuredTouching.current = true; featuredTouchedAt.current = Date.now(); };
+  const releaseFeatured = () => { featuredTouching.current = false; featuredTouchedAt.current = Date.now(); };
   useEffect(() => { onLatestBriefing(playableBriefing); }, [playableBriefing, onLatestBriefing]);
   useEffect(() => {
     const listener=AppState.addEventListener('change', state => { if (state==='active') { setClockNow(new Date()); void load(); } });
@@ -210,17 +271,20 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
-    const pending=['PENDING','AUDIO_QUEUED','GENERATING'].includes(data?.today_briefing?.status || '');
+    const regenerating=Boolean(data?.today_briefing?.profile_stale);
+    const pending=['PENDING','AUDIO_QUEUED','GENERATING'].includes(data?.today_briefing?.status || '') || regenerating;
     if (!pending) return;
+    // A preference-driven regeneration usually finishes in under a minute, so check more often.
+    const interval=regenerating ? 10000 : 45000;
     let active=true; let timer: ReturnType<typeof setTimeout> | undefined;
-    const poll=async()=>{ if (!active || AppState.currentState!=='active') return; await load(); if (active && AppState.currentState==='active') timer=setTimeout(poll,45000); };
-    timer=setTimeout(poll,45000);
+    const poll=async()=>{ if (!active || AppState.currentState!=='active') return; await load(); if (active && AppState.currentState==='active') timer=setTimeout(poll,interval); };
+    timer=setTimeout(poll,interval);
     const listener=AppState.addEventListener('change',state=>{
       if (state==='active') { if (timer) clearTimeout(timer); void poll(); }
       else if (timer) { clearTimeout(timer); timer=undefined; }
     });
     return ()=>{active=false;if(timer)clearTimeout(timer);listener.remove();};
-  },[data?.today_briefing?.status,load]);
+  },[data?.today_briefing?.status,data?.today_briefing?.profile_stale,load]);
   useEffect(() => {
     setAudio(null);
     if (!briefing?.id) return;
@@ -282,15 +346,15 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
       {!!loadError && <Pressable accessibilityRole="button" onPress={() => void load()} style={h.homeError}><Text style={h.homeErrorText}>{loadError}  ·  Tentar novamente</Text></Pressable>}
 
 
-      <AudioControls briefing={briefing} audio={audio} loading={loading} />
+      <AudioControls briefing={briefing} audio={audio} loading={loading} regenerating={Boolean(data?.today_briefing?.profile_stale)} />
 
       <View style={h.section}>{sectionLabel('Destaques de hoje', onExplore)}
-        {loading ? <View style={[h.featureSkeleton, { width: featureCardWidth }]} /> : featured.length ? <>
-          <ScrollView horizontal pagingEnabled snapToInterval={featureCardWidth + 2} decelerationRate="fast" showsHorizontalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={h.featureCarousel} onMomentumScrollEnd={event => setFeaturedIndex(Math.round(event.nativeEvent.contentOffset.x / (featureCardWidth + 2)))}>
+        {featured.length ? <>
+          <ScrollView ref={featuredScroll} onTouchStart={holdFeatured} onTouchEnd={releaseFeatured} onTouchCancel={releaseFeatured} onScrollBeginDrag={holdFeatured} onScrollEndDrag={releaseFeatured} horizontal pagingEnabled snapToInterval={featureCardWidth + 2} decelerationRate="fast" showsHorizontalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={h.featureCarousel} onMomentumScrollEnd={event => { const index = Math.round(event.nativeEvent.contentOffset.x / (featureCardWidth + 2)); featuredIndexRef.current = index; setFeaturedIndex(index); }}>
             {featured.map(item => <FeaturedCard key={item.id} item={item} width={featureCardWidth} saved={savedIds.has(item.id)} busy={savingIds.has(item.id)} onToggle={() => void toggleSaved(item)} onPress={() => onDetail(item)} />)}
           </ScrollView>
           <View style={h.carouselDots} accessibilityLabel={`Destaque ${featuredIndex + 1} de ${featured.length}`}>{featured.map((item, index) => <View key={item.id} style={[h.carouselDot, index === featuredIndex && h.carouselDotActive]} />)}</View>
-        </> : <View style={h.emptyFeature}><Text style={h.emptyTitle}>Ainda não há destaques disponíveis.</Text><Text style={h.emptySubtitle}>Assim que houver uma notícia elegível, ela aparecerá aqui.</Text></View>}
+        </> : <View style={[h.featureSkeleton, { width: featureCardWidth }]} />}
       </View>
 
       <View style={h.section}>{sectionLabel('Últimas notícias', onExplore)}
@@ -346,6 +410,6 @@ const h = {
   featureCarousel: { gap: 2, paddingHorizontal: 1 }, featureCard: { position: 'relative' as const, borderRadius: 21, backgroundColor: '#FFFFFF', overflow: 'hidden' as const, borderWidth: 1, borderColor: '#DCEAF7', minHeight: 186 }, featurePress: { overflow: 'hidden' as const }, featureBadge: { position: 'absolute' as const, top: 9, left: 10 }, featureContent: { minHeight: 70, paddingLeft: 13, paddingTop: 8, paddingRight: 54, paddingBottom: 9, backgroundColor: '#FFFFFFF0' }, featureMeta: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5 }, featureTime: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 11 }, categoryBadge: { alignSelf: 'flex-start' as const, overflow: 'hidden' as const, maxWidth: '100%' as const, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 4, fontFamily: typography.fontFamily.ui, fontSize: 10, fontWeight: '800' as const }, featureHeadline: { fontFamily: typography.fontFamily.ui, fontSize: 17, lineHeight: 21, fontWeight: '700' as const, color: '#091D42', marginTop: 3 }, featureSave: { position: 'absolute' as const, right: 10, bottom: 8, backgroundColor: '#FFFFFFE8', borderRadius: 16 }, carouselDots: { flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const, gap: 8, paddingTop: 9 }, carouselDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#C8D8EC' }, carouselDotActive: { backgroundColor: colors.primary, width: 9, height: 9 },
   bookmarkButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: '#FFFFFFE8' }, bookmarkFill: { position: 'absolute' as const, width: 6, height: 9, top: 10, left: 14, backgroundColor: colors.primary },
   latestRow: { minHeight: 66, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5, marginHorizontal: 2, borderBottomWidth: 1, borderBottomColor: '#E6EFF8', paddingVertical: 5 }, latestPress: { flex: 1, minWidth: 0, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 9 }, latestImage: { width: 66, height: 50, borderRadius: 10 }, latestCopy: { flex: 1, minWidth: 0 }, latestMeta: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 7 }, readTimeText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 11 }, latestHeadline: { fontFamily: typography.fontFamily.ui, color: '#15294E', fontSize: 13, lineHeight: 17, marginTop: 2 },
-  skeletonTopics: { flexDirection: 'row' as const, gap: 6 }, topicSkeleton: { height: 79, borderRadius: 17, backgroundColor: '#E7F1FB' }, featureSkeleton: { height: 186, borderRadius: 21, backgroundColor: '#E7F1FB' }, latestSkeletons: { gap: 8 }, latestSkeleton: { height: 63, borderRadius: 12, backgroundColor: '#E7F1FB' }, emptyInline: { paddingHorizontal: 8, paddingVertical: 12, color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 12 }, emptyFeature: { borderRadius: 16, backgroundColor: '#EAF4FF', padding: 15 }, emptyTitle: { color: colors.textPrimary, fontWeight: '700' as const, fontSize: 13 }, emptySubtitle: { color: colors.secondary, fontSize: 11, marginTop: 4, lineHeight: 16 },
+  skeletonTopics: { flexDirection: 'row' as const, gap: 6 }, topicSkeleton: { height: 79, borderRadius: 17, backgroundColor: '#E7F1FB' }, featureSkeleton: { height: 186, borderRadius: 21, backgroundColor: '#E7F1FB' }, latestSkeletons: { gap: 8 }, latestSkeleton: { height: 63, borderRadius: 12, backgroundColor: '#E7F1FB' }, emptyInline: { paddingHorizontal: 8, paddingVertical: 12, color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 12 },
   searchScreen: { flex: 1, backgroundColor: colors.background }, searchHeader: { minHeight: 58, paddingHorizontal: 16, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 }, searchBack: { width: 36, height: 44, justifyContent: 'center' as const }, searchField: { flex: 1, height: 46, borderRadius: 23, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, searchInput: { flex: 1, fontFamily: typography.fontFamily.ui, color: colors.textPrimary, paddingVertical: 0 }, searchResults: { padding: 16, gap: 9 }, searchResult: { flexDirection: 'row' as const, alignItems: 'flex-start' as const, gap: 11, backgroundColor: colors.surface, borderRadius: 15, padding: 10, borderWidth: 1, borderColor: colors.border }, searchResultImage: { width: 82, height: 82, borderRadius: 12 }, searchResultCopy: { flex: 1, minWidth: 0 }, searchCategory: { color: colors.primary, fontSize: 11, fontWeight: '700' as const }, searchHeadline: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '700' as const, marginTop: 5 }, searchSummary: { color: colors.secondary, fontSize: 13, lineHeight: 18, marginTop: 5 }, retryLink: { color: colors.primary, fontWeight: '700' as const, fontSize: 13, paddingHorizontal: 8, paddingVertical: 10 }, topicFeedTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '800' as const },
 } as const;

@@ -15,6 +15,12 @@ export function subscribeContentRevision(listener: (tick: number) => void) {
 
 export function getContentRevisionTick() { return updateTick; }
 
+/** Refresh every screen that follows content revisions (Home, Explore) after a local change such as new preferences. */
+export function notifyContentChanged() {
+  updateTick += 1;
+  listeners.forEach(listener => listener(updateTick));
+}
+
 export function useContentRevisionTick() {
   const [tick,setTick]=useState(updateTick);
   useEffect(()=>subscribeContentRevision(setTick),[]);

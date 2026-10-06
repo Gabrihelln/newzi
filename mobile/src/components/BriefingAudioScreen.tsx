@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ImageBackground, Modal, PanResponder, Pressable, SafeAreaView, ScrollView, Share, StatusBar, Switch, Text, View, useWindowDimensions } from 'react-native';
 import { api } from '../api/client';
-import { getAudioContext, getAudioProgress, loadAudio, pauseAudio, playAudio, seekAudio, seekTo, setAudioContext, setPlaybackSpeed, subscribeAudio, subscribeAudioContext } from '../audio/player';
+import { sameBriefing, getAudioContext, getAudioProgress, loadAudio, pauseAudio, playAudio, seekAudio, seekTo, setAudioContext, setPlaybackSpeed, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
 import type { AudioMetadata, Briefing, BriefingItem, Preferences } from '../types/api';
 import { colors, typography } from '../theme';
@@ -107,7 +107,7 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
 }) {
   const { width } = useWindowDimensions();
   const [audio, setAudio] = useState<AudioMetadata | null>(null);
-  const [activeAudio, setActiveAudio] = useState<AudioMetadata | null>(() => { const session = getAudioContext(); return session && session.briefing.id === briefing.id ? session.metadata : null; });
+  const [activeAudio, setActiveAudio] = useState<AudioMetadata | null>(() => { const session = getAudioContext(); return session && sameBriefing(session.briefing, briefing) ? session.metadata : null; });
   const [session, setSession] = useState<AudioContext | null>(() => getAudioContext());
   const [playback, setPlayback] = useState<PlaybackState>(initialPlayback);
   const [loading, setLoading] = useState(false);
@@ -118,7 +118,7 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const sessionMatches = Boolean(session?.briefing.id && session.briefing.id === briefing.id);
+  const sessionMatches = Boolean(session && sameBriefing(session.briefing, briefing));
   const duration = sessionMatches ? playback.duration || ((activeAudio || audio)?.duration_ms || 0) / 1000 : (audio?.duration_ms || 0) / 1000;
   const position = sessionMatches ? playback.position : 0;
   const segments = useMemo(() => (activeAudio?.segments || []).filter(segment => ['INTRO', 'ITEM', 'OUTRO'].includes(segment.type)), [activeAudio?.segments]);
@@ -134,16 +134,16 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
   useEffect(() => subscribeAudio(setPlayback), []);
   useEffect(() => subscribeAudioContext(value => {
     setSession(value);
-    if (value && value.briefing.id === briefing.id) {
+    if (value && sameBriefing(value.briefing, briefing)) {
       setAudio(value.metadata);
       setActiveAudio(value.metadata);
     }
-  }), [briefing.id]);
+  }), [briefing.id, briefing.edition_id]);
   useEffect(() => { api.preferences().then(setPreferences).catch(() => undefined); }, []);
   useEffect(() => {
     let active = true; let timer: ReturnType<typeof setTimeout> | undefined;
     const current = getAudioContext();
-    if (current && current.briefing.id === briefing.id) { setAudio(current.metadata); setActiveAudio(current.metadata); setLoading(false); return () => { active = false; }; }
+    if (current && sameBriefing(current.briefing, briefing)) { setAudio(current.metadata); setActiveAudio(current.metadata); setLoading(false); return () => { active = false; }; }
     setActiveAudio(null);
     const refresh = async () => {
       try {
@@ -157,13 +157,13 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
     };
     void refresh();
     return () => { active = false; if (timer) clearTimeout(timer); };
-  }, [briefing.id, retryKey]);
+  }, [briefing.id, briefing.edition_id, retryKey]);
   useEffect(() => {
     if (audio?.status !== 'READY' || !audio.audio_url) return;
     let active = true;
     setLoading(true); setError('');
     const current = getAudioContext();
-    const load = current?.url === audio.audio_url && current.briefing.id === briefing.id ? Promise.resolve() : loadAudio(audio.audio_url);
+    const load = current?.url === audio.audio_url && sameBriefing(current.briefing, briefing) ? Promise.resolve() : loadAudio(audio.audio_url);
     load.then(() => {
       if (!active) return;
       setActiveAudio(audio);
@@ -173,7 +173,7 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
       if (active) setError('Não foi possível carregar o áudio.');
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [audio?.status, audio?.audio_url, briefing.id]);
+  }, [audio?.status, audio?.audio_url, briefing.id, briefing.edition_id]);
   useEffect(() => {
     const timer = setInterval(() => getAudioProgress().catch(() => undefined), 500);
     return () => clearInterval(timer);

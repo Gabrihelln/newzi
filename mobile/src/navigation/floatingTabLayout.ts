@@ -3,7 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { subscribeAudio, subscribeAudioContext } from '../audio/player';
 
 const TAB_BAR_HEIGHT = 66;
-const MINI_PLAYER_HEIGHT = 110;
+// Card (94) + close-button overlap (13) + bottom margin (4).
+const MINI_PLAYER_HEIGHT = 111;
 const CONTENT_BREATHING_SPACE = 12;
 
 export function useFloatingTabContentInset(showMiniPlayer: boolean) {

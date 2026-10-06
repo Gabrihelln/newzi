@@ -8,6 +8,9 @@ import { Icon } from './Icon';
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 const cover = require('../../assets/onboarding/new-sunrise.png');
+const CLOSE_SIZE = 26;
+// Half of the close button overlaps the card corner; the rest stays inside the touchable container.
+const CLOSE_OFFSET = CLOSE_SIZE / 2;
 
 export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) => void }) {
   const [session, setSession] = useState<AudioContext | null>(null);
@@ -31,6 +34,8 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
   }, [translateY]);
   const panResponder = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_event, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+    // Claim a downward drag even when it starts on the expand/play buttons, so swipe-to-close always works.
+    onMoveShouldSetPanResponderCapture: (_event, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5,
     onPanResponderMove: (_event, gesture) => translateY.setValue(Math.max(0, gesture.dy)),
     onPanResponderRelease: (_event, gesture) => {
       if (gesture.dy > 76 || gesture.vy > 0.9) requestDismiss(gesture.dy + 80);
@@ -49,7 +54,9 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
   const toggle = () => playback.playing ? pauseAudio() : playAudio().catch(() => undefined);
   const date = session.briefing.generated_at ? new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(new Date(session.briefing.generated_at)).replace('.', '') : session.briefing.date;
   const progress = playback.duration ? Math.max(0, Math.min(1, playback.position / playback.duration)) : 0;
-  return <Animated.View {...panResponder.panHandlers} style={{ width: '92%', maxWidth: 520, alignSelf: 'center', marginBottom: spacing.md, overflow: 'visible', zIndex: 20, elevation: 20, transform: [{ translateY }] }}>
+  // The close control sits on the card's top-right corner, half outside the card but inside this
+  // container's bounds: Android does not deliver touches to children drawn outside their parent.
+  return <Animated.View {...panResponder.panHandlers} style={{ width: '92%', maxWidth: 520, alignSelf: 'center', paddingTop: CLOSE_OFFSET, paddingHorizontal: CLOSE_OFFSET, marginBottom: spacing.xs, overflow: 'visible', zIndex: 20, elevation: 20, transform: [{ translateY }] }}>
     <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, minHeight: 94, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, shadowColor: '#496B99', shadowOpacity: .14, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Expandir player do briefing" onPress={() => onExpand(session.briefing)}
         style={{ flex: 1, minHeight: 66, flexDirection: 'row', alignItems: 'center' }}>
@@ -66,12 +73,10 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
           alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md, shadowColor: colors.primary, shadowOpacity: .25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4 }}>
         <Icon name={playback.playing ? 'pause' : 'play'} color={colors.surface} size={22} />
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Fechar mini player" onPress={() => requestDismiss()}
-        hitSlop={4} style={{ position: 'absolute', top: -18, right: -8, width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ width: 34, height: 34, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: '#496B99', shadowOpacity: .2, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 9 }}>
-          <Icon name="close" color={colors.textPrimary} size={17} />
-        </View>
-      </Pressable>
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Fechar mini player" accessibilityHint="Pausa o áudio e mantém o progresso" onPress={() => requestDismiss()}
+      hitSlop={{ top: 6, right: 6, bottom: 12, left: 12 }} style={({ pressed }) => ({ position: 'absolute', top: 0, right: 0, width: CLOSE_SIZE, height: CLOSE_SIZE, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: '#496B99', shadowOpacity: .22, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 10, zIndex: 30, opacity: pressed ? .7 : 1 })}>
+      <Icon name="close" color={colors.textPrimary} size={13} />
+    </Pressable>
   </Animated.View>;
 }

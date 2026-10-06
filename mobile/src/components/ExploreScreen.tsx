@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { api, ClientError } from '../api/client';
 import { colors, typography } from '../theme';
-import type { BriefingItem, Topic, User } from '../types/api';
+import type { BriefingItem, Preferences, Topic, User } from '../types/api';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import { useContentRevisionTick } from '../services/contentRevision';
 import { Icon } from './Icon';
@@ -19,7 +19,7 @@ const topicColors = [
   { background: '#E5F7EE', color: '#12A965' }, { background: '#FFF2E1', color: '#E99210' },
   { background: '#FFE9ED', color: '#E83E59' }, { background: '#FDE8F1', color: '#E04E8A' },
 ];
-type ExplorePayload = { topics: Topic[]; latest_news: BriefingItem[] };
+type ExplorePayload = { topics: Topic[]; latest_news: BriefingItem[]; preferences?: Pick<Preferences, 'topics' | 'content_scope'> };
 type SortMode = 'relevant' | 'recent' | 'alpha';
 type Trend = { topic: Topic; count: number; newest: number };
 type DisplayTopic = Topic & { presentation_depth: number };
@@ -57,6 +57,13 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile }: {
   const topics = payload?.topics || [];
   const stories = payload?.latest_news || [];
   const topicMap = useMemo(() => new Map(topics.map(topic => [topic.code, topic])), [topics]);
+  // The top carousel follows the user's content preferences; "Todos os assuntos" stays a full catalogue.
+  const preferences = payload?.preferences;
+  const myTopics = useMemo(() => {
+    if (!preferences || preferences.content_scope === 'all' || !preferences.topics?.length) return topics;
+    const picked = preferences.topics.map(code => topicMap.get(code)).filter((topic): topic is Topic => Boolean(topic));
+    return picked.length ? picked : topics;
+  }, [preferences, topics, topicMap]);
 
   const load = useCallback(async (force = false) => {
     const cached = payloadCache.get(userId);
@@ -67,7 +74,7 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile }: {
     }
     setError('');
     try {
-      const [home, news] = await Promise.all([api.home(), api.news(30,{discovery:true}).catch(() => ({ items: [] as BriefingItem[] }))]);
+      const [home, news] = await Promise.all([api.home(), api.news(30).catch(() => ({ items: [] as BriefingItem[] }))]);
       const uniqueTopics = Array.from(new Map((home.topics || []).map(topic => [topicKey(topic), topic])).values());
       const value: ExplorePayload = { ...home, topics: uniqueTopics, latest_news: news.items || [] };
       payloadCache.set(userId, { value, at: Date.now() });
@@ -158,7 +165,7 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile }: {
   const intro = <ExploreIntro
     width={width} user={user} avatarUrl={avatarUrl && !avatarFailed ? avatarUrl : undefined}
     onAvatarError={() => setAvatarFailed(true)} onSearch={focusSearch} onProfile={onProfile}
-    searchRef={searchRef} query={query} onQuery={setQuery} topics={topics} trends={shownTrends}
+    searchRef={searchRef} query={query} onQuery={setQuery} topics={myTopics} trends={shownTrends}
     selectedTopic={selectedTopic} onSelectTopic={openTopic} loading={loading} error={error} onRetry={() => { setLoading(true); void load(true); }}
     matchingTopics={matchingTopics} remoteMatches={remoteMatches} searchError={searchError} searching={searching}
     onDetail={onDetail}
@@ -173,7 +180,7 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile }: {
       keyExtractor={topicKey}
       ListHeaderComponent={intro}
       renderItem={({ item, index }) => <ExploreTopicRow
-        topic={item} index={index} maxCount={maxCount} depth={item.presentation_depth} selected={selectedTopic === topicKey(item)} onPress={() => openTopic(item)} />}
+        topic={item} index={index} maxCount={maxCount} selected={selectedTopic === topicKey(item)} onPress={() => openTopic(item)} />}
       ListEmptyComponent={loading ? <View style={styles.skeletonRows}>{[0, 1, 2, 3].map(key => <TopicRowSkeleton key={key} />)}</View> : error ? null : <EmptyTopics onRetry={() => { setLoading(true); void load(true); }} />}
       ListFooterComponent={<View style={{ height: bottomSpace }} />}
       contentContainerStyle={styles.listContent}
@@ -287,10 +294,10 @@ function TrendingCard({ trend, rank, onPress }: { trend: Trend; rank: number; on
   </Pressable>;
 }
 
-function ExploreTopicRow({ topic, index, maxCount, depth, selected, onPress }: { topic: Topic; index: number; maxCount: number; depth: number; selected: boolean; onPress: () => void }) {
+function ExploreTopicRow({ topic, index, maxCount, selected, onPress }: { topic: Topic; index: number; maxCount: number; selected: boolean; onPress: () => void }) {
   const palette = colorFor(index);
   const coverage = Math.max(0, Math.min(1, (topic.content_count || 0) / maxCount));
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${displayName(topic)}, ${topic.content_count || 0} notícias`} accessibilityState={{ selected }} onPress={onPress} style={[styles.topicRow, selected && styles.topicRowSelected, depth > 0 && { marginLeft: Math.min(depth * 12, 36) }]}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${displayName(topic)}, ${topic.content_count || 0} notícias`} accessibilityState={{ selected }} onPress={onPress} style={[styles.topicRow, selected && styles.topicRowSelected]}>
     <TopicGlyph topic={topic} index={index} size={60} />
     <View style={styles.topicDescription}>
       <Text numberOfLines={1} style={styles.topicName}>{displayName(topic)}</Text>
@@ -325,6 +332,6 @@ const styles = {
   topicCarousel: { height: 126, marginBottom: 15 }, horizontalContent: { gap: 8, paddingBottom: 3 }, topCard: { height: 122, borderRadius: 20, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 7, paddingVertical: 8 }, topCardSelected: { borderWidth: 2, borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: .17, shadowRadius: 8, elevation: 2 }, glyph: { alignItems: 'center' as const, justifyContent: 'center' as const, flexShrink: 0 }, topCardName: { textAlign: 'center' as const, fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, color: '#071A42', fontSize: 12, lineHeight: 15, marginTop: 3 }, topCardCount: { color: '#6E83A3', fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 3 },
   section: { marginBottom: 20 }, sectionHeader: { height: 32, marginBottom: 6, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: 1 }, sectionTitle: { fontFamily: typography.fontFamily.ui, fontSize: 19, lineHeight: 25, color: '#071A42', fontWeight: '800' as const, letterSpacing: -.45 }, linkRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 0 }, linkText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, fontSize: 12 }, trendCard: { width: 184, height: 146, borderRadius: 18, overflow: 'hidden' as const, marginRight: 1 }, trendBackground: { flex: 1, justifyContent: 'space-between' as const, padding: 12 }, trendMascot: { opacity: .18, width: 130, height: 130, left: 54, top: 14 }, rankBadge: { width: 32, height: 32, borderRadius: 17, justifyContent: 'center' as const, alignItems: 'center' as const }, rankText: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' as const }, trendCopy: { marginTop: 'auto' as const, paddingRight: 25 }, trendName: { color: '#FFFFFF', fontFamily: typography.fontFamily.ui, fontSize: 16, lineHeight: 19, fontWeight: '800' as const }, trendCount: { color: '#D7E7F7', fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 4 }, trendArrow: { position: 'absolute' as const, right: 10, bottom: 10, width: 30, height: 30, borderRadius: 16, backgroundColor: '#FFFFFF', alignItems: 'center' as const, justifyContent: 'center' as const },
   allHeader: { minHeight: 34, marginBottom: 6, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, sortButton: { minHeight: 40, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 3 }, sortText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '600' as const }, sortChevron: { color: colors.primary, fontSize: 19, marginTop: -2 }, sortMenu: { alignSelf: 'flex-end' as const, minWidth: 164, marginBottom: 9, padding: 5, borderRadius: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E3EEF8', shadowColor: '#395E8C', shadowOpacity: .12, shadowRadius: 12, elevation: 4 }, sortOption: { minHeight: 42, paddingHorizontal: 10, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, sortOptionText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 13 }, sortSelected: { color: colors.primary, fontWeight: '700' as const },
-  topicRow: { minHeight: 78, marginBottom: 3, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 26, backgroundColor: '#FFFFFFD9', flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, borderWidth: 1, borderColor: '#F0F5FB' }, topicRowSelected: { borderColor: colors.primary, backgroundColor: '#F4FAFF' }, childTopicRow: { marginLeft: 15 }, topicDescription: { flex: 1, minWidth: 0 }, topicName: { color: '#0A1E44', fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '800' as const, lineHeight: 18 }, topicSub: { color: '#667D9E', fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 15, marginTop: 1 }, topicMetric: { width: 102, justifyContent: 'center' as const, gap: 7 }, topicCount: { color: '#657D9F', fontFamily: typography.fontFamily.ui, fontSize: 11 }, progressTrack: { height: 5, width: '100%' as const, borderRadius: 3, backgroundColor: '#E1EBF7', overflow: 'hidden' as const }, progressFill: { height: 5, borderRadius: 3 },
+  topicRow: { minHeight: 78, marginBottom: 3, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 26, backgroundColor: '#FFFFFFD9', flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, borderWidth: 1, borderColor: '#F0F5FB' }, topicRowSelected: { borderColor: colors.primary, backgroundColor: '#F4FAFF' }, childTopicRow: { marginLeft: 15 }, topicDescription: { flex: 1, minWidth: 0 }, topicName: { color: '#0A1E44', fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '800' as const, lineHeight: 18 }, topicSub: { color: '#667D9E', fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 15, marginTop: 1 }, topicMetric: { width: 84, justifyContent: 'center' as const, gap: 7 }, topicCount: { color: '#657D9F', fontFamily: typography.fontFamily.ui, fontSize: 11 }, progressTrack: { height: 5, width: '100%' as const, borderRadius: 3, backgroundColor: '#E1EBF7', overflow: 'hidden' as const }, progressFill: { height: 5, borderRadius: 3 },
   skeletonCarousel: { flexDirection: 'row' as const, gap: 8, paddingBottom: 4 }, horizontalSkeleton: { height: 122, borderRadius: 18, backgroundColor: '#E5F0FA' }, darkSkeleton: { height: 146, backgroundColor: '#D8E7F6' }, skeletonRows: { gap: 4 }, rowSkeleton: { minHeight: 78, marginBottom: 3, borderRadius: 25, backgroundColor: '#EDF4FB', flexDirection: 'row' as const, alignItems: 'center' as const, paddingHorizontal: 14, gap: 12 }, rowSkeletonGlyph: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#E0ECF8' }, rowSkeletonCopy: { flex: 1, gap: 8 }, rowSkeletonLine: { width: '88%' as const, height: 9, borderRadius: 5, backgroundColor: '#E0ECF8' }, rowSkeletonMetric: { width: 78, height: 20, borderRadius: 6, backgroundColor: '#E0ECF8' }, emptyText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 18, paddingVertical: 12 }, emptyTopics: { backgroundColor: '#FFFFFF', padding: 18, borderRadius: 18, alignItems: 'center' as const, marginTop: 8 }, emptyTopicsTitle: { color: colors.text, fontWeight: '700' as const, marginBottom: 5 }, retryCard: { padding: 12, backgroundColor: '#FFFFFF', borderRadius: 14, gap: 6 }, retryText: { color: colors.secondary, fontSize: 12 },
 };

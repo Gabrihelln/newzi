@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { updateProfile } from '@react-native-firebase/auth';
 import { resetPasswordWithFirebase, getFirebaseIdToken } from '../services/firebaseAuth';
@@ -12,6 +12,7 @@ import type { ClientConfig, Preferences, User } from '../types/api';
 import { ScreenState } from './ScreenPrimitives';
 import { getDeviceTimezone } from '../config/timezone';
 import { isValidBriefingTime } from '../config/time';
+import { notifyContentChanged } from '../services/contentRevision';
 
 const logo = require('../../assets/onboarding/newzi-lockup-reference.png');
 const newTablet = require('../../assets/onboarding/new-tablet.png');
@@ -126,8 +127,13 @@ function normalizeTopicSearch(value: string) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
 }
 
-export function ContentPreferencesScreen({ onBack }: { onBack: () => void }) {
+/** Canonical description of what drives briefing content, used to tell whether a save requires a new briefing. */
+const contentProfileKey = (prefs: Pick<Preferences, 'topics' | 'content_scope'>) => prefs.content_scope === 'all' ? 'all' : [...prefs.topics].sort().join('|');
+
+export function ContentPreferencesScreen({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   const [prefs, setPrefs] = useState<Preferences | null>(null);
+  const [savedProfile, setSavedProfile] = useState('');
+  const [savedDialog, setSavedDialog] = useState<null | { regenerating: boolean }>(null);
   const [config, setConfig] = useState<ClientConfig | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -135,7 +141,7 @@ export function ContentPreferencesScreen({ onBack }: { onBack: () => void }) {
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const load = async () => { setLoading(true); setLoadError(''); try { const [p, c] = await Promise.all([api.preferences(), api.config()]); setPrefs({ ...p, content_scope: p.content_scope || 'selected' }); setConfig(c); } catch { setPrefs(null); setConfig(null); setLoadError('Não foi possível carregar suas preferências.'); } finally { setLoading(false); } };
+  const load = async () => { setLoading(true); setLoadError(''); try { const [p, c] = await Promise.all([api.preferences(), api.config()]); const loaded = { ...p, content_scope: p.content_scope || 'selected' }; setPrefs(loaded); setSavedProfile(contentProfileKey(loaded)); setConfig(c); } catch { setPrefs(null); setConfig(null); setLoadError('Não foi possível carregar suas preferências.'); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, []);
   const topics = useMemo(() => (config?.topics || []).filter(topic => topic.enabled !== false).slice().sort((a, b) => (a.order || 0) - (b.order || 0)), [config]);
   const topicsByCode = useMemo(() => new Map(topics.map(topic => [topic.code, topic])), [topics]);
@@ -153,17 +159,36 @@ export function ContentPreferencesScreen({ onBack }: { onBack: () => void }) {
   const selectedTopics = prefs?.topics || [];
   const allContent = prefs?.content_scope === 'all';
   const normalizedQuery = normalizeTopicSearch(query);
-  const searchResults = normalizedQuery ? topics.filter(topic => {
+  const descendantsByCode = useMemo(() => {
+    const descendants = new Map<string, string[]>();
+    for (const topic of topics) for (const ancestor of (topic.path || []).slice(0, -1)) descendants.set(ancestor, [...(descendants.get(ancestor) || []), topic.code]);
+    return descendants;
+  }, [topics]);
+  const isCovered = (code: string) => allContent || selectedTopics.includes(code) || (topicsByCode.get(code)?.path || []).slice(0, -1).some(ancestor => selectedTopics.includes(ancestor));
+  const subjectCount = topics.length - roots.length;
+  // Exact name/alias matches first ("IA" → Inteligência Artificial), then word prefixes, then substrings.
+  const searchResults = normalizedQuery ? topics.map(topic => {
     const parentNames = (topic.path || []).slice(0, -1).map(code => topicsByCode.get(code)?.name || '');
-    const fields = [topic.name, topic.code, topic.description || '', ...parentNames, ...(topic.aliases || [])];
-    return fields.some(value => {
-      const normalized = normalizeTopicSearch(value);
-      if (normalizedQuery.length <= 2) return normalized === normalizedQuery || normalized.split(/\s+/).some(word => word.startsWith(normalizedQuery));
-      return normalized.includes(normalizedQuery);
-    });
-  }) : [];
+    const primary = [topic.name, topic.code, ...(topic.aliases || [])].map(normalizeTopicSearch);
+    const secondary = [topic.description || '', ...parentNames].map(normalizeTopicSearch);
+    const words = (value: string) => value.split(/[\s_-]+/);
+    const rank = primary.some(value => value === normalizedQuery) ? 0
+      : primary.some(value => words(value).some(word => word.startsWith(normalizedQuery))) ? 1
+      : normalizedQuery.length > 2 && primary.some(value => value.includes(normalizedQuery)) ? 2
+      : normalizedQuery.length > 2 && secondary.some(value => value.includes(normalizedQuery)) ? 3 : -1;
+    return { topic, rank };
+  }).filter(result => result.rank >= 0).sort((a, b) => a.rank - b.rank || (a.topic.depth || 0) - (b.topic.depth || 0) || (a.topic.order || 0) - (b.topic.order || 0)).map(result => result.topic) : [];
   const toggleTopic = (code: string) => setPrefs(current => current ? { ...current, topics: current.topics.includes(code) ? current.topics.filter(item => item !== code) : [...current.topics, code] } : current);
   const toggleExpanded = (code: string) => setExpanded(current => { const next = new Set(current); if (next.has(code)) next.delete(code); else next.add(code); return next; });
+  const expandableCodes = topics.filter(topic => (childrenByParent.get(topic.code) || []).length > 0).map(topic => topic.code);
+  const allExpanded = expandableCodes.length > 0 && expandableCodes.every(code => expanded.has(code));
+  const domainSummary = (root: typeof topics[number]) => {
+    const descendants = descendantsByCode.get(root.code) || [];
+    if (!descendants.length) return root.description || 'Assunto';
+    if (allContent || selectedTopics.includes(root.code)) return `Todos os ${descendants.length} assuntos incluídos`;
+    const covered = descendants.filter(isCovered).length;
+    return covered ? `${covered} de ${descendants.length} assuntos selecionados` : `${descendants.length} assuntos`;
+  };
   const topicPath = (topic: typeof topics[number]) => (topic.path || [topic.code]).map(code => topicsByCode.get(code)?.name || code).join(' › ');
   const renderTopic = (topic: typeof topics[number], depth = 0, showPath = false): React.ReactNode => {
     const selected = selectedTopics.includes(topic.code);
@@ -189,18 +214,35 @@ export function ContentPreferencesScreen({ onBack }: { onBack: () => void }) {
     if (!prefs) return;
     if (prefs.content_scope !== 'all' && prefs.topics.length === 0) { setMessage('Selecione ao menos um assunto ou ative “Acompanhar tudo”.'); return; }
     setBusy(true); setMessage('');
-    try { const updated = { ...prefs, content_scope: prefs.content_scope || 'selected' }; const saved = await api.savePreferences(updated); setPrefs({ ...updated, ...saved }); setMessage('Preferências salvas.'); }
+    // A selected domain already includes its subjects; keep the saved list canonical.
+    const topicsToSave = prefs.topics.filter(code => !(topicsByCode.get(code)?.path || []).slice(0, -1).some(ancestor => prefs.topics.includes(ancestor)));
+    try { const updated = { ...prefs, topics: topicsToSave.length ? topicsToSave : prefs.topics, content_scope: prefs.content_scope || 'selected' }; const saved = await api.savePreferences(updated); const next = { ...updated, ...saved }; setPrefs(next);
+      const profile = contentProfileKey(next); const regenerating = profile !== savedProfile; setSavedProfile(profile);
+      notifyContentChanged(); setSavedDialog({ regenerating }); }
     catch { setMessage('Não foi possível salvar as preferências.'); }
     finally { setBusy(false); }
   };
   return <SecondaryPage title="Preferências de conteúdo" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando preferências" /> : loadError ? <ScreenState kind="error" title="Preferências indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs || !config ? null : <>
     <Text style={st.pageIntro}>Escolha os assuntos que você quer acompanhar.</Text>
+    <Text style={[st.helper, { marginTop: -8, marginBottom: 12 }]}>{roots.length} domínios · {subjectCount} assuntos{allContent ? ' · todos incluídos' : selectedTopics.length ? ` · ${topics.filter(topic => isCovered(topic.code)).length} incluídos` : ''}</Text>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, marginBottom: 14, borderRadius: 18, borderWidth: 1, borderColor: allContent ? '#9BC8FF' : '#E4EDF7', backgroundColor: allContent ? '#EEF6FF' : '#FFFFFF' }}>
-      <View style={{ flex: 1, paddingRight: 12 }}><Text style={{ color: '#15234A', fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' }}>Acompanhar tudo</Text><Text style={{ color: '#6A7E9E', fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 17, marginTop: 3 }}>Receba notícias de todos os assuntos disponíveis.</Text></View>
-      <Switch accessibilityLabel="Acompanhar tudo" value={allContent} onValueChange={value => setPrefs(current => current ? { ...current, content_scope: value ? 'all' : 'selected' } : current)} trackColor={{ false: '#CBD7E7', true: '#9DC8FF' }} thumbColor={allContent ? colors.primary : '#FFFFFF'} />
+      <View style={{ flex: 1, paddingRight: 12 }}><Text style={{ color: '#15234A', fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' }}>Quero acompanhar tudo</Text><Text style={{ color: '#6A7E9E', fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 17, marginTop: 3 }}>Marca todos os domínios e todos os assuntos de cada um.</Text></View>
+      <Switch accessibilityLabel="Quero acompanhar tudo" value={allContent} onValueChange={value => setPrefs(current => current ? { ...current, content_scope: value ? 'all' : 'selected' } : current)} trackColor={{ false: '#CBD7E7', true: '#9DC8FF' }} thumbColor={allContent ? colors.primary : '#FFFFFF'} />
     </View>
+    {!allContent && selectedTopics.length > 0 && <View style={{ marginBottom: 14 }}>
+      <Text style={[st.helper, { marginBottom: 8 }]}>Selecionados ({selectedTopics.length}) · toque para remover</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{selectedTopics.map(code => {
+        const topic = topicsByCode.get(code);
+        const parent = topic?.parent_id ? topicsByCode.get(topic.parent_id)?.name : null;
+        return <Pressable key={code} accessibilityRole="button" accessibilityLabel={`Remover ${topic?.name || code}`} onPress={() => toggleTopic(code)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34, paddingLeft: 12, paddingRight: 8, borderRadius: 17, backgroundColor: '#E4F1FF', borderWidth: 1, borderColor: '#B7D6FF' }}>
+          <Text style={{ color: '#0B4FA8', fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{topic?.name || code}{parent ? <Text style={{ fontWeight: '500', color: '#4D73A8' }}>{` · ${parent}`}</Text> : null}</Text>
+          <Icon name="close" color="#0B4FA8" size={14} />
+        </Pressable>;
+      })}</View>
+    </View>}
     <TextInput accessibilityLabel="Buscar assuntos" value={query} onChangeText={setQuery} placeholder="Buscar assunto, tema ou alias" placeholderTextColor="#8192AE" autoCorrect={false} style={[st.input, { marginBottom: 12 }]} />
     {allContent && <Text style={[st.helper, { marginBottom: 10 }]}>Sua seleção ficará salva caso você volte a acompanhar assuntos específicos.</Text>}
+    {!normalizedQuery && expandableCodes.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel={allExpanded ? 'Recolher todos os domínios' : 'Expandir todos os domínios'} onPress={() => setExpanded(allExpanded ? new Set() : new Set(expandableCodes))} style={{ alignSelf: 'flex-end', minHeight: 36, justifyContent: 'center', paddingHorizontal: 4, marginBottom: 6 }}><Text style={{ color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{allExpanded ? 'Recolher todos' : 'Expandir todos'}</Text></Pressable>}
     {normalizedQuery ? searchResults.length ? <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E6EEF7', paddingHorizontal: 12 }}>{searchResults.map(topic => renderTopic(topic, 0, true))}</View> : <Text style={st.helper}>Nenhum assunto encontrado.</Text> : <View style={{ gap: 10 }}>{roots.map(root => {
       const descendants = (childrenByParent.get(root.code) || []).length;
       const directSelected = selectedTopics.includes(root.code);
@@ -208,7 +250,7 @@ export function ContentPreferencesScreen({ onBack }: { onBack: () => void }) {
       return <View key={root.code} style={{ backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: directSelected ? '#B7D6FF' : '#E6EEF7', paddingHorizontal: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: allContent || directSelected, disabled: allContent }} onPress={() => !allContent && toggleTopic(root.code)} style={{ flex: 1, minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View style={{ width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: allContent || directSelected ? colors.primary : '#C9D6E6', backgroundColor: allContent || directSelected ? colors.primary : '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>{(allContent || directSelected) && <Icon name="check" color="#FFFFFF" size={15} />}</View><View style={{ flex: 1 }}><Text style={{ color: '#17264B', fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' }}>{root.name}</Text><Text style={{ color: '#7184A2', fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 2 }}>{descendants ? `${descendants} subassuntos` : root.description || 'Assunto'}</Text></View>
+            <View style={{ width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: allContent || directSelected ? colors.primary : '#C9D6E6', backgroundColor: allContent || directSelected ? colors.primary : '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>{(allContent || directSelected) && <Icon name="check" color="#FFFFFF" size={15} />}</View><View style={{ flex: 1 }}><Text style={{ color: '#17264B', fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' }}>{root.name}</Text><Text style={{ color: '#7184A2', fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 2 }}>{domainSummary(root)}</Text></View>
           </Pressable>
           {descendants > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`${isExpanded ? 'Recolher' : 'Expandir'} ${root.name}`} onPress={() => toggleExpanded(root.code)} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{isExpanded ? '−' : `+${descendants}`}</Text></Pressable>}
         </View>
@@ -217,6 +259,19 @@ export function ContentPreferencesScreen({ onBack }: { onBack: () => void }) {
     })}</View>}
     {!!message && <Text accessibilityRole="alert" style={st.formMessage}>{message}</Text>}
     <ActionButton title={busy ? 'Salvando…' : 'Salvar preferências'} disabled={busy} onPress={() => void save()} />
+    <Modal visible={Boolean(savedDialog)} transparent animationType="fade" onRequestClose={() => { setSavedDialog(null); onDone(); }}>
+      <View style={st.dialogBackdrop}>
+        <View accessibilityViewIsModal style={st.dialogCard}>
+          <View style={st.dialogIcon}><Icon name="checkCircle" color={colors.primary} size={30} /></View>
+          <Text style={st.dialogTitle}>Preferências salvas</Text>
+          <Text style={st.dialogBody}>{savedDialog?.regenerating
+            ? 'Estamos preparando um novo briefing em áudio com as suas novas preferências. Normalmente leva menos de um minuto — você será notificado quando ele estiver pronto para ouvir.'
+            : 'Sua tela inicial e o Explorar já foram atualizados com as suas preferências.'}</Text>
+          <ActionButton title="Ir para o início" onPress={() => { setSavedDialog(null); onDone(); }} />
+          <Pressable accessibilityRole="button" onPress={() => setSavedDialog(null)} style={st.dialogSecondary}><Text style={st.dialogSecondaryText}>Continuar editando</Text></Pressable>
+        </View>
+      </View>
+    </Modal>
   </>}</SecondaryPage>;
 }
 
@@ -257,6 +312,7 @@ function ActionButton({ title, onPress, disabled = false }: { title: string; onP
 function InfoCard({ label, value }: { label: string; value: string }) { return <View style={st.infoCard}><Text style={st.infoLabel}>{label}</Text><Text style={st.infoValue}>{value}</Text></View>; }
 
 const st = {
+  dialogBackdrop: { flex: 1, backgroundColor: '#0A1E4466', alignItems: 'center' as const, justifyContent: 'center' as const, padding: 24 }, dialogCard: { width: '100%' as const, maxWidth: 380, borderRadius: 24, backgroundColor: '#FFFFFF', padding: 22, alignItems: 'stretch' as const }, dialogIcon: { alignSelf: 'center' as const, width: 56, height: 56, borderRadius: 28, backgroundColor: '#E4F1FF', alignItems: 'center' as const, justifyContent: 'center' as const, marginBottom: 12 }, dialogTitle: { textAlign: 'center' as const, color: '#111B48', fontFamily: typography.fontFamily.ui, fontSize: 19, fontWeight: '800' as const }, dialogBody: { textAlign: 'center' as const, color: '#5E7296', fontFamily: typography.fontFamily.ui, fontSize: 14, lineHeight: 20, marginTop: 8 }, dialogSecondary: { minHeight: 44, alignItems: 'center' as const, justifyContent: 'center' as const, marginTop: 6 }, dialogSecondaryText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700' as const },
   safe: { flex: 1, backgroundColor: colors.background } as const, scrollContent: { paddingHorizontal: 18, paddingTop: 5 } as const,
   header: { height: 56, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: 3 }, logo: { width: 124, height: 44, marginLeft: -4 }, headerRight: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 }, headerButton: { width: 34, height: 42, alignItems: 'center' as const, justifyContent: 'center' as const }, headerAvatar: { width: 43, height: 43, borderRadius: 24, overflow: 'hidden' as const, backgroundColor: '#E5F0FB', marginLeft: 2 }, avatarImage: { width: '100%' as const, height: '100%' as const },
   hero: { height: 131, justifyContent: 'center' as const, marginHorizontal: 1, position: 'relative' as const, overflow: 'hidden' as const }, heroOrb: { position: 'absolute' as const, height: 112, bottom: -20, borderRadius: 70, backgroundColor: '#EAF5FF' }, heroCopy: { zIndex: 1, width: '69%' as const, paddingLeft: 3 }, heroTitle: { color: '#101A48', fontFamily: typography.fontFamily.ui, fontSize: 34, lineHeight: 40, fontWeight: '800' as const, letterSpacing: -.8 }, heroSub: { color: '#64799E', fontFamily: typography.fontFamily.ui, fontSize: 16, lineHeight: 20, marginTop: 2 }, heroMascot: { position: 'absolute' as const, width: 199, height: 154, right: -10, bottom: -12 },

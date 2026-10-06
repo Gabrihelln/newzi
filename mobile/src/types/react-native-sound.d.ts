@@ -8,7 +8,7 @@ declare module 'react-native-sound' {
     release(): void;
     isPlaying(): boolean;
     getDuration(): number;
-    getCurrentTime(callback: (seconds: number) => void): void;
+    getCurrentTime(callback: (seconds: number, isPlaying: boolean) => void): void;
     setCurrentTime(seconds: number): void;
     setSpeed(speed: number): void;
   }

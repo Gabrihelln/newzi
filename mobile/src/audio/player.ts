@@ -22,11 +22,28 @@ let voiceSyncRun = 0;
 let voiceSyncTimer: ReturnType<typeof setTimeout> | undefined;
 let readyVoiceVariant: { briefingId: string; voice: string; url: string; briefing: Briefing; metadata: AudioMetadata } | null = null;
 
+/**
+ * A delivery keeps its id when the same day's briefing is regenerated (e.g. after new content preferences),
+ * so the edition must also match before a loaded audio session is reused.
+ */
+export function sameBriefing(a: Briefing | null | undefined, b: Briefing | null | undefined) {
+  if (!a?.id || !b?.id || a.id !== b.id) return false;
+  return !a.edition_id || !b.edition_id || a.edition_id === b.edition_id;
+}
+
 function briefingKey(briefing: Briefing) { return briefing.delivery_id || briefing.id || briefing.edition_id || ''; }
 
 function update(patch: Partial<PlaybackState>) {
   state = { ...state, ...patch };
   listeners.forEach(listener => listener(state));
+}
+
+/** Mark playback of `sound` as finished; safe to call from both the native completion callback and progress polling. */
+function finishPlayback(sound: Sound, success: boolean) {
+  if (current !== sound || !state.playing) return;
+  update({ playing: false, paused: !success, ended: success, started: false, position: success ? state.duration : state.position });
+  if (success) persistBriefingProgress(state.duration, state.duration, true);
+  if (success && currentUrl) NativeModules.NewziAudioCache?.savePosition?.(currentUrl, 0);
 }
 
 function persistBriefingProgress(position: number, duration: number, force = false) {
@@ -104,7 +121,6 @@ export async function switchAudioVariant(url: string, briefing: Briefing, metada
     const old = current;
     const duration = replacement.getDuration();
     const position = Math.max(0, Math.min(duration, duration * normalizedProgress));
-    replacement.setSpeed(speed);
     if (position) replacement.setCurrentTime(position);
     current = replacement;
     currentUrl = url;
@@ -119,12 +135,8 @@ export async function switchAudioVariant(url: string, briefing: Briefing, metada
     persistBriefingProgress(position, duration, true);
     if (wasPlaying && normalizedProgress < 1) {
       update({ playing: true, paused: false, ended: false, started: true });
-      replacement.play(success => {
-        if (current !== replacement) return;
-        update({ playing: false, paused: !success, ended: success, started: false, position: success ? duration : state.position });
-        if (success) persistBriefingProgress(duration, duration, true);
-        if (success) NativeModules.NewziAudioCache?.savePosition?.(url, 0);
-      });
+      replacement.play(success => finishPlayback(replacement!, success));
+      replacement.setSpeed(speed);
     }
   } catch {
     replacement?.release();
@@ -187,7 +199,6 @@ export async function loadAudio(url: string) {
       currentUrl = url;
       audioContext = null;
       contextListeners.forEach(listener => listener(null));
-      sound.setSpeed(state.speed || 1);
       const saved = await (NativeModules.NewziAudioCache as { getPosition?: (url: string) => Promise<number> })
         .getPosition?.(url).catch(() => 0) || 0;
       const position = saved < sound.getDuration() - 1 ? saved : 0;
@@ -208,13 +219,10 @@ export function playAudio(): Promise<void> {
   const sound = current;
   if (state.ended) sound.setCurrentTime(0);
   update({ playing: true, paused: false, ended: false, started: true });
-  sound.play(success => {
-    if (current !== sound) return;
-    update({ playing: false, paused: !success, ended: success,
-      started: false, position: success ? state.duration : state.position });
-    if (success) persistBriefingProgress(state.duration,state.duration,true);
-    if (success && currentUrl) NativeModules.NewziAudioCache?.savePosition?.(currentUrl, 0);
-  });
+  sound.play(success => finishPlayback(sound, success));
+  // Apply speed only after play(): on Android, setPlaybackParams starts a paused MediaPlayer,
+  // which would make play() return early without registering the completion listener.
+  sound.setSpeed(state.speed || 1);
   return Promise.resolve();
 }
 
@@ -238,7 +246,7 @@ export async function dismissMiniAudio() {
 
 export function setPlaybackSpeed(speed: number) {
   if (![0.75, 1, 1.25, 1.5, 2].includes(speed)) return;
-  current?.setSpeed(speed);
+  if (state.playing) current?.setSpeed(speed);
   update({ speed });
 }
 
@@ -259,8 +267,11 @@ export function restartAudio() { seekTo(0); }
 
 export function getAudioProgress(): Promise<PlaybackState> {
   if (!current) return Promise.resolve(state);
-  return new Promise(resolve => current?.getCurrentTime(position => {
-    update({ position, duration: current?.getDuration() || state.duration });
+  const sound = current;
+  return new Promise(resolve => sound.getCurrentTime((position, nativePlaying) => {
+    update({ position, duration: sound.getDuration() || state.duration });
+    // Fallback when the native completion callback is lost: the player stopped at the end of the track.
+    if (state.playing && nativePlaying === false && state.duration > 0 && position >= state.duration - 1) finishPlayback(sound, true);
     persistBriefingProgress(position,current?.getDuration() || state.duration);
     if (currentUrl && Date.now() - lastSavedAt > 5000) {
       NativeModules.NewziAudioCache?.savePosition?.(currentUrl, position);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import { NavigationContainer, useIsFocused, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -16,7 +16,7 @@ import { ArticleLoadState } from '../components/ArticleDetailScreen';
 import { AccountScreen } from '../components/AccountScreen';
 import { HistoryScreen } from '../components/HistoryScreen';
 import { NotificationSettingsScreen } from '../components/NotificationSettingsScreen';
-import { getAudioContext } from '../audio/player';
+import { getAudioContext, sameBriefing, subscribeAudio } from '../audio/player';
 import { startContentRevisionMonitor } from '../services/contentRevision';
 import { SearchScreen, TopicFeedScreen } from '../components/HomeScreen';
 import { Icon } from '../components/Icon';
@@ -33,6 +33,10 @@ const Tabs = createBottomTabNavigator<MainTabParamList>();
 
 function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomTabBarProps; onAudio: () => void; onExpand: (briefing: Briefing) => void; showMini: boolean }) {
   const insets = useSafeAreaInsets();
+  const tabsFocused = useIsFocused();
+  const [audioPlaying, setAudioPlaying] = React.useState(false);
+  React.useEffect(() => subscribeAudio(state => setAudioPlaying(state.playing)), []);
+  const onHome = props.state.routes[props.state.index]?.name === 'Inicio';
   const tabItems = [
     { route: props.state.routes.find(item => item.name === 'Inicio')!, icon: 'home' as const, label: 'Início' },
     { route: props.state.routes.find(item => item.name === 'Explorar')!, icon: 'explore' as const, label: 'Explorar' },
@@ -44,7 +48,7 @@ function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomT
     {showMini && <MiniAudioPlayer onExpand={onExpand} />}
     <View style={{ width: '80%', alignSelf: 'center', height: 66, borderRadius: 34, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 2, shadowColor: '#496B99', shadowOpacity: .16, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 8 }}>
       {tabItems.map(item => {
-        if (!item) return <PressAudio key="audio" onPress={onAudio} />;
+        if (!item) return <PressAudio key="audio" onPress={onAudio} active={audioPlaying && onHome && tabsFocused} />;
         const focused = props.state.index === props.state.routes.findIndex(route => route.key === item.route.key);
         return <Pressable key={item.route.key} accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected: focused }} onPress={() => {
           const event = props.navigation.emit({ type: 'tabPress', target: item.route.key, canPreventDefault: true });
@@ -57,14 +61,29 @@ function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomT
     </View>
   </View>;
 }
-function PressAudio({ onPress }: { onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel="Abrir player de áudio" onPress={onPress} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: .35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}><Icon name="audio" color="#FFFFFF" size={27} /></Pressable>;
+/** Central player button; pulses while the daily briefing is playing on the Home tab. */
+function PressAudio({ onPress, active }: { onPress: () => void; active: boolean }) {
+  const pulse = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    if (!active) { pulse.stopAnimation(); pulse.setValue(0); return; }
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }));
+    loop.start();
+    return () => { loop.stop(); pulse.setValue(0); };
+  }, [active, pulse]);
+  const ring = { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }], opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [active ? .45 : 0, 0] }) };
+  const button = { transform: [{ scale: pulse.interpolate({ inputRange: [0, .5, 1], outputRange: [1, 1.07, 1] }) }] };
+  return <View style={{ width: 54, height: 54, alignItems: 'center', justifyContent: 'center' }}>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary }, ring]} />
+    <Animated.View style={button}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Abrir player de áudio" onPress={onPress} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: .35, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}><Icon name="audio" color="#FFFFFF" size={27} /></Pressable>
+    </Animated.View>
+  </View>;
 }
 
 function MainTabs({ onAuthExpired, user }: { onAuthExpired: () => void; user: User | null }) {
   const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const [latestBriefing, setLatestBriefing] = React.useState<Briefing | null>(null);
-  const showAudio = () => { const current = getAudioContext()?.briefing; const briefing = current || latestBriefing; briefing ? navigation.navigate('AudioExpanded', { briefing }) : navigation.navigate('History'); };
+  const showAudio = () => { const loaded = getAudioContext()?.briefing; const current = loaded && latestBriefing && loaded.id === latestBriefing.id && !sameBriefing(loaded, latestBriefing) ? latestBriefing : loaded; const briefing = current || latestBriefing; briefing ? navigation.navigate('AudioExpanded', { briefing }) : navigation.navigate('History'); };
   return <Tabs.Navigator tabBar={props => <FloatingTabBar props={props} onAudio={showAudio} onExpand={briefing => navigation.navigate('AudioExpanded', { briefing })} showMini={props.state.routes[props.state.index]?.name !== 'Inicio'} />}
     screenOptions={{ headerShown: false, tabBarStyle: { position: 'absolute', height: 82, backgroundColor: 'transparent', borderTopWidth: 0, elevation: 0 } }}>
     <Tabs.Screen name="Inicio" options={{ title: 'Início', tabBarAccessibilityLabel: 'Início' }}>{() => <TodayTab user={user} onAuthExpired={onAuthExpired} onLatestBriefing={setLatestBriefing} />}</Tabs.Screen>
@@ -108,29 +127,22 @@ function DetailScreenRoute({ route, navigation }: any) {
   if (!item) return <ArticleLoadState onBack={() => navigation.goBack()} onRetry={() => setRetry(value => value + 1)} loading={loading} error={error} />;
   return <DetailScreen item={item} onBack={() => navigation.goBack()} onRelated={story => navigation.navigate('Detail', { item: story })} onTopic={topic => navigation.navigate('TopicFeed', { topic })} onBriefing={briefing => briefing.id ? navigation.navigate('AudioExpanded', { briefing }) : navigation.navigate('History')} trackReadingProgress={!!route.params?.trackReadingProgress} readingProgress={route.params?.readingProgress || 0} />;
 }
-function WithMini({ children, navigation }: { children: React.ReactNode; navigation: NativeStackNavigationProp<MainStackParamList> }) {
-  const focused = useIsFocused();
-  return <View style={{ flex: 1 }}>
-    <View style={{ flex: 1 }}>{children}</View>
-    {focused && <MiniAudioPlayer onExpand={briefing => navigation.navigate('AudioExpanded', { briefing })} />}
-  </View>;
-}
 
 function MainFlow({ onAuthExpired, onLogout, onUserUpdated, notificationId, user }: { onAuthExpired: () => void; onLogout: () => void; onUserUpdated: (user: User) => void; notificationId?: string; user: User | null }) {
   React.useEffect(() => startContentRevisionMonitor(), []);
   return <MainStack.Navigator screenOptions={{ headerShown: false }}>
     <MainStack.Screen name="Tabs">{() => <MainTabs user={user} onAuthExpired={onAuthExpired} />}</MainStack.Screen>
-    <MainStack.Screen name="Search">{({ navigation }) => <WithMini navigation={navigation}><SearchScreen onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="TopicFeed">{({ route, navigation }) => <WithMini navigation={navigation}><TopicFeedScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="EditProfile">{({ navigation }) => <WithMini navigation={navigation}><EditProfileScreen user={user} onBack={() => navigation.goBack()} onSaved={updated => { onUserUpdated(updated); navigation.goBack(); }} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="ContentPreferences">{({ navigation }) => <WithMini navigation={navigation}><ContentPreferencesScreen onBack={() => navigation.goBack()} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="DailyBriefing">{({ navigation }) => <WithMini navigation={navigation}><DailyBriefingSettingsScreen onBack={() => navigation.goBack()} onVoice={() => navigation.navigate('VoiceSettings')} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="SecurityPrivacy">{({ navigation }) => <WithMini navigation={navigation}><SecurityPrivacyScreen onBack={() => navigation.goBack()} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="Subscription">{({ navigation }) => <WithMini navigation={navigation}><ProfileInfoScreen title="Assinatura e plano" message="Planos e pagamentos ainda não estão disponíveis nesta versão do Newzi." onBack={() => navigation.goBack()} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="SavedTopics">{({ navigation }) => <WithMini navigation={navigation}><SavedTopicsScreen onBack={() => navigation.goBack()} onSelect={topic => navigation.navigate('SavedContent', { topic })} /></WithMini>}</MainStack.Screen>
-    <MainStack.Screen name="SavedContent">{({ route, navigation }) => <WithMini navigation={navigation}><SavedContentScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={(item, progress) => navigation.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} /></WithMini>}</MainStack.Screen>
+    <MainStack.Screen name="Search">{({ navigation }) => <SearchScreen onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} />}</MainStack.Screen>
+    <MainStack.Screen name="TopicFeed">{({ route, navigation }) => <TopicFeedScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} />}</MainStack.Screen>
+    <MainStack.Screen name="EditProfile">{({ navigation }) => <EditProfileScreen user={user} onBack={() => navigation.goBack()} onSaved={updated => { onUserUpdated(updated); navigation.goBack(); }} />}</MainStack.Screen>
+    <MainStack.Screen name="ContentPreferences">{({ navigation }) => <ContentPreferencesScreen onBack={() => navigation.goBack()} onDone={() => navigation.navigate('Tabs' as never, { screen: 'Inicio' } as never)} />}</MainStack.Screen>
+    <MainStack.Screen name="DailyBriefing">{({ navigation }) => <DailyBriefingSettingsScreen onBack={() => navigation.goBack()} onVoice={() => navigation.navigate('VoiceSettings')} />}</MainStack.Screen>
+    <MainStack.Screen name="SecurityPrivacy">{({ navigation }) => <SecurityPrivacyScreen onBack={() => navigation.goBack()} />}</MainStack.Screen>
+    <MainStack.Screen name="Subscription">{({ navigation }) => <ProfileInfoScreen title="Assinatura e plano" message="Planos e pagamentos ainda não estão disponíveis nesta versão do Newzi." onBack={() => navigation.goBack()} />}</MainStack.Screen>
+    <MainStack.Screen name="SavedTopics">{({ navigation }) => <SavedTopicsScreen onBack={() => navigation.goBack()} onSelect={topic => navigation.navigate('SavedContent', { topic })} />}</MainStack.Screen>
+    <MainStack.Screen name="SavedContent">{({ route, navigation }) => <SavedContentScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={(item, progress) => navigation.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} />}</MainStack.Screen>
     <MainStack.Screen name="Detail" initialParams={notificationId ? { notificationId } : undefined}>
-      {({ route, navigation }) => <WithMini navigation={navigation}><DetailScreenRoute route={route} navigation={navigation} /></WithMini>}
+      {({ route, navigation }) => <DetailScreenRoute route={route} navigation={navigation} />}
     </MainStack.Screen>
     <MainStack.Screen name="AudioExpanded">
       {({ route, navigation }) => <AudioExpandedScreen briefing={route.params.briefing} onBack={() => navigation.goBack()}
@@ -139,17 +151,17 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, notificationId, user
         onSchedule={() => navigation.navigate('DailyBriefing')} />}
     </MainStack.Screen>
     <MainStack.Screen name="History">
-      {({ navigation }) => <WithMini navigation={navigation}><HistoryScreen onBack={() => navigation.goBack()}
-        onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} /></WithMini>}
+      {({ navigation }) => <HistoryScreen onBack={() => navigation.goBack()}
+        onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} />}
     </MainStack.Screen>
     <MainStack.Screen name="NotificationSettings">
-      {({ navigation }) => <WithMini navigation={navigation}><NotificationSettingsScreen onBack={() => navigation.goBack()} /></WithMini>}
+      {({ navigation }) => <NotificationSettingsScreen onBack={() => navigation.goBack()} />}
     </MainStack.Screen>
     <MainStack.Screen name="VoiceSettings">
-      {({ navigation }) => <WithMini navigation={navigation}><VoiceSettingsScreen onBack={() => navigation.goBack()} /></WithMini>}
+      {({ navigation }) => <VoiceSettingsScreen onBack={() => navigation.goBack()} />}
     </MainStack.Screen>
     <MainStack.Screen name="Account">
-      {({ navigation }) => <WithMini navigation={navigation}><AccountScreen onBack={() => navigation.goBack()} onLogout={onLogout} onEditProfile={() => navigation.navigate('EditProfile')} /></WithMini>}
+      {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onLogout={onLogout} onEditProfile={() => navigation.navigate('EditProfile')} />}
     </MainStack.Screen>
   </MainStack.Navigator>;
 }
