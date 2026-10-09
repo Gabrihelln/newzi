@@ -1,18 +1,29 @@
 """Restricted WebP-to-JPEG transport for stored article images on iOS."""
 from __future__ import annotations
 
+import hashlib
 import ipaddress
+import os
 import socket
+import threading
+import uuid
 from functools import lru_cache
 from io import BytesIO
+from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import httpx
 from PIL import Image, UnidentifiedImageError
 
+from .paths import BACKEND_DATA
+
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_IMAGE_PIXELS = 30_000_000
 MAX_REDIRECTS = 3
+# Transcoded JPEGs survive restarts; the oldest are evicted beyond this many files.
+CACHE_DIR = Path(os.getenv("ARTICLE_IMAGE_CACHE_DIR", str(BACKEND_DATA / "cache" / "article-images")))
+CACHE_MAX_FILES = max(10, int(os.getenv("ARTICLE_IMAGE_CACHE_MAX_FILES", "500")))
+_cache_lock = threading.Lock()
 ALLOWED_IMAGE_HOSTS = {
     "tl.ctcdn.com.br": ("/",),
     "storage.googleapis.com": ("/gweb-uniblog-publish-prod/",),
@@ -110,10 +121,34 @@ def _fetch_and_transcode(url: str) -> bytes:
         raise ArticleImageError("image could not be decoded") from exc
 
 
+def _cache_path(url: str) -> Path:
+    return CACHE_DIR / (hashlib.sha256(url.encode("utf-8")).hexdigest() + ".jpg")
+
+
+def _store_in_cache(path: Path, data: bytes) -> None:
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
+        temporary.write_bytes(data); temporary.replace(path)
+        with _cache_lock:
+            files = sorted(CACHE_DIR.glob("*.jpg"), key=lambda item: item.stat().st_mtime)
+            for stale in files[:max(0, len(files) - CACHE_MAX_FILES)]:
+                stale.unlink(missing_ok=True)
+    except OSError:
+        pass  # the cache is an optimization; serving the image must not depend on it
+
+
 def load_article_image(url: str) -> bytes:
     if not needs_webp_proxy(url):
         raise ArticleImageError("only WebP article images use this endpoint")
+    cached = _cache_path(url)
     try:
-        return _fetch_and_transcode(url)
+        return cached.read_bytes()
+    except OSError:
+        pass
+    try:
+        data = _fetch_and_transcode(url)
     except httpx.HTTPError as exc:
         raise ArticleImageError("image source is unavailable") from exc
+    _store_in_cache(cached, data)
+    return data

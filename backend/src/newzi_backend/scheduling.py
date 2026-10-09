@@ -82,7 +82,7 @@ class EngineBriefingGenerator:
 
 class BriefingScheduler:
     def __init__(self, repo, clock=None, lead_minutes=None, max_attempts=None):
-        self.repo=repo; self.clock=clock or Clock(); self._lead_override=lead_minutes if lead_minutes is not None else os.getenv("BRIEFING_GENERATION_LEAD_MINUTES"); self.lead_minutes=int(self._lead_override) if self._lead_override is not None else self._measured_lead_minutes(); self.max_attempts=int(max_attempts if max_attempts is not None else os.getenv("GENERATION_MAX_RETRIES",2))
+        self.repo=repo; self.clock=clock or Clock(); self._lead_override=lead_minutes if lead_minutes is not None else os.getenv("BRIEFING_GENERATION_LEAD_MINUTES"); self.lead_minutes=int(self._lead_override) if self._lead_override is not None else self._measured_lead_minutes(); self.max_attempts=int(max_attempts if max_attempts is not None else os.getenv("GENERATION_MAX_RETRIES",2)); self._lead_measured_at=time.monotonic()
     @staticmethod
     def _p95(values):
         numbers=sorted(int(value or 0) for value in values if value is not None and int(value or 0)>0)
@@ -101,21 +101,35 @@ class BriefingScheduler:
             self.repo.db.rollback(); return fallback
     def _eligible(self,prefs, now):
         local=now.astimezone(ZoneInfo(prefs["timezone"])); delivery=datetime.combine(local.date(),datetime.strptime(prefs["briefing_time"],"%H:%M").time(),ZoneInfo(prefs["timezone"])); return local >= delivery-timedelta(minutes=self.lead_minutes), local.date().isoformat(), delivery
+    def _current_lead_minutes(self):
+        if self._lead_override is not None: return int(self._lead_override)
+        # The p95 reads up to 500 timing rows; it changes slowly, so refresh it every few minutes.
+        if self._lead_measured_at is None or time.monotonic()-self._lead_measured_at>300:
+            self.lead_minutes=self._measured_lead_minutes(); self._lead_measured_at=time.monotonic()
+        return self.lead_minutes
     def run_once(self):
-        self.lead_minutes=int(self._lead_override) if self._lead_override is not None else self._measured_lead_minutes()
-        run_id="scheduler_"+uuid.uuid4().hex; discovered=created=skipped=0; rows=self.repo.db.execute("SELECT u.id FROM users u WHERE u.status='ACTIVE'").fetchall()
-        for row in rows:
-            uid=row["id"]; prefs=self.repo.get_preferences(uid); eligible,local_date,delivery=self._eligible(prefs,self.clock.now("UTC"));
-            if not eligible: continue
-            discovered+=1; existing=self.repo.db.execute("SELECT id FROM generation_jobs WHERE user_id=? AND briefing_date=?",(uid,local_date)).fetchone()
+        self.lead_minutes=self._current_lead_minutes()
+        run_id="scheduler_"+uuid.uuid4().hex; discovered=created=skipped=0; now=self.clock.now("UTC")
+        # One query for all preferences and one for today's existing jobs, instead of two per user.
+        due=[]
+        for uid,prefs in self.repo.active_preferences():
+            eligible,local_date,delivery=self._eligible(prefs,now)
+            if eligible: due.append((uid,prefs,local_date,delivery))
+        dates=sorted({item[2] for item in due})
+        existing_jobs={}
+        if dates:
+            for job in self.repo.db.execute("SELECT id,user_id,briefing_date,profile_key,status FROM generation_jobs WHERE briefing_date IN ("+",".join("?" for _ in dates)+")",dates):
+                existing_jobs[(job["user_id"],job["briefing_date"])]=job
+        for uid,prefs,local_date,delivery in due:
+            discovered+=1; existing=existing_jobs.get((uid,local_date))
             profile=BriefingProfile.from_preferences(prefs)
-            self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING", [(profile.key(), topic) for topic in profile.topics])
             if existing:
-                previous=self.repo.db.execute("SELECT profile_key,status FROM generation_jobs WHERE id=?",(existing["id"],)).fetchone()
-                if previous["profile_key"]!=profile.key() and previous["status"]!="RUNNING":
+                if existing["profile_key"]!=profile.key() and existing["status"]!="RUNNING":
+                    self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING", [(profile.key(), topic) for topic in profile.topics])
                     self.repo.db.execute("UPDATE generation_jobs SET profile_key=?,status='PENDING',attempt_count=0,error_code=NULL,error_message=NULL,next_retry_at=NULL WHERE id=?",(profile.key(),existing["id"])); created+=1
                 else: skipped+=1
                 continue
+            self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING", [(profile.key(), topic) for topic in profile.topics])
             scheduled=(delivery-timedelta(minutes=self.lead_minutes)).astimezone(timezone.utc).isoformat(); self.repo.db.execute("INSERT INTO generation_jobs(id,user_id,briefing_date,scheduled_for,delivery_time,timezone,status,attempt_count,max_attempts,created_at,started_at,finished_at,next_retry_at,error_code,error_message,profile_key,worker_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",("job_"+uuid.uuid4().hex,uid,local_date,scheduled,prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,datetime.now(timezone.utc).isoformat(),None,None,None,None,None,profile.key(),None)); created+=1
         self.repo.db.commit(); return {"scheduler_run_id":run_id,"jobs_discovered":discovered,"jobs_created":created,"jobs_skipped_existing":skipped,"lead_minutes":self.lead_minutes}
 
@@ -181,6 +195,20 @@ class BriefingScheduler:
             return
 
 
+_ENGINE_MAIN = None
+
+
+def _engine_collect_sources():
+    """engine/main.py's collector, imported once (it used to be re-executed with runpy on every refresh)."""
+    global _ENGINE_MAIN
+    if _ENGINE_MAIN is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("newzi_engine_main", ENGINE_ROOT / "main.py")
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        _ENGINE_MAIN = module
+    return _ENGINE_MAIN.collect_sources
+
+
 class NewsRefreshWorker:
     """Refresh the shared article pool on a bounded cadence, independently of users."""
     def __init__(self, repo, interval_seconds=None):
@@ -211,8 +239,7 @@ class NewsRefreshWorker:
 
         total_started=time.monotonic()
         try:
-            import runpy
-            collect_sources=runpy.run_path(str(ENGINE_ROOT/"main.py"))["collect_sources"]
+            collect_sources=_engine_collect_sources()
             try: stats,changed=collect_sources(incremental=True)
             except TypeError: stats,changed=collect_sources()
             from .content import sync_content_incremental, get_content_revision
@@ -451,7 +478,11 @@ class BriefingGenerationWorker:
 
 
 class BriefingDeliveryWorker:
-    """One continuous owner for scheduler, edition, audio validation and notification handoff."""
+    """One continuous owner for scheduler, edition, audio validation and notification handoff.
+
+    News collection runs on its own thread so a slow source refresh never delays generation,
+    audio or notifications; audio and push work are processed in bounded batches per cycle.
+    """
     def __init__(self, repo, generator=None, interval_seconds=None, batch_size=None):
         from .audio import AudioService
         from .notifications import NotificationService
@@ -463,30 +494,58 @@ class BriefingDeliveryWorker:
         self.notifications=NotificationService(repo)
         self.interval_seconds=max(1.0,float(interval_seconds or os.getenv("DELIVERY_WORKER_POLL_SECONDS","15")))
         self.batch_size=max(1,int(batch_size or os.getenv("WORKER_BATCH_SIZE","20")))
+        self.notification_batch=max(1,int(os.getenv("NOTIFICATION_BATCH_SIZE","200")))
+        self.retention_interval=max(60.0,float(os.getenv("RETENTION_INTERVAL_SECONDS","86400")))
+        self._refresh_thread=None; self._refresh_result=None
+
+    def _refresh_in_background(self):
+        import logging, threading
+        if self._refresh_thread and self._refresh_thread.is_alive():
+            return {"status":"RUNNING_IN_BACKGROUND"}
+        previous=self._refresh_result
+
+        def refresh():
+            try:
+                self._refresh_result=self.news_refresh.refresh_if_due()
+            except Exception as exc:
+                logging.getLogger(__name__).exception("periodic news refresh failed; previous indexed content remains available")
+                self._refresh_result={"status":"FAILED","error":str(exc)[:200]}
+            finally:
+                self.repo.close_thread_connection()
+        self._refresh_thread=threading.Thread(target=refresh,name="newzi-news-refresh",daemon=True)
+        self._refresh_thread.start()
+        return {"status":"STARTED","previous":previous}
+
+    def _retention_if_due(self):
+        from .retention import run_retention_if_due
+        try:
+            return run_retention_if_due(self.repo,self.retention_interval,storage=self.audio.storage)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception("data retention cycle failed")
+            self.repo.db.rollback(); return {"status":"FAILED","error":str(exc)[:200]}
 
     def run_once(self):
+        refresh=self._refresh_in_background()
         scheduled=self.scheduler.run_once()
         generated=self.generation.run_batch(self.batch_size)
         variants_enqueued=self.audio.enqueue_ready_editions()
-        audio=self.audio.generate_pending()
-        try:
-            refresh=self.news_refresh.refresh_if_due()
-        except Exception as exc:
-            import logging
-            logging.getLogger(__name__).exception("periodic news refresh failed; previous indexed content remains available")
-            refresh={"status":"FAILED","error":str(exc)[:200]}
+        audio=self.audio.generate_batch()
         self.generation._publish_manual_refreshes()
         notifications=self.notifications.enqueue_ready()
-        notification=self.notifications.run_once()
+        notification=self.notifications.run_batch(self.notification_batch)
+        retention=self._retention_if_due()
         return {"scheduled":scheduled,"generation":generated,"news_refresh":refresh,"audio_jobs_enqueued":variants_enqueued,
-            "audio":audio,"notifications_enqueued":notifications,"notification_delivery":notification}
+            "audio":audio,"notifications_enqueued":notifications,"notification_delivery":notification,"retention":retention}
 
     def run_forever(self):
         import logging
         try:
             while True:
                 try: self.run_once()
-                except Exception: logging.getLogger(__name__).exception("briefing delivery worker cycle failed")
+                except Exception:
+                    logging.getLogger(__name__).exception("briefing delivery worker cycle failed")
+                    self.repo.db.rollback()
                 time.sleep(self.interval_seconds)
         except KeyboardInterrupt:
             return
@@ -512,9 +571,10 @@ def serialize_edition(repo, edition_id):
         for source in x["sources"]:
             if not isinstance(source,dict): continue
             article_id=source.get("article_id") or source.get("id")
-            if article_id:
+            # Articles past the retention window keep the image stored with the edition.
+            if article_id and article_id in image_by_article:
                 has_indexed_sources=True
-                source["image_url"]=image_by_article.get(article_id)
+                source["image_url"]=image_by_article[article_id]
         canonical_source_image=next((source.get("image_url") for source in x["sources"] if isinstance(source,dict) and source.get("image_url")),None)
         x["image_url"]=canonical_source_image if has_indexed_sources else (x.get("image_url") or canonical_source_image)
         x.pop("primary_taxonomy_reason",None); x.pop("matched_taxonomy_ids_json",None); x.pop("user_interest_matches_json",None)

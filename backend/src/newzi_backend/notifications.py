@@ -1,5 +1,5 @@
 ﻿"""Phase 4.7 push delivery foundation with provider and device boundaries."""
-import json, os, uuid
+import json, os, time, uuid
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
@@ -155,9 +155,23 @@ class NotificationService:
         if not ready or not artifact or not os.path.isfile(artifact["storage_path"]):
             self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='delivery audio is no longer READY' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
             return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
-        self.repo.db.execute("UPDATE notification_jobs SET status='RUNNING',attempt_count=attempt_count+1,updated_at=? WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit(); result=self.provider.send(job["push_token"],"Seu briefing está pronto","Seu briefing diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]})
+        claimed=self.repo.db.execute("UPDATE notification_jobs SET status='RUNNING',attempt_count=attempt_count+1,updated_at=? WHERE id=? AND status='PENDING'",(now_iso(),job["id"])); self.repo.db.commit()
+        if claimed.rowcount!=1:
+            # Another worker claimed it between the read and this update.
+            return {"jobs_claimed":0,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0}
+        result=self.provider.send(job["push_token"],"Seu briefing está pronto","Seu briefing diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]})
         if result.success:
             self.repo.db.execute("UPDATE notification_jobs SET status='SENT',provider_message_id=?,updated_at=? WHERE id=?",(result.provider_message_id,now_iso(),job["id"])); self.repo.db.commit(); self._event("notification_sent",job["id"],job["device_id"],{"provider":self.provider.name}); return {"jobs_claimed":1,"notifications_sent":1,"notifications_failed":0,"invalid_tokens":0}
         if result.token_invalid: self.disable_device(job["user_id"],job["device_id"])
         retry=bool(result.retryable and job["attempt_count"] < job["max_attempts"]); status="PENDING" if retry else "FAILED"; next_at=(now+timedelta(minutes=2 ** job["attempt_count"])).isoformat() if retry else None; self.repo.db.execute("UPDATE notification_jobs SET status=?,next_attempt_at=?,last_error=?,updated_at=? WHERE id=?",(status,next_at,result.failure_reason,now_iso(),job["id"])); self.repo.db.commit(); self._event("notification_failed",job["id"],job["device_id"],{"retry":retry,"token_invalid":result.token_invalid}); return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":1,"invalid_tokens":1 if result.token_invalid else 0,"retry_count":1 if retry else 0}
 
+    def run_batch(self, limit=200, max_seconds=None, now=None):
+        """Deliver up to ``limit`` due notifications within a time budget (one used to go out per worker cycle)."""
+        deadline=time.monotonic()+float(max_seconds or os.getenv("NOTIFICATION_BATCH_SECONDS","60"))
+        totals={"jobs_claimed":0,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0}
+        for _ in range(max(1,int(limit))):
+            result=self.run_once(now)
+            for key,value in result.items():
+                if isinstance(value,int): totals[key]=totals.get(key,0)+value
+            if not result.get("jobs_claimed") or time.monotonic()>deadline: break
+        return totals

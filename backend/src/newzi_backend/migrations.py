@@ -250,9 +250,28 @@ def _hot_path_indexes(db):
         db.execute(statement)
 
 
+def _article_search(db):
+    """Accent-insensitive full-text search over article titles and descriptions."""
+    if db.dialect == POSTGRES:
+        from .search import PG_SEARCH_DOCUMENT
+        db.execute(f"CREATE INDEX IF NOT EXISTS idx_content_search ON indexed_content USING GIN ({PG_SEARCH_DOCUMENT})")
+        return
+    db.execute("CREATE VIRTUAL TABLE IF NOT EXISTS content_search USING fts5(title, description, content='indexed_content', "
+               "content_rowid='rowid', tokenize='unicode61 remove_diacritics 2')")
+    db.execute("CREATE TRIGGER IF NOT EXISTS content_search_insert AFTER INSERT ON indexed_content BEGIN "
+               "INSERT INTO content_search(rowid,title,description) VALUES(new.rowid,new.title,new.description); END")
+    db.execute("CREATE TRIGGER IF NOT EXISTS content_search_delete AFTER DELETE ON indexed_content BEGIN "
+               "INSERT INTO content_search(content_search,rowid,title,description) VALUES('delete',old.rowid,old.title,old.description); END")
+    db.execute("CREATE TRIGGER IF NOT EXISTS content_search_update AFTER UPDATE OF title,description ON indexed_content BEGIN "
+               "INSERT INTO content_search(content_search,rowid,title,description) VALUES('delete',old.rowid,old.title,old.description); "
+               "INSERT INTO content_search(rowid,title,description) VALUES(new.rowid,new.title,new.description); END")
+    db.execute("INSERT INTO content_search(content_search) VALUES('rebuild')")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
+    ("0003_article_search", _article_search),
 ]
 
 

@@ -1021,6 +1021,43 @@ class AudioService:
             return {"jobs_claimed": 1, "jobs_completed": 0, "jobs_failed": 0 if retry else 1,
                     "jobs_retried": 1 if retry else 0}
 
+    def generate_batch(self, max_jobs=None, max_seconds=None, workers=None):
+        """Process several pending audio jobs per cycle, a few in parallel, within a time budget.
+
+        Claims are atomic, so parallel workers never take the same job. Each worker thread uses
+        (and finally closes) its own database connection.
+        """
+        import threading
+        max_jobs=max(1,int(max_jobs or os.getenv("AUDIO_BATCH_SIZE","6")))
+        workers=max(1,min(max_jobs,int(workers or os.getenv("AUDIO_WORKERS","2"))))
+        deadline=time.monotonic()+float(max_seconds or os.getenv("AUDIO_BATCH_SECONDS","120"))
+        totals={"jobs_claimed":0,"jobs_completed":0,"jobs_failed":0,"jobs_retried":0}
+        lock=threading.Lock(); started=[0]
+
+        def work():
+            try:
+                while time.monotonic()<deadline:
+                    with lock:
+                        if started[0]>=max_jobs: return
+                        started[0]+=1
+                    result=self.generate_pending()
+                    with lock:
+                        for key in totals: totals[key]+=int(result.get(key,0))
+                    if not result.get("jobs_claimed"): return
+            finally:
+                self.repo.close_thread_connection()
+        if workers==1:
+            # Run inline: a single worker keeps using the caller's connection.
+            while started[0]<max_jobs and time.monotonic()<deadline:
+                started[0]+=1; result=self.generate_pending()
+                for key in totals: totals[key]+=int(result.get(key,0))
+                if not result.get("jobs_claimed"): break
+            return totals
+        threads=[threading.Thread(target=work,name=f"newzi-audio-{index}",daemon=True) for index in range(workers)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        return totals
+
     def _record_phase(self, job_id, phase, started, status="READY", error_code=None):
         finished=now_iso(); duration=max(0,int((time.monotonic()-started)*1000))
         self.repo.db.execute("INSERT INTO audio_job_phases(audio_job_id,phase,duration_ms,started_at,finished_at,status,error_code) VALUES(?,?,?,?,?,?,?) ON CONFLICT(audio_job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,started_at=excluded.started_at,finished_at=excluded.finished_at,status=excluded.status,error_code=excluded.error_code",

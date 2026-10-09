@@ -52,6 +52,7 @@ Com `PUSH_PROVIDER=fcm`, o backend envia pelo Firebase Admin SDK usando a conta 
 - Mantenha `/etc/newzi/` e `/var/lib/newzi/` fora do checkout e restrinja permissões.
 - Faça backup consistente do SQLite e de `/var/lib/newzi/audio/`. Para SQLite em WAL, use a API de backup do SQLite ou pare os serviços durante cópia simples; copiar apenas o arquivo `.sqlite3` enquanto o processo grava pode perder transações do WAL.
 - Monitore `systemctl`, `/health`, `/ready`, espaço em disco, filas de áudio e logs. Teste a restauração do backup.
+- O worker aplica retenção uma vez por dia: remove variantes de áudio sem uso (7 dias), telemetria e jobs finalizados (30 dias) e matérias fora da janela (90 dias); briefings, entregas e itens salvos são preservados. Ajuste com `RETENTION_*` ou rode manualmente com `python -m newzi_backend.retention` (a partir de `backend/src`).
 - O SQLite atende um único host. Para PostgreSQL, defina `DATABASE_URL=postgresql://usuario:senha@host:5432/newzi` (dependência `psycopg`, já em `requirements.txt`); API e worker criam e atualizam o esquema sozinhos. O armazenamento local de áudio continua exigindo um único host ou um volume compartilhado.
 
 ## Atualizações

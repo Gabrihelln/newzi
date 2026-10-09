@@ -120,5 +120,9 @@ class Store:
           (source_id,status,now if not error else None,now if failed else None,failures,average,duration,metrics.get("newest_article"),validators.get("etag"),validators.get("last_modified"),open_until,error,json.dumps({**metrics,"status":status},ensure_ascii=False)))
         self.db.commit()
     def all_articles(self): return [article_from_row(r) for r in self.db.execute("SELECT * FROM articles ORDER BY COALESCE(published_at,collected_at) DESC")]
+    def purge_older_than(self, cutoff):
+        """Drop articles published (or, undated, collected) before ``cutoff``; returns the count removed."""
+        removed=self.db.execute("DELETE FROM articles WHERE COALESCE(published_at,collected_at)<?",(iso(cutoff),)).rowcount
+        self.db.commit(); return removed
     def save_run(self, stats): self.db.execute("INSERT INTO runs(generated_at,stats_json) VALUES(datetime('now'),?)", (json.dumps(stats),)); self.db.commit()
 

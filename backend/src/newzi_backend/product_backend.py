@@ -169,10 +169,16 @@ class ProductRepository:
     def public_user(user):
         if not user: return None
         return {k:user.get(k) for k in ("id","email","display_name","language","timezone","created_at","updated_at","status","onboarding_status") if k in user}
-    def get_preferences(self, uid):
-        row=self.db.execute("SELECT * FROM user_preferences WHERE user_id=?",(uid,)).fetchone();
-        if not row: return None
+    @staticmethod
+    def _preferences_from_row(row):
         out=dict(row); out["topics"]=list(taxonomy().canonicalize(json.loads(out.pop("topics_json")))[0]); out["audio_enabled"]=bool(out["audio_enabled"]); out.setdefault("content_scope", "selected"); return out
+    def get_preferences(self, uid):
+        row=self.db.execute("SELECT * FROM user_preferences WHERE user_id=?",(uid,)).fetchone()
+        return self._preferences_from_row(row) if row else None
+    def active_preferences(self):
+        """``(user_id, preferences)`` for every active user, in one query."""
+        return [(row["user_id"], self._preferences_from_row(row)) for row in self.db.execute(
+            "SELECT p.* FROM user_preferences p JOIN users u ON u.id=p.user_id WHERE u.status='ACTIVE' ORDER BY p.user_id")]
     def save_preferences(self, uid, data):
         if "topics" in data:
             registry=taxonomy()

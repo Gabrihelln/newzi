@@ -63,6 +63,7 @@ engine/data/output/
 engine/data/diagnostics/
 backend/data/audio/
 backend/data/models/
+backend/data/cache/
 
 # Build outputs
 /dist/

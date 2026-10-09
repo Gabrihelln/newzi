@@ -5,8 +5,11 @@ identity remains available for isolated legacy/unit tests until real Firebase
 runtime validation is complete.
 """
 from .identity import Identity, IdentityProvider
+import hashlib
 import logging
+import os
 import threading
+import time
 
 log = logging.getLogger("newzi.firebase_auth")
 
@@ -25,6 +28,25 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
         except Exception as exc:
             raise RuntimeError("Firebase Admin SDK is required when FIREBASE_AUTH_ENABLED is enabled") from exc
         self.last_verify_reason = None
+        # Verified tokens are reused briefly: verify_id_token(check_revoked=True) calls Google on
+        # every request. A revocation therefore takes effect within this many seconds (0 disables).
+        self.cache_seconds = max(0, int(os.getenv("FIREBASE_TOKEN_CACHE_SECONDS", "60")))
+        self._verified = {}; self._verified_lock = threading.Lock()
+
+    def _cached(self, key):
+        with self._verified_lock:
+            entry = self._verified.get(key)
+            if entry and entry[0] > time.time(): return entry[1]
+            self._verified.pop(key, None); return None
+
+    def _remember(self, key, decoded):
+        if not self.cache_seconds: return
+        expires = min(time.time() + self.cache_seconds, float(decoded.get("exp") or 0))
+        with self._verified_lock:
+            if len(self._verified) >= 10_000:
+                now = time.time(); self._verified = {k: v for k, v in self._verified.items() if v[0] > now}
+                if len(self._verified) >= 10_000: self._verified.clear()
+            self._verified[key] = (expires, {k: decoded.get(k) for k in ("uid", "email", "name")})
 
     @property
     def last_verify_reason(self):
@@ -42,6 +64,12 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
         if not token:
             self.last_verify_reason = "AUTH_EMPTY_TOKEN"
             return None
+        key = hashlib.sha256(token.encode()).hexdigest()
+        decoded = self._cached(key)
+        if decoded is not None:
+            self.last_verify_reason = None
+            user = self.repo.ensure_firebase_user(decoded["uid"], decoded.get("email") or "", decoded.get("name") or "")
+            return Identity(user) if user else None
         try:
             # Firebase issues tokens using its own clock. A small leeway avoids
             # rejecting a freshly minted token when this host is a few seconds behind.
@@ -64,6 +92,7 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
             log.warning("[Backend Auth] firebase_token_verified=false reason=AUTH_FIREBASE_VERIFY_ERROR exception=MissingUid")
             return None
         self.last_verify_reason = None
+        self._remember(key, {**decoded, "uid": uid})
         log.info("[Backend Auth] firebase_token_verified=true uid_present=true")
         user = self.repo.ensure_firebase_user(uid, decoded.get("email") or "", decoded.get("name") or "")
         return Identity(user) if user else None
