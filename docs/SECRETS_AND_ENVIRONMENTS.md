@@ -7,7 +7,7 @@
 | Variable | Consumer | Development | Staging | Production | Secret | Mobile-safe |
 |---|---|---|---|---|---|---|
 | `APP_ENV` | backend/mobile build | `development` | `staging` | `production` | no | yes |
-| `DATABASE_URL` | backend | local SQLite | private SQLite/VPS | private SQLite/VPS | no | no |
+| `DATABASE_URL` | backend | local SQLite | SQLite or PostgreSQL | SQLite or PostgreSQL | yes (PostgreSQL password) | no |
 | `ENABLE_DEV_ENDPOINTS` | backend | `true` | `false` | `false` | no | no |
 | `AUDIO_ENABLED` | backend | `true` | explicit | explicit | no | no |
 | `NOTIFICATIONS_ENABLED` | backend | `true` | explicit | explicit | no | no |

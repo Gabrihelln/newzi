@@ -81,19 +81,9 @@ class FCMPushProvider(PushProvider):
             return PushResult(False, failure_reason="PROVIDER_UNAVAILABLE", retryable=True)
 
 
-def ensure_notification_schema(repo):
-    repo.db.executescript("""
-    CREATE TABLE IF NOT EXISTS push_devices(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,platform TEXT NOT NULL,push_token TEXT NOT NULL,device_identifier TEXT,app_version TEXT,locale TEXT,timezone TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,last_seen_at TEXT NOT NULL,invalidated_at TEXT,UNIQUE(push_token));
-    CREATE TABLE IF NOT EXISTS notification_settings(user_id TEXT PRIMARY KEY,notifications_enabled INTEGER NOT NULL DEFAULT 1,daily_briefing_enabled INTEGER NOT NULL DEFAULT 1,breaking_news_enabled INTEGER NOT NULL DEFAULT 0,updated_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS notification_jobs(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,delivery_id TEXT NOT NULL,device_id TEXT NOT NULL,notification_type TEXT NOT NULL,scheduled_for TEXT NOT NULL,status TEXT NOT NULL,attempt_count INTEGER NOT NULL DEFAULT 0,max_attempts INTEGER NOT NULL DEFAULT 3,next_attempt_at TEXT,provider_message_id TEXT,last_error TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(delivery_id,device_id,notification_type));
-    CREATE TABLE IF NOT EXISTS notification_events(id INTEGER PRIMARY KEY AUTOINCREMENT,event_type TEXT NOT NULL,job_id TEXT,device_id TEXT,metadata_json TEXT NOT NULL,created_at TEXT NOT NULL);
-    """)
-    repo.db.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,?)", (now_iso(),)); repo.db.commit()
-
-
 class NotificationService:
     def __init__(self, repo, provider=None, late_tolerance_minutes=30):
-        ensure_notification_schema(repo); self.repo = repo; selected = getattr(getattr(repo, "config", None), "push_provider", os.getenv("PUSH_PROVIDER", "development")); self.provider = provider or (FCMPushProvider() if selected == "fcm" else DevelopmentPushProvider()); self.late_tolerance = timedelta(minutes=late_tolerance_minutes)
+        self.repo = repo; selected = getattr(getattr(repo, "config", None), "push_provider", os.getenv("PUSH_PROVIDER", "development")); self.provider = provider or (FCMPushProvider() if selected == "fcm" else DevelopmentPushProvider()); self.late_tolerance = timedelta(minutes=late_tolerance_minutes)
 
     def _event(self, event_type, job_id=None, device_id=None, metadata=None):
         self.repo.db.execute("INSERT INTO notification_events(event_type,job_id,device_id,metadata_json,created_at) VALUES(?,?,?,?,?)", (event_type, job_id, device_id, json.dumps(metadata or {}, ensure_ascii=False), now_iso())); self.repo.db.commit()
@@ -110,7 +100,7 @@ class NotificationService:
             self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',last_error='device reassigned to another user',updated_at=? WHERE device_id=? AND user_id<>? AND status IN ('PENDING','RUNNING')", (t, did, user_id))
             self._event("device_reassigned", device_id=did)
         if existing: self.repo.db.execute("UPDATE push_devices SET user_id=?,platform=?,device_identifier=?,app_version=?,locale=?,timezone=?,enabled=1,updated_at=?,last_seen_at=?,invalidated_at=NULL WHERE id=?", (user_id,platform,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),t,t,did))
-        else: self.repo.db.execute("INSERT INTO push_devices VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (did,user_id,platform,token,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),1,t,t,t,None))
+        else: self.repo.db.execute("INSERT INTO push_devices(id,user_id,platform,push_token,device_identifier,app_version,locale,timezone,enabled,created_at,updated_at,last_seen_at,invalidated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (did,user_id,platform,token,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),1,t,t,t,None))
         self.repo.db.commit(); return self.public_device(self.repo.db.execute("SELECT * FROM push_devices WHERE id=?", (did,)).fetchone())
 
     @staticmethod
@@ -123,11 +113,11 @@ class NotificationService:
 
     def settings(self, user_id):
         row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
-        if not row: self.repo.db.execute("INSERT INTO notification_settings VALUES(?,?,?,?,?)",(user_id,1,1,0,now_iso())); self.repo.db.commit(); row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
+        if not row: self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING",(user_id,1,1,0,now_iso())); self.repo.db.commit(); row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
         return {"notifications_enabled":bool(row["notifications_enabled"]),"daily_briefing_enabled":bool(row["daily_briefing_enabled"]),"breaking_news_enabled":bool(row["breaking_news_enabled"])}
 
     def save_settings(self, user_id, data):
-        current=self.settings(user_id); current.update({k:bool(data[k]) for k in ("notifications_enabled","daily_briefing_enabled","breaking_news_enabled") if k in data}); t=now_iso(); self.repo.db.execute("INSERT OR REPLACE INTO notification_settings VALUES(?,?,?,?,?)",(user_id,int(current["notifications_enabled"]),int(current["daily_briefing_enabled"]),int(current["breaking_news_enabled"]),t)); self.repo.db.commit(); return self.settings(user_id)
+        current=self.settings(user_id); current.update({k:bool(data[k]) for k in ("notifications_enabled","daily_briefing_enabled","breaking_news_enabled") if k in data}); t=now_iso(); self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET notifications_enabled=excluded.notifications_enabled,daily_briefing_enabled=excluded.daily_briefing_enabled,breaking_news_enabled=excluded.breaking_news_enabled,updated_at=excluded.updated_at",(user_id,int(current["notifications_enabled"]),int(current["daily_briefing_enabled"]),int(current["breaking_news_enabled"]),t)); self.repo.db.commit(); return self.settings(user_id)
 
     def enqueue_ready(self, now=None):
         now = now or datetime.now(timezone.utc); created=0
@@ -145,7 +135,7 @@ class NotificationService:
             if late: continue
             devices=self.repo.db.execute("SELECT * FROM push_devices WHERE user_id=? AND enabled=1 AND invalidated_at IS NULL",(delivery["user_id"],)).fetchall()
             for device in devices:
-                cur=self.repo.db.execute("INSERT OR IGNORE INTO notification_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",("notification_"+uuid.uuid4().hex,delivery["user_id"],delivery["id"],device["id"],"DAILY_BRIEFING",target.isoformat(),"PENDING",0,3,None,None,None,now_iso(),now_iso())); created += cur.rowcount
+                cur=self.repo.db.execute("INSERT INTO notification_jobs(id,user_id,delivery_id,device_id,notification_type,scheduled_for,status,attempt_count,max_attempts,next_attempt_at,provider_message_id,last_error,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",("notification_"+uuid.uuid4().hex,delivery["user_id"],delivery["id"],device["id"],"DAILY_BRIEFING",target.isoformat(),"PENDING",0,3,None,None,None,now_iso(),now_iso())); created += cur.rowcount
         self.repo.db.commit(); return {"notification_jobs_created":created}
 
     def run_once(self, now=None):

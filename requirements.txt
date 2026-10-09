@@ -1,5 +1,7 @@
 feedparser==6.0.11
 httpx==0.27.2
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
 PyYAML==6.0.2
 python-dateutil==2.9.0.post0
 firebase-admin>=6.5,<7
@@ -8,3 +10,7 @@ Pillow>=10,<13
 # CPU-only translation of foreign-language stories for briefing narration
 ctranslate2>=4.0,<5
 sentencepiece>=0.2,<0.3
+# PostgreSQL support (DATABASE_URL=postgresql://...); not needed for SQLite
+psycopg[binary]>=3.2,<4
+# Development: python -m pytest
+pytest>=8,<9

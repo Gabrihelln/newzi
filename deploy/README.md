@@ -52,8 +52,8 @@ Com `PUSH_PROVIDER=fcm`, o backend envia pelo Firebase Admin SDK usando a conta 
 - Mantenha `/etc/newzi/` e `/var/lib/newzi/` fora do checkout e restrinja permissões.
 - Faça backup consistente do SQLite e de `/var/lib/newzi/audio/`. Para SQLite em WAL, use a API de backup do SQLite ou pare os serviços durante cópia simples; copiar apenas o arquivo `.sqlite3` enquanto o processo grava pode perder transações do WAL.
 - Monitore `systemctl`, `/health`, `/ready`, espaço em disco, filas de áudio e logs. Teste a restauração do backup.
-- O banco SQLite e o armazenamento local de áudio são adequados para um único host. Para múltiplos hosts, planeje banco e storage compartilhados antes de escalar.
+- O SQLite atende um único host. Para PostgreSQL, defina `DATABASE_URL=postgresql://usuario:senha@host:5432/newzi` (dependência `psycopg`, já em `requirements.txt`); API e worker criam e atualizam o esquema sozinhos. O armazenamento local de áudio continua exigindo um único host ou um volume compartilhado.
 
 ## Atualizações
 
-Atualize o checkout sem remover `/var/lib/newzi` ou os arquivos privados em `/etc/newzi`. Instale dependências, reinicie os serviços e verifique health, logs e backups. Execute as migrações de banco previstas pelo projeto antes de voltar a aceitar tráfego, se uma versão futura exigir migração explícita.
+Atualize o checkout sem remover `/var/lib/newzi` ou os arquivos privados em `/etc/newzi`. Instale dependências, reinicie os serviços e verifique health, logs e backups. As migrações de banco são versionadas (`backend/src/newzi_backend/migrations.py`, tabela `schema_versions`) e aplicadas automaticamente na inicialização da API e do worker, uma única vez e sob trava; faça backup antes de atualizar.

@@ -1,15 +1,14 @@
 """Phase 4.2 scheduling, shared editions and asynchronous generation worker."""
-import hashlib, json, os, sqlite3, uuid
+import hashlib, json, os, uuid
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
-from .paths import BACKEND_DATA
-from newzi_engine.paths import ENGINE_OUTPUT, ENGINE_ROOT
+from newzi_engine.paths import ENGINE_ROOT
 from newzi_engine.topic_registry import taxonomy
 
-from .product_backend import ProductRepository, Phase33Adapter, validate_timezone
+from . import db as database
 
 MINIMUM_DELIVERABLE_ITEMS = 1
 PROFILE_SCHEMA_VERSION = "7.0.0"
@@ -48,54 +47,12 @@ class FixedClock(Clock):
         return value.astimezone(ZoneInfo(tz)) if tz else value
 
 
-def ensure_phase42_schema(repo):
-    repo.db.executescript("""
-    CREATE TABLE IF NOT EXISTS generation_jobs(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,briefing_date TEXT NOT NULL,scheduled_for TEXT NOT NULL,delivery_time TEXT NOT NULL,timezone TEXT NOT NULL,status TEXT NOT NULL,attempt_count INTEGER NOT NULL DEFAULT 0,max_attempts INTEGER NOT NULL DEFAULT 2,created_at TEXT NOT NULL,started_at TEXT,finished_at TEXT,next_retry_at TEXT,error_code TEXT,error_message TEXT,profile_key TEXT NOT NULL,worker_id TEXT,UNIQUE(user_id,briefing_date));
-    CREATE TABLE IF NOT EXISTS briefing_editions(id TEXT PRIMARY KEY,profile_key TEXT NOT NULL,edition_date TEXT NOT NULL,language TEXT NOT NULL,status TEXT NOT NULL,generated_at TEXT,item_count INTEGER NOT NULL DEFAULT 0,engine_version TEXT,created_at TEXT NOT NULL,UNIQUE(profile_key,edition_date));
-    CREATE TABLE IF NOT EXISTS briefing_edition_items(id TEXT PRIMARY KEY,edition_id TEXT NOT NULL,position INTEGER NOT NULL,event_id TEXT,headline TEXT,summary TEXT,why_it_matters TEXT,key_points_json TEXT,confidence REAL,evidence_quality TEXT,trace_id TEXT,warnings_json TEXT,sources_json TEXT NOT NULL DEFAULT '[]',created_at TEXT NOT NULL,primary_taxonomy_id TEXT,primary_taxonomy_label TEXT,primary_taxonomy_reason TEXT,matched_taxonomy_ids_json TEXT,user_interest_matches_json TEXT);
-    CREATE TABLE IF NOT EXISTS user_briefing_deliveries(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,edition_id TEXT NOT NULL,local_date TEXT NOT NULL,delivery_time TEXT NOT NULL,timezone TEXT NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,delivered_at TEXT,UNIQUE(user_id,local_date));
-    CREATE TABLE IF NOT EXISTS profile_taxonomy(profile_key TEXT NOT NULL,taxonomy_id TEXT NOT NULL,PRIMARY KEY(profile_key,taxonomy_id));
-    CREATE TABLE IF NOT EXISTS generation_job_phases(id INTEGER PRIMARY KEY AUTOINCREMENT,job_id TEXT NOT NULL,phase TEXT NOT NULL,duration_ms INTEGER NOT NULL,recorded_at TEXT NOT NULL,UNIQUE(job_id,phase));
-    CREATE TABLE IF NOT EXISTS manual_refresh_requests(
-      id TEXT PRIMARY KEY,user_id TEXT NOT NULL,reason TEXT NOT NULL DEFAULT 'MANUAL_REFRESH',status TEXT NOT NULL,
-      stage TEXT NOT NULL,requested_at TEXT NOT NULL,started_at TEXT,updated_at TEXT NOT NULL,finished_at TEXT,
-      ingestion_run_id TEXT,edition_id TEXT,audio_job_id TEXT,selected_voice_id TEXT,audio_variant_id TEXT,
-      error_code TEXT,error_message TEXT);
-    CREATE INDEX IF NOT EXISTS idx_manual_refresh_active ON manual_refresh_requests(user_id,status,requested_at);
-    CREATE TABLE IF NOT EXISTS content_ingestion_runs(
-      id TEXT PRIMARY KEY,status TEXT NOT NULL,started_at TEXT NOT NULL,completed_at TEXT,
-      sources_attempted INTEGER NOT NULL DEFAULT 0,sources_successful INTEGER NOT NULL DEFAULT 0,
-      articles_seen INTEGER NOT NULL DEFAULT 0,articles_new INTEGER NOT NULL DEFAULT 0,
-      articles_updated INTEGER NOT NULL DEFAULT 0,articles_unchanged INTEGER NOT NULL DEFAULT 0,
-      errors_json TEXT NOT NULL DEFAULT '{}',source_metrics_json TEXT NOT NULL DEFAULT '[]');
-    CREATE TABLE IF NOT EXISTS briefing_listening_progress(
-      delivery_id TEXT NOT NULL,user_id TEXT NOT NULL,progress_seconds REAL NOT NULL DEFAULT 0,
-      duration_seconds REAL NOT NULL DEFAULT 0,completed_at TEXT,updated_at TEXT NOT NULL,
-      PRIMARY KEY(delivery_id,user_id));
-    """)
-    repo.db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_content_ingestion ON content_ingestion_runs(status) WHERE status='RUNNING'")
-    ingestion_columns={row[1] for row in repo.db.execute("PRAGMA table_info(content_ingestion_runs)")}
-    if "source_metrics_json" not in ingestion_columns:
-        repo.db.execute("ALTER TABLE content_ingestion_runs ADD COLUMN source_metrics_json TEXT NOT NULL DEFAULT '[]'")
-    delivery_columns={row[1] for row in repo.db.execute("PRAGMA table_info(user_briefing_deliveries)")}
-    delivery_additions={
-        "selected_voice_id":"TEXT", "active_voice_id":"TEXT", "audio_artifact_id":"TEXT",
-        "audio_status":"TEXT NOT NULL DEFAULT 'PENDING'", "generation_stage":"TEXT",
-        "generation_started_at":"TEXT", "generation_updated_at":"TEXT",
-        "generation_error_code":"TEXT", "generation_error_message":"TEXT", "script_id":"TEXT",
-        "voice_fallback_reason":"TEXT"
-    }
-    for name, declaration in delivery_additions.items():
-        if name not in delivery_columns:
-            repo.db.execute(f"ALTER TABLE user_briefing_deliveries ADD COLUMN {name} {declaration}")
-    repo.db.execute("UPDATE user_briefing_deliveries SET status='CONTENT_READY',audio_status='PENDING',generation_stage='AUDIO_QUEUED',generation_started_at=COALESCE(generation_started_at,created_at),generation_updated_at=COALESCE(generation_updated_at,created_at) WHERE status='READY' AND audio_artifact_id IS NULL")
-    columns={row[1] for row in repo.db.execute("PRAGMA table_info(briefing_edition_items)")}
-    for name in ("primary_taxonomy_id", "primary_taxonomy_label", "primary_taxonomy_reason",
-                 "matched_taxonomy_ids_json", "user_interest_matches_json"):
-        if name not in columns:
-            repo.db.execute(f"ALTER TABLE briefing_edition_items ADD COLUMN {name} TEXT")
-    repo.db.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,datetime('now'))")
-    repo.db.commit()
+def _elapsed_ms(started, finished):
+    """Milliseconds between two stored ISO-8601 timestamps (None when unparsable)."""
+    try:
+        return (datetime.fromisoformat(finished.replace("Z", "+00:00")) - datetime.fromisoformat(started.replace("Z", "+00:00"))).total_seconds() * 1000
+    except (AttributeError, TypeError, ValueError):
+        return None
 
 
 class FixtureBriefingGenerator:
@@ -125,7 +82,7 @@ class EngineBriefingGenerator:
 
 class BriefingScheduler:
     def __init__(self, repo, clock=None, lead_minutes=None, max_attempts=None):
-        self.repo=repo; ensure_phase42_schema(repo); self.clock=clock or Clock(); self._lead_override=lead_minutes if lead_minutes is not None else os.getenv("BRIEFING_GENERATION_LEAD_MINUTES"); self.lead_minutes=int(self._lead_override) if self._lead_override is not None else self._measured_lead_minutes(); self.max_attempts=int(max_attempts if max_attempts is not None else os.getenv("GENERATION_MAX_RETRIES",2))
+        self.repo=repo; self.clock=clock or Clock(); self._lead_override=lead_minutes if lead_minutes is not None else os.getenv("BRIEFING_GENERATION_LEAD_MINUTES"); self.lead_minutes=int(self._lead_override) if self._lead_override is not None else self._measured_lead_minutes(); self.max_attempts=int(max_attempts if max_attempts is not None else os.getenv("GENERATION_MAX_RETRIES",2))
     @staticmethod
     def _p95(values):
         numbers=sorted(int(value or 0) for value in values if value is not None and int(value or 0)>0)
@@ -134,14 +91,14 @@ class BriefingScheduler:
         fallback=max(1,int(os.getenv("BRIEFING_GENERATION_LEAD_FALLBACK_MINUTES","10")))
         safety=max(0,int(os.getenv("BRIEFING_GENERATION_SAFETY_MINUTES","2")))
         try:
-            ingestion=[r[0] for r in self.repo.db.execute("SELECT (julianday(completed_at)-julianday(started_at))*86400000 FROM content_ingestion_runs WHERE status='READY' AND completed_at IS NOT NULL ORDER BY started_at DESC LIMIT 100")]
+            ingestion=[_elapsed_ms(r["started_at"],r["completed_at"]) for r in self.repo.db.execute("SELECT started_at,completed_at FROM content_ingestion_runs WHERE status='READY' AND completed_at IS NOT NULL ORDER BY started_at DESC LIMIT 100")]
             composition=[r[0] for r in self.repo.db.execute("SELECT duration_ms FROM generation_job_phases WHERE phase='TOTAL_DELIVERY_CONTENT' ORDER BY recorded_at DESC LIMIT 100")]
             audio=[r[0] for r in self.repo.db.execute("SELECT duration_ms FROM audio_job_phases WHERE phase IN ('TTS','VALIDATION','STORAGE') ORDER BY id DESC LIMIT 300")]
             p95=sum(x or 0 for x in (self._p95(ingestion),self._p95(composition),self._p95(audio)))
             if p95<=0: return fallback
             return max(1,min(180,(p95+59_999)//60_000+safety))
-        except sqlite3.OperationalError:
-            return fallback
+        except database.OperationalError:
+            self.repo.db.rollback(); return fallback
     def _eligible(self,prefs, now):
         local=now.astimezone(ZoneInfo(prefs["timezone"])); delivery=datetime.combine(local.date(),datetime.strptime(prefs["briefing_time"],"%H:%M").time(),ZoneInfo(prefs["timezone"])); return local >= delivery-timedelta(minutes=self.lead_minutes), local.date().isoformat(), delivery
     def run_once(self):
@@ -152,14 +109,14 @@ class BriefingScheduler:
             if not eligible: continue
             discovered+=1; existing=self.repo.db.execute("SELECT id FROM generation_jobs WHERE user_id=? AND briefing_date=?",(uid,local_date)).fetchone()
             profile=BriefingProfile.from_preferences(prefs)
-            self.repo.db.executemany("INSERT OR IGNORE INTO profile_taxonomy VALUES(?,?)", [(profile.key(), topic) for topic in profile.topics])
+            self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING", [(profile.key(), topic) for topic in profile.topics])
             if existing:
                 previous=self.repo.db.execute("SELECT profile_key,status FROM generation_jobs WHERE id=?",(existing["id"],)).fetchone()
                 if previous["profile_key"]!=profile.key() and previous["status"]!="RUNNING":
                     self.repo.db.execute("UPDATE generation_jobs SET profile_key=?,status='PENDING',attempt_count=0,error_code=NULL,error_message=NULL,next_retry_at=NULL WHERE id=?",(profile.key(),existing["id"])); created+=1
                 else: skipped+=1
                 continue
-            scheduled=(delivery-timedelta(minutes=self.lead_minutes)).astimezone(timezone.utc).isoformat(); self.repo.db.execute("INSERT INTO generation_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",("job_"+uuid.uuid4().hex,uid,local_date,scheduled,prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,datetime.now(timezone.utc).isoformat(),None,None,None,None,None,profile.key(),None)); created+=1
+            scheduled=(delivery-timedelta(minutes=self.lead_minutes)).astimezone(timezone.utc).isoformat(); self.repo.db.execute("INSERT INTO generation_jobs(id,user_id,briefing_date,scheduled_for,delivery_time,timezone,status,attempt_count,max_attempts,created_at,started_at,finished_at,next_retry_at,error_code,error_message,profile_key,worker_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",("job_"+uuid.uuid4().hex,uid,local_date,scheduled,prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,datetime.now(timezone.utc).isoformat(),None,None,None,None,None,profile.key(),None)); created+=1
         self.repo.db.commit(); return {"scheduler_run_id":run_id,"jobs_discovered":discovered,"jobs_created":created,"jobs_skipped_existing":skipped,"lead_minutes":self.lead_minutes}
 
     def schedule_user_now(self, user_id):
@@ -171,7 +128,7 @@ class BriefingScheduler:
         profile=BriefingProfile.from_preferences(prefs)
         local_now=self.clock.now("UTC").astimezone(ZoneInfo(prefs["timezone"]))
         local_date=local_now.date().isoformat()
-        self.repo.db.executemany("INSERT OR IGNORE INTO profile_taxonomy VALUES(?,?)",[(profile.key(),topic) for topic in profile.topics])
+        self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING",[(profile.key(),topic) for topic in profile.topics])
         existing=self.repo.db.execute("SELECT id,profile_key,status FROM generation_jobs WHERE user_id=? AND briefing_date=?",(user_id,local_date)).fetchone()
         if existing:
             if existing["profile_key"]==profile.key() and existing["status"] in ("PENDING","RUNNING","COMPLETED"):
@@ -181,7 +138,7 @@ class BriefingScheduler:
             self.repo.db.execute("UPDATE generation_jobs SET profile_key=?,status='PENDING',attempt_count=0,scheduled_for=?,finished_at=NULL,next_retry_at=NULL,error_code=NULL,error_message=NULL WHERE id=?",(profile.key(),datetime.now(timezone.utc).isoformat(),existing["id"]))
             self.repo.db.commit(); return {"scheduled":True,"job_id":existing["id"]}
         job_id="job_"+uuid.uuid4().hex
-        self.repo.db.execute("INSERT INTO generation_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,user_id,local_date,datetime.now(timezone.utc).isoformat(),prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,datetime.now(timezone.utc).isoformat(),None,None,None,None,None,profile.key(),None))
+        self.repo.db.execute("INSERT INTO generation_jobs(id,user_id,briefing_date,scheduled_for,delivery_time,timezone,status,attempt_count,max_attempts,created_at,started_at,finished_at,next_retry_at,error_code,error_message,profile_key,worker_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,user_id,local_date,datetime.now(timezone.utc).isoformat(),prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,datetime.now(timezone.utc).isoformat(),None,None,None,None,None,profile.key(),None))
         self.repo.db.commit(); return {"scheduled":True,"job_id":job_id}
 
     def regenerate_for_preferences(self, user_id):
@@ -196,11 +153,10 @@ class BriefingScheduler:
             return {"scheduled":False,"reason":"PREFERENCES_INCOMPLETE"}
         if not self.repo.config.audio_enabled:
             return self.schedule_user_now(user_id)
-        ensure_phase42_schema(self.repo)
         profile=BriefingProfile.from_preferences(prefs)
         now=datetime.now(timezone.utc); now_iso=now.isoformat()
         local_date=now.astimezone(ZoneInfo(prefs["timezone"])).date().isoformat()
-        self.repo.db.executemany("INSERT OR IGNORE INTO profile_taxonomy VALUES(?,?)",[(profile.key(),topic) for topic in profile.topics])
+        self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING",[(profile.key(),topic) for topic in profile.topics])
         # Regenerations built from older preferences must not be published after this one.
         self.repo.db.execute("UPDATE manual_refresh_requests SET status='FAILED',stage='FAILED_FINAL',error_code='SUPERSEDED',error_message='superseded by newer preferences',updated_at=?,finished_at=? WHERE user_id=? AND status IN ('PENDING','GENERATING')",(now_iso,now_iso,user_id))
         # Today's scheduled job must not re-run with a cached edition and overwrite the regenerated one.
@@ -228,15 +184,12 @@ class BriefingScheduler:
 class NewsRefreshWorker:
     """Refresh the shared article pool on a bounded cadence, independently of users."""
     def __init__(self, repo, interval_seconds=None):
-        from .content import ensure_content_schema
         self.repo=repo
         self.interval_seconds=max(30,int(interval_seconds if interval_seconds is not None else os.getenv("NEWS_REFRESH_INTERVAL_SECONDS","600")))
-        ensure_phase42_schema(repo)
-        ensure_content_schema(repo)
 
     def refresh_if_due(self, force=False):
         now=datetime.now(timezone.utc); now_iso=now.isoformat(); refresh_id=None
-        self.repo.db.execute("BEGIN IMMEDIATE")
+        self.repo.db.begin_immediate()
         try:
             running=self.repo.db.execute("SELECT * FROM content_ingestion_runs WHERE status='RUNNING' ORDER BY started_at DESC LIMIT 1").fetchone()
             if running:
@@ -291,7 +244,7 @@ class NewsRefreshWorker:
 
 class BriefingGenerationWorker:
     def __init__(self, repo, generator=None, clock=None, max_attempts=None, timeout_minutes=None, worker_id=None, audio_service=None):
-        self.repo=repo; ensure_phase42_schema(repo); self.generator=generator or EngineBriefingGenerator(repo); self.clock=clock or Clock(); self.max_attempts=int(max_attempts if max_attempts is not None else os.getenv("GENERATION_MAX_RETRIES",2)); self.timeout_minutes=int(timeout_minutes if timeout_minutes is not None else os.getenv("WORKER_JOB_TIMEOUT_MINUTES",30)); self.worker_id=worker_id or "worker_"+uuid.uuid4().hex; self.audio_service=audio_service
+        self.repo=repo; self.generator=generator or EngineBriefingGenerator(repo); self.clock=clock or Clock(); self.max_attempts=int(max_attempts if max_attempts is not None else os.getenv("GENERATION_MAX_RETRIES",2)); self.timeout_minutes=int(timeout_minutes if timeout_minutes is not None else os.getenv("WORKER_JOB_TIMEOUT_MINUTES",30)); self.worker_id=worker_id or "worker_"+uuid.uuid4().hex; self.audio_service=audio_service
     def recover_stale(self):
         cutoff=(datetime.now(timezone.utc)-timedelta(minutes=self.timeout_minutes)).isoformat(); now=datetime.now(timezone.utc).isoformat()
         cur=self.repo.db.execute("""UPDATE generation_jobs SET status=CASE WHEN attempt_count<max_attempts THEN 'RETRY' ELSE 'FAILED' END,
@@ -300,7 +253,7 @@ class BriefingGenerationWorker:
     def claim(self):
         self.recover_stale()
         try:
-            self.repo.db.execute("BEGIN IMMEDIATE")
+            self.repo.db.begin_immediate()
             row=self.repo.db.execute("""SELECT * FROM generation_jobs j WHERE status IN ('PENDING','RETRY')
                 AND (next_retry_at IS NULL OR next_retry_at<=?)
                 AND NOT EXISTS (SELECT 1 FROM generation_jobs running WHERE running.profile_key=j.profile_key
@@ -317,9 +270,8 @@ class BriefingGenerationWorker:
         return NewsRefreshWorker(self.repo).refresh_if_due()
 
     def _claim_manual_refresh(self):
-        ensure_phase42_schema(self.repo)
         try:
-            self.repo.db.execute("BEGIN IMMEDIATE")
+            self.repo.db.begin_immediate()
             row=self.repo.db.execute("SELECT * FROM manual_refresh_requests WHERE status='PENDING' ORDER BY requested_at LIMIT 1").fetchone()
             if not row:
                 self.repo.db.rollback(); return None
@@ -361,7 +313,8 @@ class BriefingGenerationWorker:
                 if audio_result.get('status')=='READY': self._publish_manual_refreshes()
             return {'worker_run_id':'worker_'+uuid.uuid4().hex,'jobs_claimed':1,'jobs_completed':1,'jobs_retried':0,'jobs_failed':0,'edition_generation_count':1,'users_served_by_edition':1,'manual_generation_id':request_id,'edition_id':edition_id}
         except Exception as exc:
-            if isinstance(exc,sqlite3.IntegrityError) and self.repo.db.execute("SELECT 1 FROM content_ingestion_runs WHERE status='RUNNING' LIMIT 1").fetchone():
+            if isinstance(exc,database.IntegrityError): self.repo.db.rollback()  # PostgreSQL aborts the whole transaction
+            if isinstance(exc,database.IntegrityError) and self.repo.db.execute("SELECT 1 FROM content_ingestion_runs WHERE status='RUNNING' LIMIT 1").fetchone():
                 self.repo.db.execute("UPDATE manual_refresh_requests SET status='PENDING',stage='WAITING_INGESTION',updated_at=? WHERE id=?",(datetime.now(timezone.utc).isoformat(),request_id)); self.repo.db.commit()
                 return {'worker_run_id':'worker_'+uuid.uuid4().hex,'jobs_claimed':0,'jobs_completed':0,'jobs_retried':0,'jobs_failed':0,'edition_generation_count':0,'users_served_by_edition':0,'manual_generation_id':request_id,'waiting_for_shared_ingestion':True}
             code=exc.code if isinstance(exc,GenerationError) else 'MANUAL_REFRESH_FAILED'
@@ -395,7 +348,7 @@ class BriefingGenerationWorker:
         edition_profile_key=edition_profile_key or profile.key()
         existing=self.repo.db.execute("SELECT * FROM briefing_editions WHERE profile_key=? AND edition_date=?",(edition_profile_key,job["briefing_date"])).fetchone()
         if existing and existing["status"]=="READY": return existing["id"],False
-        eid=existing["id"] if existing else "edition_"+uuid.uuid4().hex; t=datetime.now(timezone.utc).isoformat(); items=payload.get("items",[]); status="READY" if len(items)>=MINIMUM_DELIVERABLE_ITEMS else ("PARTIAL" if items else "FAILED"); self.repo.db.execute("INSERT OR REPLACE INTO briefing_editions VALUES(?,?,?,?,?,?,?,?,?)",(eid,edition_profile_key,job["briefing_date"],profile.language,status,payload.get("generated_at",t),len(items),payload.get("engine_version","phase_4.2"),t)); self.repo.db.execute("DELETE FROM briefing_edition_items WHERE edition_id=?",(eid,))
+        eid=existing["id"] if existing else "edition_"+uuid.uuid4().hex; t=datetime.now(timezone.utc).isoformat(); items=payload.get("items",[]); status="READY" if len(items)>=MINIMUM_DELIVERABLE_ITEMS else ("PARTIAL" if items else "FAILED"); self.repo.db.execute("INSERT INTO briefing_editions(id,profile_key,edition_date,language,status,generated_at,item_count,engine_version,created_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,generated_at=excluded.generated_at,item_count=excluded.item_count,engine_version=excluded.engine_version,created_at=excluded.created_at",(eid,edition_profile_key,job["briefing_date"],profile.language,status,payload.get("generated_at",t),len(items),payload.get("engine_version","phase_4.2"),t)); self.repo.db.execute("DELETE FROM briefing_edition_items WHERE edition_id=?",(eid,))
         for pos,item in enumerate(items,1):
             warnings=list(item.get("warnings",[])); warnings.append("__summary_provider__:"+item.get("summary_provider",item.get("provenance",{}).get("summary_provider","ollama")))
             self.repo.db.execute("""INSERT INTO briefing_edition_items
@@ -427,16 +380,15 @@ class BriefingGenerationWorker:
                     self.generator.last_phase_durations['CONTENT_REFRESH']=int((time.monotonic()-refresh_started)*1000)
                 payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope)
                 for phase_name,duration in getattr(self.generator,"last_phase_durations",{}).items():
-                    self.repo.db.execute("INSERT OR REPLACE INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?)",(job["id"],phase_name,int(duration),datetime.now(timezone.utc).isoformat()))
+                    self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],phase_name,int(duration),datetime.now(timezone.utc).isoformat()))
                 self.repo.db.commit()
                 if not payload.get("items"):
-                    from .content import compose, ensure_content_schema
-                    ensure_content_schema(self.repo)
+                    from .content import compose
                     if self.repo.db.execute("SELECT 1 FROM indexed_content LIMIT 1").fetchone():
                         fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope)
                         if fallback.get("items"): payload=fallback
                 eid,generated=self._persist_edition(job,profile,payload)
-                self.repo.db.execute("INSERT OR REPLACE INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?)",(job["id"],"EDITION_PERSISTENCE",int((time.monotonic()-compose_started)*1000),datetime.now(timezone.utc).isoformat())); self.repo.db.commit()
+                self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],"EDITION_PERSISTENCE",int((time.monotonic()-compose_started)*1000),datetime.now(timezone.utc).isoformat())); self.repo.db.commit()
             edition=self.repo.db.execute("SELECT status,item_count FROM briefing_editions WHERE id=?",(eid,)).fetchone()
             if not edition or edition["status"]!="READY" or int(edition["item_count"] or 0)<MINIMUM_DELIVERABLE_ITEMS:
                 raise GenerationError("NO_DELIVERABLE_ITEMS","edition has no deliverable items")
@@ -455,8 +407,8 @@ class BriefingGenerationWorker:
             self.repo.db.execute("UPDATE generation_jobs SET status='COMPLETED',finished_at=?,error_code=NULL,error_message=NULL WHERE id=?",(t,job["id"])); self.repo.db.commit()
             scheduled=datetime.fromisoformat(job["scheduled_for"])
             queue_ms=max(0,int((datetime.now(timezone.utc)-scheduled.astimezone(timezone.utc)).total_seconds()*1000))
-            self.repo.db.execute("INSERT OR REPLACE INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?)",(job["id"],"QUEUE_WAIT",queue_ms,t))
-            self.repo.db.execute("INSERT OR REPLACE INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?)",(job["id"],"TOTAL_DELIVERY_CONTENT",int((time.monotonic()-total_started)*1000),t)); self.repo.db.commit()
+            self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],"QUEUE_WAIT",queue_ms,t))
+            self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],"TOTAL_DELIVERY_CONTENT",int((time.monotonic()-total_started)*1000),t)); self.repo.db.commit()
             if self.repo.config.audio_enabled:
                 try:
                     from .audio import AudioService
@@ -544,18 +496,15 @@ def serialize_edition(repo, edition_id):
     row=repo.db.execute("SELECT * FROM briefing_editions WHERE id=?",(edition_id,)).fetchone();
     if not row: return None
     image_by_article={}
-    indexed=repo.db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='indexed_content'").fetchone()
-    indexed_columns={column[1] for column in repo.db.execute("PRAGMA table_info(indexed_content)")} if indexed else set()
-    if "image_url" in indexed_columns:
-        article_ids=[]
-        for stored in repo.db.execute("SELECT sources_json FROM briefing_edition_items WHERE edition_id=?",(edition_id,)):
-            for source in json.loads(stored["sources_json"] or "[]"):
-                article_id=(source.get("article_id") or source.get("id")) if isinstance(source,dict) else None
-                if article_id: article_ids.append(article_id)
-        if article_ids:
-            article_ids=sorted(set(article_ids))
-            marks=",".join("?" for _ in article_ids)
-            image_by_article={item["id"]:item["image_url"] for item in repo.db.execute("SELECT id,image_url FROM indexed_content WHERE id IN ("+marks+")",tuple(article_ids))}
+    article_ids=[]
+    for stored in repo.db.execute("SELECT sources_json FROM briefing_edition_items WHERE edition_id=?",(edition_id,)):
+        for source in json.loads(stored["sources_json"] or "[]"):
+            article_id=(source.get("article_id") or source.get("id")) if isinstance(source,dict) else None
+            if article_id: article_ids.append(article_id)
+    if article_ids:
+        article_ids=sorted(set(article_ids))
+        marks=",".join("?" for _ in article_ids)
+        image_by_article={item["id"]:item["image_url"] for item in repo.db.execute("SELECT id,image_url FROM indexed_content WHERE id IN ("+marks+")",tuple(article_ids))}
     out=dict(row); out["items"]=[]
     for item in repo.db.execute("SELECT * FROM briefing_edition_items WHERE edition_id=? ORDER BY position",(edition_id,)):
         x=dict(item); x["key_points"]=json.loads(x.pop("key_points_json")); warnings=json.loads(x.pop("warnings_json")); marker=next((w for w in warnings if isinstance(w,str) and w.startswith("__summary_provider__:")),"__summary_provider__:ollama"); x["summary_provider"]=marker.split(":",1)[1]; x["warnings"]=[w for w in warnings if w!=marker]; x["sources"]=json.loads(x.pop("sources_json")); x.pop("edition_id",None); x.pop("created_at",None)
@@ -563,7 +512,7 @@ def serialize_edition(repo, edition_id):
         for source in x["sources"]:
             if not isinstance(source,dict): continue
             article_id=source.get("article_id") or source.get("id")
-            if article_id and "image_url" in indexed_columns:
+            if article_id:
                 has_indexed_sources=True
                 source["image_url"]=image_by_article.get(article_id)
         canonical_source_image=next((source.get("image_url") for source in x["sources"] if isinstance(source,dict) and source.get("image_url")),None)
@@ -575,9 +524,6 @@ def serialize_edition(repo, edition_id):
 
 def briefing_health(repo, stale_minutes=30):
     """Aggregate pipeline status without returning user identifiers or credentials."""
-    ensure_phase42_schema(repo)
-    from .audio import ensure_audio_schema
-    ensure_audio_schema(repo)
     now=datetime.now(timezone.utc); cutoff=(now-timedelta(minutes=stale_minutes)).isoformat()
     generation={row["status"]:row["count"] for row in repo.db.execute("SELECT status,COUNT(*) AS count FROM generation_jobs GROUP BY status")}
     audio={row["status"]:row["count"] for row in repo.db.execute("SELECT status,COUNT(*) AS count FROM audio_generation_jobs GROUP BY status")}
@@ -601,9 +547,6 @@ def briefing_health(repo, stale_minutes=30):
 
 
 def briefing_diagnostic(repo, identifier):
-    ensure_phase42_schema(repo)
-    from .audio import ensure_audio_schema
-    ensure_audio_schema(repo)
     manual=repo.db.execute("SELECT * FROM manual_refresh_requests WHERE id=?",(identifier,)).fetchone()
     if manual:
         ingestion=repo.db.execute("SELECT * FROM content_ingestion_runs WHERE id=?",(manual["ingestion_run_id"],)).fetchone() if manual["ingestion_run_id"] else None

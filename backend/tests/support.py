@@ -91,8 +91,6 @@ SEED_TOPICS = ("TECHNOLOGY", "ECONOMY")
 
 def seed_content(repo, topics=SEED_TOPICS):
     """Index a small deterministic article pool (no network, no classifier)."""
-    from newzi_backend.content import ensure_content_schema
-    ensure_content_schema(repo)
     now = datetime.now(timezone.utc).replace(microsecond=0)
     rows = []
     for index in range(8):
@@ -135,6 +133,8 @@ class Normalizer:
         return self.ids[value]
 
     def text(self, value):
+        # Temporary paths differ per run (and between short and long Windows path forms).
+        value = re.sub(r"[^\s\"']*newzi-tests-\w+[\\/]run_[0-9a-f]{8}", "<run>", value)
         value = _ID.sub(self._id, value)
         value = _TS.sub("<ts>", value)
         value = _HEX.sub("<hex>", value)
@@ -143,9 +143,13 @@ class Normalizer:
             value = value.replace((today + timedelta(days=offset)).isoformat(), "<date>")
         return value
 
-    def _field(self, key, value):
+    def _field(self, key, value, timings=False):
+        if timings and key == "duration_ms":
+            return "<number>"
         if key == "token" and isinstance(value, str):
             return "<token>"
+        if key == "request_id" and isinstance(value, str):
+            return "<request_id>"
         if _DURATION_KEYS.search(key) and key not in _KEEP_MS:
             # Timings vary run to run; keep only the shape.
             if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -156,7 +160,9 @@ class Normalizer:
 
     def __call__(self, value, key=None):
         if isinstance(value, dict):
-            return {k: self._field(k, v) for k, v in value.items()}
+            # Rows under a "*phases" key are measured timings, not stored media durations.
+            timings = bool(key) and key.endswith("phases")
+            return {k: self._field(k, v, timings) for k, v in value.items()}
         if isinstance(value, list):
             return [self(v, key) for v in value]
         if isinstance(value, str):
@@ -166,6 +172,14 @@ class Normalizer:
 
 def load_golden(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def reset_postgres(database_url):
+    """Give a PostgreSQL test database an empty public schema."""
+    import psycopg
+    with psycopg.connect(database_url, autocommit=True) as connection:
+        connection.execute("DROP SCHEMA IF EXISTS public CASCADE")
+        connection.execute("CREATE SCHEMA public")
 
 
 def cleanup():

@@ -8,9 +8,11 @@ import support
 @pytest.fixture()
 def repo():
     import os
-    support.fresh_environment(os.getenv("TEST_DATABASE_URL"))
-    from newzi_backend.product_backend import ProductAPI, ProductRepository
-    repository = ProductRepository(); ProductAPI(repository)
+    database_url = os.getenv("TEST_DATABASE_URL")
+    support.fresh_environment(database_url)
+    if database_url: support.reset_postgres(database_url)
+    from newzi_backend.product_backend import ProductRepository
+    repository = ProductRepository()
     for uid in ("u1", "u2"):
         repository.db.execute("INSERT INTO users(id,email,display_name,language,timezone,created_at,updated_at,status) VALUES(?,?,?,?,?,?,?,?)",
                               (uid, uid + "@x", uid, "pt-BR", "UTC", "t", "t", "ACTIVE"))

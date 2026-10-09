@@ -15,4 +15,4 @@ Client-centric authenticated endpoints:
 
 Use `Authorization: Bearer <session-token>`. Error responses use `{error:{code,message,request_id}}`; they never expose stack traces. `today` returns `PENDING` when no delivery exists and never invokes the LLM. Briefing items expose only client fields and sources, not prompts, raw model output, fingerprints or internal scores.
 
-Legacy `/api/v1/users/{user_id}/...` routes remain temporarily for compatibility. Operational `/api/v1/dev/...` routes are development-only and are disabled with `APP_ENV=production` or `ENABLE_DEV_ENDPOINTS=false`.
+The legacy `/api/v1/users/{user_id}/...` routes were removed. Operational `/api/v1/dev/...` routes are development-only and are disabled with `APP_ENV=production` or `ENABLE_DEV_ENDPOINTS=false`.

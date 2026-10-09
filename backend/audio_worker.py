@@ -1,7 +1,6 @@
 """Run the edition audio worker without blocking briefing delivery."""
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -10,18 +9,8 @@ sys.path.insert(0, str(PROJECT_ROOT / "engine" / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "backend" / "src"))
 
 from newzi_backend.audio import AudioService
+from newzi_backend.env import load_local_environment
 from newzi_backend.product_backend import ProductConfig, ProductRepository
-
-
-def load_local_environment():
-    env_path = PROJECT_ROOT / ".env"
-    if not env_path.is_file():
-        return
-    for raw in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, value = line.split("=", 1)
-            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 if __name__ == "__main__":

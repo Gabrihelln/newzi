@@ -1,18 +1,13 @@
 # NEWS ENGINE Product API v1
 
-Run from the repository root with `python backend/product_api.py` after configuring root `.env` as described in `README.md`.
+Run from the repository root with `python backend/product_api.py` (FastAPI on uvicorn) after configuring root `.env` as described in `README.md`. The OpenAPI description is served at `/api/v1/openapi.json`; client routes are listed in `CLIENT_API.md`.
 
-Endpoints:
+The former `/api/v1/users/{user_id}/...` compatibility routes and the legacy per-user briefing generator were removed; clients use `/api/v1/me/...`.
 
-- `GET /health`
-- `GET /api/v1/topics`
-- `GET /api/v1/users/{user_id}`
-- `GET /api/v1/users/{user_id}/preferences`
-- `PUT /api/v1/users/{user_id}/preferences`
-- `GET /api/v1/users/{user_id}/briefings/today`
-- `GET /api/v1/users/{user_id}/briefings`
-- `GET /api/v1/users/{user_id}/briefings/{briefing_id}`
-- `POST /api/v1/dev/users/{user_id}/briefings/generate` (development only)
+Endpoints outside `/api/v1/me`:
+
+- `GET /health`, `GET /ready`
+- `GET /api/v1/topics`, `GET /api/v1/client/config`
 - `GET /api/v1/dev/jobs` (development only)
 - `POST /api/v1/dev/scheduler/run` (development only)
 - `POST /api/v1/dev/worker/run` (development only)

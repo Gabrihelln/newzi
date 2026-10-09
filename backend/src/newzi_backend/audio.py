@@ -637,40 +637,12 @@ class AudioStorage:
         return path if self.root in path.parents and path.is_file() else None
 
 
-def ensure_audio_schema(repo):
-    repo.db.executescript("""
-    CREATE TABLE IF NOT EXISTS audio_scripts(id TEXT PRIMARY KEY,edition_id TEXT NOT NULL,language TEXT NOT NULL,target_duration_seconds INTEGER NOT NULL,estimated_duration_seconds INTEGER NOT NULL,script_version TEXT NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(edition_id,language,script_version));
-    CREATE TABLE IF NOT EXISTS audio_script_segments(id TEXT PRIMARY KEY,audio_script_id TEXT NOT NULL,position INTEGER NOT NULL,type TEXT NOT NULL,briefing_item_id TEXT,text TEXT NOT NULL,estimated_duration_ms INTEGER NOT NULL,segment_start_ms INTEGER,segment_end_ms INTEGER,created_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS audio_artifacts(id TEXT PRIMARY KEY,audio_script_id TEXT NOT NULL,status TEXT NOT NULL,provider TEXT NOT NULL,voice TEXT NOT NULL,language TEXT NOT NULL,mime_type TEXT,storage_path TEXT,duration_ms INTEGER,size_bytes INTEGER,checksum TEXT,created_at TEXT NOT NULL,error_message TEXT,resolved_voice TEXT,UNIQUE(audio_script_id,provider,voice,language));
-    CREATE TABLE IF NOT EXISTS audio_generation_jobs(id TEXT PRIMARY KEY,edition_id TEXT NOT NULL,language TEXT NOT NULL,voice TEXT NOT NULL,script_version TEXT NOT NULL,status TEXT NOT NULL,attempt_count INTEGER NOT NULL DEFAULT 0,max_attempts INTEGER NOT NULL DEFAULT 3,created_at TEXT NOT NULL,started_at TEXT,finished_at TEXT,error_message TEXT,UNIQUE(edition_id,language,voice,script_version));
-    CREATE TABLE IF NOT EXISTS audio_events(id INTEGER PRIMARY KEY AUTOINCREMENT,event_type TEXT NOT NULL,edition_id TEXT,artifact_id TEXT,metadata_json TEXT NOT NULL,created_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS audio_artifact_segments(artifact_id TEXT NOT NULL,segment_id TEXT NOT NULL,segment_start_ms INTEGER NOT NULL,segment_end_ms INTEGER NOT NULL,PRIMARY KEY(artifact_id,segment_id));
-    CREATE TABLE IF NOT EXISTS audio_job_phases(id INTEGER PRIMARY KEY AUTOINCREMENT,audio_job_id TEXT NOT NULL,phase TEXT NOT NULL,duration_ms INTEGER NOT NULL,started_at TEXT NOT NULL,finished_at TEXT NOT NULL,status TEXT NOT NULL,error_code TEXT,UNIQUE(audio_job_id,phase));
-    """)
-    columns = {row[1] for row in repo.db.execute("PRAGMA table_info(audio_generation_jobs)")}
-    for name in ("next_retry_at", "error_code"):
-        if name not in columns:
-            repo.db.execute(f"ALTER TABLE audio_generation_jobs ADD COLUMN {name} TEXT")
-    artifact_columns = {row[1] for row in repo.db.execute("PRAGMA table_info(audio_artifacts)")}
-    if "resolved_voice" not in artifact_columns:
-        repo.db.execute("ALTER TABLE audio_artifacts ADD COLUMN resolved_voice TEXT")
-    script_columns={row[1] for row in repo.db.execute("PRAGMA table_info(audio_scripts)")}
-    if "script_hash" not in script_columns:
-        repo.db.execute("ALTER TABLE audio_scripts ADD COLUMN script_hash TEXT")
-    job_columns={row[1] for row in repo.db.execute("PRAGMA table_info(audio_generation_jobs)")}
-    for name, declaration in (("stage","TEXT"),("updated_at","TEXT")):
-        if name not in job_columns: repo.db.execute(f"ALTER TABLE audio_generation_jobs ADD COLUMN {name} {declaration}")
-    repo.db.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,?)", (now_iso(),))
-    repo.db.commit()
-
-
 def _duration_ms(text):
     return max(1000, int(len(text.split()) / 2.4 * 1000))
 
 
 class AudioService:
     def __init__(self, repo, provider=None, storage=None, voice=None, script_version="v3", composer=None):
-        ensure_audio_schema(repo)
         self.repo = repo
         provider_name = os.getenv("TTS_PROVIDER")
         if not provider_name:
@@ -783,7 +755,7 @@ class AudioService:
         self.repo.db.execute("INSERT INTO audio_scripts(id,edition_id,language,target_duration_seconds,estimated_duration_seconds,script_version,status,created_at,script_hash) VALUES(?,?,?,?,?,?,?,?,?)",
                              (sid, edition_id, language, target_duration_seconds, estimated // 1000,
                               self.narration_version, "READY", created,script_hash))
-        self.repo.db.executemany("INSERT INTO audio_script_segments VALUES(?,?,?,?,?,?,?,?,?,?)",
+        self.repo.db.executemany("INSERT INTO audio_script_segments(id,audio_script_id,position,type,briefing_item_id,text,estimated_duration_ms,segment_start_ms,segment_end_ms,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
                                  [("audio_segment_" + uuid.uuid4().hex, sid, pos, kind, item_id,
                                    text, _duration_ms(text), None, None, created)
                                   for pos, (kind, item_id, text) in enumerate(segments, 1)])
@@ -821,9 +793,9 @@ class AudioService:
             if repaired:
                 self._event("audio_job_requeued_corrupt_artifact",edition_id,metadata={"tts_voice_id":voice,"reason":existing["error_code"]})
                 return self.audio_for_edition(edition_id,language,voice)
-        self.repo.db.execute("""INSERT OR IGNORE INTO audio_generation_jobs
+        self.repo.db.execute("""INSERT INTO audio_generation_jobs
             (id,edition_id,language,voice,script_version,status,attempt_count,max_attempts,created_at,stage,updated_at)
-            VALUES(?,?,?,?,?,'PENDING',0,3,?,'QUEUED',?)""",
+            VALUES(?,?,?,?,?,'PENDING',0,3,?,'QUEUED',?) ON CONFLICT DO NOTHING""",
             ("audio_job_" + uuid.uuid4().hex, edition_id, language, voice, self.script_version, now_iso(),now_iso()))
         self.repo.db.commit()
         self._event("audio_cache_miss", edition_id, metadata={"tts_voice_id": voice})
@@ -927,7 +899,7 @@ class AudioService:
 
     def _claim(self):
         stale = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
-        self.repo.db.execute("BEGIN IMMEDIATE")
+        self.repo.db.begin_immediate()
         try:
             stale_jobs=self.repo.db.execute("SELECT edition_id,voice,attempt_count,max_attempts FROM audio_generation_jobs WHERE status='GENERATING' AND started_at<?",(stale,)).fetchall()
             self.repo.db.execute("""UPDATE audio_generation_jobs SET status='PENDING',stage='RETRY',updated_at=?,started_at=NULL,
@@ -966,7 +938,7 @@ class AudioService:
         queued=datetime.fromisoformat(job["created_at"])
         claimed=datetime.fromisoformat(job["started_at"])
         queue_ms=max(0,int((claimed-queued).total_seconds()*1000))
-        self.repo.db.execute("INSERT OR REPLACE INTO audio_job_phases(audio_job_id,phase,duration_ms,started_at,finished_at,status) VALUES(?,?,?,?,?,'READY')",
+        self.repo.db.execute("INSERT INTO audio_job_phases(audio_job_id,phase,duration_ms,started_at,finished_at,status) VALUES(?,?,?,?,?,'READY') ON CONFLICT(audio_job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,started_at=excluded.started_at,finished_at=excluded.finished_at,status=excluded.status",
             (job["id"],"QUEUE_WAIT",queue_ms,job["created_at"],job["started_at"])); self.repo.db.commit()
         self._event("audio_generation_started", job["edition_id"], metadata={"provider": self.provider.name})
         try:
@@ -992,10 +964,14 @@ class AudioService:
             self._record_phase(job["id"],"STORAGE",phase_started)
             if not self.storage.resolve(stored): raise RuntimeError("AUDIO_STORAGE_VALIDATION")
             artifact_id = "audio_artifact_" + uuid.uuid4().hex
-            self.repo.db.execute("BEGIN IMMEDIATE")
-            self.repo.db.execute("""INSERT OR REPLACE INTO audio_artifacts
+            self.repo.db.begin_immediate()
+            # A regenerated variant replaces the previous artifact row under a new id.
+            self.repo.db.execute("""INSERT INTO audio_artifacts
                 (id,audio_script_id,status,provider,voice,language,mime_type,storage_path,duration_ms,
-                 size_bytes,checksum,created_at,error_message,resolved_voice) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 size_bytes,checksum,created_at,error_message,resolved_voice) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(audio_script_id,provider,voice,language) DO UPDATE SET id=excluded.id,status=excluded.status,
+                mime_type=excluded.mime_type,storage_path=excluded.storage_path,duration_ms=excluded.duration_ms,size_bytes=excluded.size_bytes,
+                checksum=excluded.checksum,created_at=excluded.created_at,error_message=excluded.error_message,resolved_voice=excluded.resolved_voice""",
                 (artifact_id, script["id"], "READY", self.provider.name, job["voice"], job["language"],
                  result.get("mime_type", "audio/wav"), stored, duration_ms,
                  Path(stored).stat().st_size, checksum, now_iso(), None, result.get("resolved_voice")))
@@ -1047,7 +1023,7 @@ class AudioService:
 
     def _record_phase(self, job_id, phase, started, status="READY", error_code=None):
         finished=now_iso(); duration=max(0,int((time.monotonic()-started)*1000))
-        self.repo.db.execute("INSERT OR REPLACE INTO audio_job_phases(audio_job_id,phase,duration_ms,started_at,finished_at,status,error_code) VALUES(?,?,?,?,?,?,?)",
+        self.repo.db.execute("INSERT INTO audio_job_phases(audio_job_id,phase,duration_ms,started_at,finished_at,status,error_code) VALUES(?,?,?,?,?,?,?) ON CONFLICT(audio_job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,started_at=excluded.started_at,finished_at=excluded.finished_at,status=excluded.status,error_code=excluded.error_code",
                              (job_id,phase,duration,finished,finished,status,error_code)); self.repo.db.commit()
 
     def _update_delivery_stage(self, edition_id, voice, audio_status, stage, error_code=None, error_message=None):

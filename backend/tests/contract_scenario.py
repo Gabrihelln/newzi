@@ -47,6 +47,8 @@ def run(base_url, seed):
             shown = {"content_type": content_type, "non_empty": bool(payload)} if payload else None
         else:
             shown = payload
+        if step == "health" and isinstance(shown, dict):
+            shown = {**shown, "database": "<dialect>"}  # the same contract holds for SQLite and PostgreSQL
         records.append({"step": step, "request": f"{method} {normalize.text(path)}", "status": status, "body": normalize(shown)})
         return status, payload
 

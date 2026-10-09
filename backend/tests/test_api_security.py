@@ -20,14 +20,24 @@ def register(api, email):
     return body["session"]["token"], body["user"]["id"]
 
 
-def test_per_user_routes_require_authentication(api):
+def test_legacy_per_user_routes_are_gone(api):
+    """The /api/v1/users/{id} compatibility surface was removed; /api/v1/me replaces it."""
     token, uid = register(api, "a@x.com")
-    other, _ = register(api, "b@x.com")
-    assert api.request("GET", f"/api/v1/users/{uid}/preferences")[0] == 401
-    assert api.request("PUT", f"/api/v1/users/{uid}/preferences", {"briefing_size": 5})[0] == 401
-    assert api.request("GET", f"/api/v1/users/{uid}/briefings")[0] == 401
-    assert api.request("GET", f"/api/v1/users/{uid}/preferences", token=other)[0] == 403
-    assert api.request("GET", f"/api/v1/users/{uid}/preferences", token=token)[0] == 200
+    for method, path in (("GET", f"/api/v1/users/{uid}"), ("GET", f"/api/v1/users/{uid}/preferences"),
+                         ("PUT", f"/api/v1/users/{uid}/preferences"), ("GET", f"/api/v1/users/{uid}/briefings")):
+        assert api.request(method, path, {"briefing_size": 5} if method == "PUT" else None)[0] == 404
+        assert api.request(method, path, {"briefing_size": 5} if method == "PUT" else None, token=token)[0] == 404
+
+
+def test_audio_file_supports_range_requests(api):
+    """Players can seek/stream the briefing audio (HTTP Range)."""
+    token, _ = register(api, "range@x.com")
+    api.request("PUT", "/api/v1/me/onboarding", {"topics": ["TECHNOLOGY"], "audio_voice_id": "newzi_lucas"}, token=token)
+    api.request("POST", "/api/v1/dev/worker/run", token=token); api.request("POST", "/api/v1/dev/audio/run", token=token)
+    today = api.request("GET", "/api/v1/me/briefings/today", token=token)[1]
+    assert today["status"] == "READY", today
+    status, body, response = api.request("GET", today["audio_url"], token=token, headers={"Range": "bytes=0-99"})
+    assert status == 206 and len(body) == 100 and response.getheader("Content-Range", "").startswith("bytes 0-99/")
 
 
 def test_delete_device_returns_204_without_body(api):

@@ -23,60 +23,8 @@ def classification_registry_hash(registry=None):
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
-def ensure_content_schema(repo):
-    repo.db.executescript("""
-    CREATE TABLE IF NOT EXISTS indexed_content(
-      id TEXT PRIMARY KEY, content_hash TEXT NOT NULL, title TEXT NOT NULL,
-      description TEXT NOT NULL, url TEXT NOT NULL, source_name TEXT NOT NULL,
-      source_id TEXT NOT NULL, source_country TEXT, source_language TEXT,
-      published_at TEXT, image_url TEXT, image_source TEXT, image_checked_at TEXT,
-      indexed_at TEXT NOT NULL, enrichment_mode TEXT NOT NULL,
-      first_seen_at TEXT, last_seen_at TEXT, ingested_at TEXT, ingestion_run_id TEXT,
-      event_id TEXT);
-    CREATE TABLE IF NOT EXISTS content_taxonomy(
-      content_id TEXT NOT NULL REFERENCES indexed_content(id) ON DELETE CASCADE,
-      taxonomy_id TEXT NOT NULL, score REAL NOT NULL,
-      PRIMARY KEY(content_id,taxonomy_id));
-    CREATE INDEX IF NOT EXISTS idx_content_taxonomy_node ON content_taxonomy(taxonomy_id,score);
-    CREATE INDEX IF NOT EXISTS idx_content_published ON indexed_content(published_at);
-    CREATE TABLE IF NOT EXISTS content_enrichment(
-      content_id TEXT NOT NULL,content_hash TEXT NOT NULL,prompt_version TEXT NOT NULL,
-      schema_version TEXT NOT NULL,generator_version TEXT NOT NULL,output_language TEXT NOT NULL,
-      event_id TEXT NOT NULL,headline TEXT NOT NULL,summary TEXT NOT NULL,
-      key_points_json TEXT NOT NULL,why_it_matters TEXT,confidence REAL,
-      PRIMARY KEY(content_id,content_hash,prompt_version,schema_version,generator_version,output_language));
-    CREATE INDEX IF NOT EXISTS idx_enrichment_lookup ON content_enrichment(content_id,content_hash,output_language);
-    CREATE TABLE IF NOT EXISTS content_index_state(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL);
-    """)
-    columns={row[1] for row in repo.db.execute("PRAGMA table_info(indexed_content)")}
-    for name in ("image_url", "image_source", "image_checked_at"):
-        if name not in columns:
-            repo.db.execute(f"ALTER TABLE indexed_content ADD COLUMN {name} TEXT")
-    if "taxonomy_hash" not in columns:
-        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN taxonomy_hash TEXT")
-    if "quality_score" not in columns:
-        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN quality_score REAL NOT NULL DEFAULT 0")
-    for name in ("first_seen_at", "last_seen_at", "ingested_at", "ingestion_run_id"):
-        if name not in columns:
-            repo.db.execute(f"ALTER TABLE indexed_content ADD COLUMN {name} TEXT")
-    if "event_id" not in columns:
-        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN event_id TEXT")
-    if "classification_confidence" not in columns:
-        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN classification_confidence REAL")
-    if "classification_reason" not in columns:
-        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN classification_reason TEXT")
-    repo.db.execute("CREATE INDEX IF NOT EXISTS idx_content_event_published ON indexed_content(event_id,published_at)")
-    repo.db.execute("UPDATE indexed_content SET first_seen_at=COALESCE(first_seen_at,indexed_at),last_seen_at=COALESCE(last_seen_at,indexed_at),ingested_at=COALESCE(ingested_at,indexed_at)")
-    # Older importer versions substituted collected_at for missing source dates.
-    # Values effectively identical to index time are not trustworthy publication dates.
-    repo.db.execute("UPDATE indexed_content SET published_at=NULL WHERE published_at IS NOT NULL AND indexed_at IS NOT NULL AND datetime(indexed_at)<datetime('now','-1 day') AND ABS((julianday(published_at)-julianday(indexed_at))*86400)<1")
-    repo.db.execute("INSERT OR IGNORE INTO content_index_state(key,value,updated_at) VALUES('content_revision','0',?)",(datetime.now(timezone.utc).isoformat(),))
-    repo.db.commit()
-
-
 def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=True):
     """Index changed articles once; unchanged hashes are cache hits across profiles."""
-    ensure_content_schema(repo)
     articles = Store().all_articles() if articles is None else articles
     sources = {source["id"]: source for source in load_sources()}
     countries = {source_id: source.get("country", "") for source_id, source in sources.items()}
@@ -113,9 +61,10 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
         stored_image_url = article.image_url or (previous["image_url"] if previous else None)
         stored_image_source = article.image_source or (previous["image_source"] if previous else None)
         stored_image_checked = article.image_checked_at or (previous["image_checked_at"] if previous else None)
-        repo.db.execute("""INSERT OR REPLACE INTO indexed_content
+        repo.db.execute("""INSERT INTO indexed_content
             (id,content_hash,title,description,url,source_name,source_id,source_country,source_language,published_at,image_url,image_source,image_checked_at,indexed_at,enrichment_mode,taxonomy_hash,quality_score,first_seen_at,last_seen_at,ingested_at,ingestion_run_id,event_id)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(id) DO UPDATE SET content_hash=excluded.content_hash,title=excluded.title,description=excluded.description,url=excluded.url,source_name=excluded.source_name,source_id=excluded.source_id,source_country=excluded.source_country,source_language=excluded.source_language,published_at=excluded.published_at,image_url=excluded.image_url,image_source=excluded.image_source,image_checked_at=excluded.image_checked_at,indexed_at=excluded.indexed_at,enrichment_mode=excluded.enrichment_mode,taxonomy_hash=excluded.taxonomy_hash,quality_score=excluded.quality_score,first_seen_at=excluded.first_seen_at,last_seen_at=excluded.last_seen_at,ingested_at=excluded.ingested_at,ingestion_run_id=excluded.ingestion_run_id,event_id=excluded.event_id""", (
             article.article_id, digest, article.title, article.description or "", article.url,
             article.source_name, article.source_id, country,
             article.language, published_iso, stored_image_url, stored_image_source, stored_image_checked,
@@ -123,7 +72,7 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
         repo.db.execute("UPDATE indexed_content SET classification_confidence=?,classification_reason=? WHERE id=?", (classification["confidence"], classification["reason"], article.article_id))
         repo.db.execute("DELETE FROM content_taxonomy WHERE content_id=?", (article.article_id,))
         repo.db.execute("DELETE FROM content_enrichment WHERE content_id=? AND content_hash<>?", (article.article_id,digest))
-        repo.db.executemany("INSERT INTO content_taxonomy VALUES(?,?,?)", [(article.article_id, node_id, score) for node_id, score in tags])
+        repo.db.executemany("INSERT INTO content_taxonomy(content_id,taxonomy_id,score) VALUES(?,?,?)", [(article.article_id, node_id, score) for node_id, score in tags])
         metrics["classification_count"] += 1
         if published_iso:
             if previous:
@@ -150,7 +99,6 @@ def sync_article_image_metadata(repo, articles, allow_clear=False):
     ``allow_clear`` publishes a verified "no valid image" result (a broken or
     source-wide generic picture was rejected) instead of keeping the stale URL.
     """
-    ensure_content_schema(repo)
     changed = 0; public_changed = 0
     for article in articles:
         if not article.image_url and not (allow_clear and article.image_checked_at):
@@ -171,7 +119,6 @@ def sync_article_image_metadata(repo, articles, allow_clear=False):
 
 def sync_content_incremental(repo, changed_articles, ingestion_run_id=None):
     """Index only changed source items, rebuilding once when the taxonomy/version changes."""
-    ensure_content_schema(repo)
     registry=taxonomy()
     taxonomy_hash=classification_registry_hash(registry)
     state={row['key']:row['value'] for row in repo.db.execute("SELECT key,value FROM content_index_state")}
@@ -196,9 +143,6 @@ def sync_content_incremental(repo, changed_articles, ingestion_run_id=None):
 
 
 def get_content_revision(repo):
-    # This lightweight read endpoint must work even before the content index is
-    # created and must not attempt a data migration on legacy schema variants.
-    repo.db.execute("CREATE TABLE IF NOT EXISTS content_index_state(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)")
     row=repo.db.execute("SELECT value,updated_at FROM content_index_state WHERE key='content_revision'").fetchone()
     return {"revision":int(row["value"] if row else 0),"updated_at":row["updated_at"] if row else None}
 
@@ -233,7 +177,7 @@ def _cluster_incremental_content(repo, changed_articles):
         upper=(group[-1].published_at+window).astimezone(timezone.utc).isoformat()
         rows=repo.db.execute("""SELECT c.id,c.title,c.description,c.url,c.source_name,c.source_id,
                 c.source_language,c.published_at,c.first_seen_at,c.indexed_at,c.event_id,
-                GROUP_CONCAT(t.taxonomy_id, ',') AS taxonomy_ids
+                """+repo.db.string_agg("t.taxonomy_id")+""" AS taxonomy_ids
             FROM indexed_content c LEFT JOIN content_taxonomy t ON t.content_id=c.id
             WHERE c.published_at>=? AND c.published_at<=?
             GROUP BY c.id ORDER BY c.published_at,c.id""",(lower,upper)).fetchall()
@@ -278,7 +222,6 @@ def _cluster_incremental_content(repo, changed_articles):
 
 def sync_semantic_output(repo, path=None):
     """Import already validated global phase 3.3 output; never invoke Ollama here."""
-    ensure_content_schema(repo)
     path = path or ENGINE_OUTPUT / "daily_briefing_v2.json"
     try:
         output = json.loads(path.read_text(encoding="utf-8"))
@@ -292,7 +235,8 @@ def sync_semantic_output(repo, path=None):
         for article_id in item.get("provenance", {}).get("articles", []):
             content = repo.db.execute("SELECT content_hash FROM indexed_content WHERE id=?", (article_id,)).fetchone()
             if not content: continue
-            cursor=repo.db.execute("""INSERT OR IGNORE INTO content_enrichment VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (
+            cursor=repo.db.execute("""INSERT INTO content_enrichment(content_id,content_hash,prompt_version,schema_version,generator_version,output_language,event_id,headline,summary,key_points_json,why_it_matters,confidence)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING""", (
                 article_id, content["content_hash"], "phase33", "daily_briefing_v2",
                 item.get("summary_provider", "ollama"), language, item.get("event_id") or article_id,
                 item["headline"], item["summary"], json.dumps(item.get("key_points") or []),
@@ -348,7 +292,6 @@ def primary_taxonomy(tags, interests, registry=None, proximity=None):
 
 def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None):
     """Select real indexed articles without running an LLM per user or profile."""
-    ensure_content_schema(repo)
     registry = taxonomy()
     interests, unknown = registry.canonicalize(topics)
     now = now or datetime.now(timezone.utc)
@@ -374,13 +317,12 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     # Editions are shared by profile, so repetition is measured at profile level.
     from .scheduling import BriefingProfile
     profile_key = BriefingProfile(tuple(interests), language, briefing_size, country_scope).key()
-    if repo.db.execute("SELECT 1 FROM sqlite_master WHERE name='briefing_editions'").fetchone():
-        for row in repo.db.execute("""SELECT i.event_id,i.sources_json FROM briefing_edition_items i
-            JOIN briefing_editions e ON e.id=i.edition_id WHERE e.profile_key=? AND e.edition_date>=?""",
-            (profile_key, (now-timedelta(days=7)).date().isoformat())):
-            if row["event_id"]:
-                previous_events.add(row["event_id"])
-            previous_events.update(source.get("article_id") for source in json.loads(row["sources_json"] or "[]") if source.get("article_id"))
+    for row in repo.db.execute("""SELECT i.event_id,i.sources_json FROM briefing_edition_items i
+        JOIN briefing_editions e ON e.id=i.edition_id WHERE e.profile_key=? AND e.edition_date>=?""",
+        (profile_key, (now-timedelta(days=7)).date().isoformat())):
+        if row["event_id"]:
+            previous_events.add(row["event_id"])
+        previous_events.update(source.get("article_id") for source in json.loads(row["sources_json"] or "[]") if source.get("article_id"))
     for item in by_id.values():
         content, tags = item["content"], item["tags"]
         published = datetime.fromisoformat(content["published_at"].replace("Z", "+00:00"))
@@ -486,7 +428,6 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
 
 
 def taxonomy_health(repo, now=None):
-    ensure_content_schema(repo)
     now = now or datetime.now(timezone.utc)
     rows = []
     sources_by_node = {node_id: set() for node_id in taxonomy().nodes}
@@ -508,15 +449,14 @@ def taxonomy_health(repo, now=None):
                      "configured_source_count": len(sources_by_node[node["id"]]),
                      "average_classification_score": round(sum(r["score"] for r in match)/len(match), 2) if match else 0,
                      "coverage_status": "CURRENT" if recent else "EXTENDED" if extended else "NONE"})
-    observations={row["name"]:row["count"] for row in repo.db.execute("SELECT name,count FROM taxonomy_resolution_metrics")} if repo.db.execute("SELECT 1 FROM sqlite_master WHERE name='taxonomy_resolution_metrics'").fetchone() else {}
+    observations={row["name"]:row["count"] for row in repo.db.execute("SELECT name,count FROM taxonomy_resolution_metrics")}
     user_rows=repo.db.execute("SELECT topics_json FROM user_preferences").fetchall()
     profile_sizes=[len(taxonomy().canonicalize(json.loads(row["topics_json"]))[0]) for row in user_rows]
     fallback_counts={"hierarchical_fallback_count":0,"global_fallback_count":0}
-    if repo.db.execute("SELECT 1 FROM sqlite_master WHERE name='briefing_edition_items'").fetchone():
-        for item in repo.db.execute("SELECT warnings_json FROM briefing_edition_items"):
-            warnings=json.loads(item["warnings_json"])
-            if any("HIERARCHICAL" in warning for warning in warnings): fallback_counts["hierarchical_fallback_count"]+=1
-            if any("GLOBAL" in warning for warning in warnings): fallback_counts["global_fallback_count"]+=1
+    for item in repo.db.execute("SELECT warnings_json FROM briefing_edition_items"):
+        warnings=json.loads(item["warnings_json"])
+        if any("HIERARCHICAL" in warning for warning in warnings): fallback_counts["hierarchical_fallback_count"]+=1
+        if any("GLOBAL" in warning for warning in warnings): fallback_counts["global_fallback_count"]+=1
     return {"taxonomy_nodes_active": len(rows), "taxonomy_nodes_with_content": sum(r["current_valid_content_count"] > 0 for r in rows),
             "taxonomy_nodes_without_recent_content": sum(r["content_last_24h"] == 0 for r in rows),
             "taxonomy_alias_resolutions":observations.get("taxonomy_alias_resolutions",0),

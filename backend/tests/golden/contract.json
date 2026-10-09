@@ -6,7 +6,7 @@
   "body": {
    "status": "ok",
    "service": "newzi-product-backend",
-   "database": "sqlite"
+   "database": "<dialect>"
   }
  },
  {
@@ -10604,7 +10604,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "not found",
-    "request_id": "<req#1>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10616,7 +10616,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "valid email is required",
-    "request_id": "<req#2>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10628,7 +10628,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "password must contain at least 8 characters",
-    "request_id": "<req#3>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10684,7 +10684,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "email already registered",
-    "request_id": "<req#4>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10696,7 +10696,7 @@
    "error": {
     "code": "INVALID_CREDENTIALS",
     "message": "invalid credentials",
-    "request_id": "<req#5>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10730,7 +10730,7 @@
    "error": {
     "code": "AUTH_REQUIRED",
     "message": "authentication required",
-    "request_id": "<req#6>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10742,7 +10742,7 @@
    "error": {
     "code": "AUTH_REQUIRED",
     "message": "authentication required",
-    "request_id": "<req#7>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10754,7 +10754,7 @@
    "error": {
     "code": "AUTH_REQUIRED",
     "message": "authentication required",
-    "request_id": "<req#8>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10779,7 +10779,11 @@
   "request": "PUT /api/v1/me/preferences",
   "status": 400,
   "body": {
-   "error": "invalid_json"
+   "error": {
+    "code": "INVALID_JSON",
+    "message": "request body is not valid JSON",
+    "request_id": "<request_id>"
+   }
   }
  },
  {
@@ -10812,7 +10816,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "briefing_size must be 5, 10, or 15",
-    "request_id": "<req#9>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10824,7 +10828,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "topics contains unsupported topic",
-    "request_id": "<req#10>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -10836,7 +10840,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "timezone must be a valid IANA timezone",
-    "request_id": "<req#11>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17125,7 +17129,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "briefing not found",
-    "request_id": "<req#12>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17137,7 +17141,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "briefing not found",
-    "request_id": "<req#13>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17209,7 +17213,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "audio variant is no longer active",
-    "request_id": "<req#14>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17221,7 +17225,7 @@
    "error": {
     "code": "AUTH_REQUIRED",
     "message": "authentication required",
-    "request_id": "<req#15>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17242,7 +17246,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "invalid listening progress",
-    "request_id": "<req#16>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17254,7 +17258,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "progress and duration must be numbers",
-    "request_id": "<req#17>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17536,7 +17540,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "voice not available",
-    "request_id": "<req#18>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17883,7 +17887,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "rating must be an integer between 1 and 5",
-    "request_id": "<req#19>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17895,7 +17899,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "rating must be an integer between 1 and 5",
-    "request_id": "<req#20>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17916,7 +17920,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "article image not found",
-    "request_id": "<req#21>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17928,7 +17932,7 @@
    "error": {
     "code": "AUTH_REQUIRED",
     "message": "authentication required",
-    "request_id": "<req#22>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -17940,7 +17944,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "story id and headline are required",
-    "request_id": "<req#23>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18117,7 +18121,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "progress must be between 0 and 100",
-    "request_id": "<req#24>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18129,7 +18133,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "saved story not found",
-    "request_id": "<req#25>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18218,7 +18222,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "briefing not found",
-    "request_id": "<req#26>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18374,7 +18378,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "saved story not found",
-    "request_id": "<req#27>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18386,7 +18390,7 @@
    "error": {
     "code": "VALIDATION_ERROR",
     "message": "platform must be ANDROID or IOS",
-    "request_id": "<req#28>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18434,7 +18438,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "device not found",
-    "request_id": "<req#29>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18461,40 +18465,36 @@
  {
   "step": "users route owner",
   "request": "GET /api/v1/users/<user#1>",
-  "status": 200,
+  "status": 404,
   "body": {
-   "id": "<user#1>",
-   "email": "ana@example.com",
-   "display_name": "Ana",
-   "language": "pt-BR",
-   "timezone": "America/Sao_Paulo",
-   "created_at": "<ts>",
-   "updated_at": "<ts>",
-   "status": "ACTIVE",
-   "onboarding_status": "COMPLETED"
+   "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "not found",
+    "request_id": "<request_id>"
+   }
   }
  },
  {
   "step": "users route other",
   "request": "GET /api/v1/users/<user#1>/preferences",
-  "status": 403,
+  "status": 404,
   "body": {
    "error": {
-    "code": "FORBIDDEN",
-    "message": "resource access denied",
-    "request_id": "<req#30>"
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "not found",
+    "request_id": "<request_id>"
    }
   }
  },
  {
   "step": "users route anonymous",
   "request": "GET /api/v1/users/<user#1>/preferences",
-  "status": 401,
+  "status": 404,
   "body": {
    "error": {
-    "code": "AUTH_REQUIRED",
-    "message": "authentication required",
-    "request_id": "<req#31>"
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "not found",
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18576,7 +18576,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "generation not found",
-    "request_id": "<req#32>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18588,7 +18588,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "generation audio not found",
-    "request_id": "<req#33>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18656,12 +18656,138 @@
  {
   "step": "dev diagnostic",
   "request": "GET /api/v1/dev/users/<user#1>/briefing/diagnostic",
-  "status": 500,
+  "status": 200,
   "body": {
-   "error": {
-    "code": "INTERNAL_ERROR",
-    "message": "internal error",
-    "request_id": "<req#34>"
+   "effective_canonical_taxonomy_ids": [
+    "ECONOMY"
+   ],
+   "unknown_taxonomy_ids": [],
+   "profile_key": "<profile#1>",
+   "exact_candidate_count": 4,
+   "hierarchical_candidate_count": 4,
+   "broader_candidate_count": 4,
+   "global_candidate_count": 8,
+   "edition_status": "READY",
+   "job_status": "COMPLETED",
+   "last_error": null,
+   "fallback_levels": [],
+   "items": [
+    {
+     "content_id": "c025fcee17edce64",
+     "matched_taxonomy_ids": [],
+     "user_interest_matches": [],
+     "primary_taxonomy_id": null,
+     "primary_taxonomy_label": null,
+     "primary_taxonomy_reason": null
+    },
+    {
+     "content_id": "f75765f3a59922c9",
+     "matched_taxonomy_ids": [],
+     "user_interest_matches": [],
+     "primary_taxonomy_id": null,
+     "primary_taxonomy_label": null,
+     "primary_taxonomy_reason": null
+    },
+    {
+     "content_id": "82d034e8b7dc5291",
+     "matched_taxonomy_ids": [],
+     "user_interest_matches": [],
+     "primary_taxonomy_id": null,
+     "primary_taxonomy_label": null,
+     "primary_taxonomy_reason": null
+    },
+    {
+     "content_id": "4d05880406e3f4f8",
+     "matched_taxonomy_ids": [],
+     "user_interest_matches": [],
+     "primary_taxonomy_id": null,
+     "primary_taxonomy_label": null,
+     "primary_taxonomy_reason": null
+    },
+    {
+     "content_id": "d8b12cdf3d98422f",
+     "matched_taxonomy_ids": [],
+     "user_interest_matches": [],
+     "primary_taxonomy_id": null,
+     "primary_taxonomy_label": null,
+     "primary_taxonomy_reason": null
+    }
+   ],
+   "pipeline": {
+    "delivery": {
+     "id": "<delivery#1>",
+     "edition_id": "<edition#1>",
+     "date": "<date>",
+     "status": "READY",
+     "audio_status": "PENDING",
+     "stage": "PENDING",
+     "selected_voice_id": "newzi_clara",
+     "active_voice_id": "newzi_lucas",
+     "script_id": "<audio_script#1>",
+     "audio_artifact_id": "<audio_artifact#1>",
+     "started_at": "<ts>",
+     "updated_at": "<ts>",
+     "error_code": null,
+     "error_message": null
+    },
+    "generation_job": {
+     "id": "<job#1>",
+     "status": "COMPLETED",
+     "attempt_count": 1,
+     "max_attempts": 2,
+     "scheduled_for": "<ts>",
+     "started_at": "<ts>",
+     "finished_at": "<ts>",
+     "error_code": null,
+     "error_message": null,
+     "profile_key": "<profile#1>"
+    },
+    "audio_job": {
+     "id": "<audio_job#1>",
+     "status": "PENDING",
+     "stage": "QUEUED",
+     "voice": "newzi_clara",
+     "script_version": "v3:edge-tts:7.2.7-rate-2",
+     "attempt_count": 0,
+     "max_attempts": 3,
+     "created_at": "<ts>",
+     "started_at": null,
+     "updated_at": "<ts>",
+     "finished_at": null,
+     "error_code": null,
+     "error_message": null
+    },
+    "audio_artifact": {
+     "id": "<audio_artifact#1>",
+     "status": "READY",
+     "provider": "edge-tts",
+     "voice": "newzi_lucas",
+     "language": "pt-BR",
+     "mime_type": "audio/mpeg",
+     "storage_path": "C:\\Users\\Gabriel <run>\\audio\\<hex>.mp3",
+     "duration_ms": 2000,
+     "size_bytes": 8468,
+     "checksum": "<hex>",
+     "created_at": "<ts>"
+    },
+    "generation_phases": [
+     {
+      "phase": "EDITION_PERSISTENCE",
+      "duration_ms": "<number>",
+      "recorded_at": "<ts>"
+     },
+     {
+      "phase": "QUEUE_WAIT",
+      "duration_ms": "<number>",
+      "recorded_at": "<ts>"
+     },
+     {
+      "phase": "TOTAL_DELIVERY_CONTENT",
+      "duration_ms": "<number>",
+      "recorded_at": "<ts>"
+     }
+    ],
+    "audio_phases": []
    }
   }
  },
@@ -18673,7 +18799,7 @@
    "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "not found",
-    "request_id": "<req#35>"
+    "request_id": "<request_id>"
    }
   }
  },
@@ -18735,7 +18861,7 @@
    "error": {
     "code": "AUTH_REQUIRED",
     "message": "authentication required",
-    "request_id": "<req#36>"
+    "request_id": "<request_id>"
    }
   }
  }
