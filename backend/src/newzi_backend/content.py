@@ -5,12 +5,14 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from newzi_engine.collectors.registry import load_sources
-from newzi_engine.processors.classify import classify_article, CLASSIFIER_VERSION
+from newzi_engine.processors.classify import classify_for_index, CLASSIFIER_VERSION
 from newzi_engine.storage import Store
 from newzi_engine.topic_registry import taxonomy
 from newzi_engine.paths import ENGINE_OUTPUT
 
 INDEX_VERSION = "content-index-v1"
+# Users with many interests get a longer briefing (up to this size) instead of losing topics.
+MAX_EXPANDED_BRIEFING_SIZE = 20
 
 
 def classification_registry_hash(registry=None):
@@ -59,6 +61,10 @@ def ensure_content_schema(repo):
             repo.db.execute(f"ALTER TABLE indexed_content ADD COLUMN {name} TEXT")
     if "event_id" not in columns:
         repo.db.execute("ALTER TABLE indexed_content ADD COLUMN event_id TEXT")
+    if "classification_confidence" not in columns:
+        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN classification_confidence REAL")
+    if "classification_reason" not in columns:
+        repo.db.execute("ALTER TABLE indexed_content ADD COLUMN classification_reason TEXT")
     repo.db.execute("CREATE INDEX IF NOT EXISTS idx_content_event_published ON indexed_content(event_id,published_at)")
     repo.db.execute("UPDATE indexed_content SET first_seen_at=COALESCE(first_seen_at,indexed_at),last_seen_at=COALESCE(last_seen_at,indexed_at),ingested_at=COALESCE(ingested_at,indexed_at)")
     # Older importer versions substituted collected_at for missing source dates.
@@ -100,12 +106,10 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
             metrics["cache_hits"] += 1
             metrics["articles_unchanged"] += 1
             continue
-        classification_started=time.perf_counter(); _, scores = classify_article(article); classification_ms+=int((time.perf_counter()-classification_started)*1000)
-        tags = [(node_id, float(score)) for node_id, score in scores.items() if score >= 4 and registry.resolve(node_id)]
-        for node_id in article.categories:
-            canonical = registry.resolve(node_id)
-            if canonical and canonical not in {tag[0] for tag in tags}:
-                tags.append((canonical, 4.0))
+        classification_started=time.perf_counter()
+        classification = classify_for_index(article, sources.get(article.source_id, {}).get("categories", []))
+        classification_ms+=int((time.perf_counter()-classification_started)*1000)
+        tags = classification["tags"]
         stored_image_url = article.image_url or (previous["image_url"] if previous else None)
         stored_image_source = article.image_source or (previous["image_source"] if previous else None)
         stored_image_checked = article.image_checked_at or (previous["image_checked_at"] if previous else None)
@@ -116,6 +120,7 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
             article.source_name, article.source_id, country,
             article.language, published_iso, stored_image_url, stored_image_source, stored_image_checked,
             seen_iso, "DETERMINISTIC_FALLBACK", taxonomy_hash, quality, previous["first_seen_at"] if previous else seen_iso, seen_iso, seen_iso, ingestion_run_id or (repo.db.execute("SELECT ingestion_run_id FROM indexed_content WHERE id=?",(article.article_id,)).fetchone() or [None])[0], previous["event_id"] if previous else None))
+        repo.db.execute("UPDATE indexed_content SET classification_confidence=?,classification_reason=? WHERE id=?", (classification["confidence"], classification["reason"], article.article_id))
         repo.db.execute("DELETE FROM content_taxonomy WHERE content_id=?", (article.article_id,))
         repo.db.execute("DELETE FROM content_enrichment WHERE content_id=? AND content_hash<>?", (article.article_id,digest))
         repo.db.executemany("INSERT INTO content_taxonomy VALUES(?,?,?)", [(article.article_id, node_id, score) for node_id, score in tags])
@@ -139,12 +144,16 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
     return metrics
 
 
-def sync_article_image_metadata(repo, articles):
-    """Update only image metadata for indexed IDs; never reclassify article content."""
+def sync_article_image_metadata(repo, articles, allow_clear=False):
+    """Update only image metadata for indexed IDs; never reclassify article content.
+
+    ``allow_clear`` publishes a verified "no valid image" result (a broken or
+    source-wide generic picture was rejected) instead of keeping the stale URL.
+    """
     ensure_content_schema(repo)
     changed = 0; public_changed = 0
     for article in articles:
-        if not article.image_url:
+        if not article.image_url and not (allow_clear and article.image_checked_at):
             continue
         previous = repo.db.execute("SELECT image_url,image_source,image_checked_at,published_at FROM indexed_content WHERE id=?",(article.article_id,)).fetchone()
         if not previous or tuple(previous[:3]) == (article.image_url,article.image_source,article.image_checked_at):
@@ -390,7 +399,11 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         # Freshness breaks ties inside an editorial relevance tier without allowing
         # unrelated current stories to outrank a strong match for the user's topic.
         freshness_bonus = 45 if age_hours <= 24 else 20 if age_hours <= 72 else 0
-        score = {"EXACT": 400, "HIERARCHICAL": 300, "BROADER": 200, "GLOBAL": 100}.get(level.removeprefix("EXTENDED_"), 0) + freshness_bonus + match + content["quality_score"] - age_hours/24
+        # Stories already in the briefing language read naturally; others need translation, so they
+        # win only within a relevance tier when no same-language story is comparable.
+        same_language = str(content["source_language"] or "").split("-")[0].lower() == language.split("-")[0].lower()
+        score = ({"EXACT": 400, "HIERARCHICAL": 300, "BROADER": 200, "GLOBAL": 100}.get(level.removeprefix("EXTENDED_"), 0)
+                 + freshness_bonus + match + content["quality_score"] - age_hours/24 + (30 if same_language else 0))
         primary = primary_taxonomy(tags, interests, registry, proximity)
         interest_matches = sorted({interest for node_id in tags for interest in covered_interests.get(node_id, ())})
         primary_matches = covered_interests.get(primary["id"], ()) if primary else ()
@@ -401,7 +414,8 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     ranked.sort(key=lambda candidate: (-candidate["score"], candidate["content"]["id"]))
     selected, sources_seen, topics_seen, interests_seen, events_seen = [], {}, {}, set(), set()
     remaining = ranked[:]
-    while remaining and len(selected) < briefing_size:
+    max_size = max(briefing_size, MAX_EXPANDED_BRIEFING_SIZE)
+    while remaining and len(selected) < max_size:
         def editorial_score(candidate):
             primary = candidate["primary"]
             topic_id = primary["id"] if primary else None
@@ -411,9 +425,19 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
                     - 7 * min(4, topics_seen.get(topic_id, 0))
                     - 5 * min(4, sources_seen.get(source_id, 0))
                     - (60 if candidate["content"]["id"] in previous_events else 0))
-        # Diversity can reorder comparable stories, never pull a much weaker one forward.
-        comparable = [value for value in remaining if value["score"] >= remaining[0]["score"] - 20]
-        candidate = max(comparable, key=lambda value: (editorial_score(value), value["score"], value["content"]["id"]))
+        # Coverage first: every chosen interest with a matching story gets a slot before
+        # high-volume topics fill the rest; `remaining` is score-ordered, so this is that interest's best story.
+        uncovered = [value for value in remaining if value["coverage_interest"] and value["coverage_interest"] not in interests_seen
+                     and value["level"].removeprefix("EXTENDED_") in ("EXACT", "HIERARCHICAL")]
+        # Beyond the chosen size, the briefing only grows to cover interests still missing.
+        if len(selected) >= briefing_size and not uncovered:
+            break
+        if uncovered:
+            candidate = uncovered[0]
+        else:
+            # Diversity can reorder comparable stories, never pull a much weaker one forward.
+            comparable = [value for value in remaining if value["score"] >= remaining[0]["score"] - 20]
+            candidate = max(comparable, key=lambda value: (editorial_score(value), value["score"], value["content"]["id"]))
         remaining.remove(candidate)
         level, content = candidate["level"], candidate["content"]
         enriched = repo.db.execute("""SELECT * FROM content_enrichment WHERE content_id=? AND content_hash=? AND output_language=?

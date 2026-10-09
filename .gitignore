@@ -62,6 +62,7 @@ temp/
 engine/data/output/
 engine/data/diagnostics/
 backend/data/audio/
+backend/data/models/
 
 # Build outputs
 /dist/

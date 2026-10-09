@@ -15,7 +15,10 @@ Os arquivos nesta pasta são templates. Eles não instalam pacotes, não criam c
 1. Instale Python 3.11+, Nginx, `ffmpeg`/`ffprobe` e as bibliotecas de sistema necessárias ao `firebase-admin` e ao `edge-tts`.
 2. Crie o usuário/grupo `newzi`, coloque o checkout em `/opt/newzi` e garanta que esse usuário possa ler o código.
 3. Crie `/opt/newzi/.venv`, instale `requirements.txt` e configure o Firebase Admin JSON fora do checkout, em `/etc/newzi/firebase-admin.json`. Restrinja `/etc/newzi` a `root:newzi` (`0750`) e o JSON a `root:newzi` (`0640`) para o serviço poder lê-lo sem torná-lo público.
-4. Crie `/etc/newzi/newzi.env` com permissões `0600`, dono `root`, contendo pelo menos:
+4. Instale os modelos de tradução (CPU, ~130 MB), usados para narrar notícias de outro idioma no idioma do briefing:
+   `sudo -u newzi env TRANSLATION_MODELS_DIR=/var/lib/newzi/models/translation /opt/newzi/.venv/bin/python -m newzi_backend.translation --download`
+   (execute a partir de `/opt/newzi/backend/src` ou com `PYTHONPATH=/opt/newzi/backend/src`). Sem os modelos, essas notícias são narradas no idioma original.
+5. Crie `/etc/newzi/newzi.env` com permissões `0600`, dono `root`, contendo pelo menos:
 
 ```dotenv
 APP_ENV=production
@@ -26,6 +29,7 @@ DATABASE_URL=sqlite:////var/lib/newzi/product_backend.sqlite3
 NEWS_ENGINE_DATA_DIR=/var/lib/newzi/engine
 AUDIO_STORAGE_ROOT=/var/lib/newzi/audio
 NEWS_AUDIO_TMP=/var/lib/newzi/tmp
+TRANSLATION_MODELS_DIR=/var/lib/newzi/models/translation
 NEWS_REFRESH_INTERVAL_SECONDS=600
 FIREBASE_AUTH_ENABLED=true
 FIREBASE_PROJECT_ID=YOUR_FIREBASE_PROJECT_ID
@@ -38,9 +42,9 @@ TTS_VOICE=newzi_lucas
 
 Com `PUSH_PROVIDER=fcm`, o backend envia pelo Firebase Admin SDK usando a conta de serviço de `GOOGLE_APPLICATION_CREDENTIALS`; o SDK gera e renova sozinho o token OAuth. `FCM_PROJECT_ID` é opcional (padrão: `FIREBASE_PROJECT_ID`). Firebase Admin e FCM devem usar o mesmo projeto.
 
-5. Ajuste `server_name` e os caminhos do certificado no Nginx. Emita o certificado TLS, instale o arquivo de configuração e valide com `nginx -t`.
-6. Copie os dois `.service` para `/etc/systemd/system/`, execute `systemctl daemon-reload`, habilite `newzi-api` e `newzi-worker` e verifique seus logs com `journalctl -u newzi-api -u newzi-worker`.
-7. Valide `https://api.seu-dominio/health` e `/ready`, autenticação Firebase, atualização de fontes, briefing, geração/playback de áudio e notificações antes de liberar o app.
+6. Ajuste `server_name` e os caminhos do certificado no Nginx. Emita o certificado TLS, instale o arquivo de configuração e valide com `nginx -t`.
+7. Copie os dois `.service` para `/etc/systemd/system/`, execute `systemctl daemon-reload`, habilite `newzi-api` e `newzi-worker` e verifique seus logs com `journalctl -u newzi-api -u newzi-worker`.
+8. Valide `https://api.seu-dominio/health` e `/ready`, autenticação Firebase, atualização de fontes, briefing, geração/playback de áudio e notificações antes de liberar o app.
 
 ## Segurança e operação
 

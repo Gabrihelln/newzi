@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "nodes": [
     {
       "id": "ARTIFICIAL_INTELLIGENCE",
@@ -12,7 +12,10 @@
         "AI",
         "IA",
         "Artificial Intelligence",
-        "Inteligência Artificial"
+        "Inteligência Artificial",
+        "OpenAI",
+        "ChatGPT",
+        "Google AI"
       ],
       "active": true,
       "display_order": 1,
@@ -242,7 +245,11 @@
       "name": "Mundo",
       "description": "Acontecimentos internacionais",
       "type": "domain",
-      "aliases": [],
+      "aliases": [
+        "Internacional",
+        "International",
+        "Notícias internacionais"
+      ],
       "active": true,
       "display_order": 10,
       "terms": {
@@ -376,7 +383,20 @@
         "world cup": 5,
         "rugby": 5,
         "rugby union": 6,
-        "premier league": 5
+        "premier league": 5,
+        "campeonato": 4,
+        "campeao": 3,
+        "campea": 3,
+        "torneio": 4,
+        "copa do mundo": 5,
+        "atleta": 4,
+        "atletas": 4,
+        "medalha": 4,
+        "medalhista": 5,
+        "olimpico": 4,
+        "paralimpico": 5,
+        "paralimpiada": 5,
+        "selecao brasileira": 5
       }
     },
     {
@@ -582,7 +602,10 @@
         "Política internacional",
         "Geopolitics",
         "Sanctions",
-        "Sanções"
+        "Sanções",
+        "GEOPOLITICA_GLOBAL",
+        "geopolitica-global",
+        "Geopolítica global"
       ],
       "active": true,
       "display_order": 29,
@@ -596,7 +619,8 @@
         "sanctions": 5,
         "sanctioned": 5,
         "sanções": 5,
-        "sancionado": 5
+        "sancionado": 5,
+        "geopolítica global": 5
       }
     },
     {
@@ -659,7 +683,17 @@
         "tropas": 4,
         "international conflict": 6,
         "international conflicts": 6,
-        "batalha militar": 6
+        "batalha militar": 6,
+        "guerras": 6,
+        "missile strike": 7,
+        "misseis": 5,
+        "drone strike": 7,
+        "ataque com drones": 7,
+        "invaded": 6,
+        "invadiu": 6,
+        "ofensiva militar": 7,
+        "military offensive": 7,
+        "frente de batalha": 6
       }
     },
     {
@@ -713,7 +747,18 @@
         "armed forces": 5,
         "military operation": 5,
         "forcas armadas": 5,
-        "operacao militar": 5
+        "operacao militar": 5,
+        "exercito": 5,
+        "army": 4,
+        "navy": 4,
+        "marinha": 4,
+        "aeronautica": 4,
+        "defense ministry": 5,
+        "ministerio da defesa": 5,
+        "pentagon": 5,
+        "pentagono": 5,
+        "nato": 4,
+        "otan": 4
       }
     },
     {
@@ -916,22 +961,6 @@
       }
     },
     {
-      "id": "RELACOES_EXTERIORES",
-      "slug": "relacoes-exteriores",
-      "name": "Relações exteriores",
-      "description": "Notícias e contexto sobre relações exteriores.",
-      "parent_id": "POLITICS",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 48,
-      "terms": {
-        "relações exteriores": 5,
-        "relações": 3,
-        "exteriores": 3
-      }
-    },
-    {
       "id": "MACROECONOMIA",
       "slug": "macroeconomia",
       "name": "Macroeconomia",
@@ -974,33 +1003,28 @@
       }
     },
     {
-      "id": "EMPREGO",
-      "slug": "emprego",
-      "name": "Emprego",
-      "description": "Notícias e contexto sobre emprego.",
-      "parent_id": "ECONOMY",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 52,
-      "terms": {
-        "emprego": 3
-      }
-    },
-    {
       "id": "MERCADO_FINANCEIRO",
       "slug": "mercado-financeiro",
       "name": "Mercado financeiro",
       "description": "Notícias e contexto sobre mercado financeiro.",
       "parent_id": "ECONOMY",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "MERCADO_DE_CAPITAIS",
+        "mercado-de-capitais",
+        "Mercado de capitais",
+        "Mercado",
+        "Bolsa de valores",
+        "Ações",
+        "Stock market"
+      ],
       "active": true,
       "display_order": 53,
       "terms": {
         "mercado financeiro": 5,
         "mercado": 3,
-        "financeiro": 3
+        "financeiro": 3,
+        "mercado de capitais": 5
       }
     },
     {
@@ -1138,13 +1162,21 @@
       "description": "Notícias e contexto sobre mercado de trabalho.",
       "parent_id": "ECONOMY",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "TRABALHO",
+        "trabalho",
+        "Trabalho",
+        "EMPREGO",
+        "emprego",
+        "Emprego"
+      ],
       "active": true,
       "display_order": 63,
       "terms": {
         "mercado de trabalho": 5,
         "mercado": 3,
-        "trabalho": 3
+        "trabalho": 3,
+        "emprego": 3
       }
     },
     {
@@ -1224,11 +1256,20 @@
       "description": "Notícias e contexto sobre big tech.",
       "parent_id": "TECHNOLOGY",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "Gigantes da tecnologia"
+      ],
       "active": true,
       "display_order": 69,
       "terms": {
-        "big tech": 5
+        "big tech": 5,
+        "google": 3,
+        "apple": 3,
+        "microsoft": 3,
+        "amazon": 3,
+        "meta platforms": 5,
+        "alphabet": 4,
+        "nvidia": 3
       }
     },
     {
@@ -1297,11 +1338,32 @@
       "description": "Notícias e contexto sobre games.",
       "parent_id": "TECHNOLOGY",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "Jogos",
+        "Videogames",
+        "Video games",
+        "Gaming"
+      ],
       "active": true,
       "display_order": 74,
       "terms": {
-        "games": 5
+        "games": 5,
+        "videogame": 6,
+        "videogames": 6,
+        "video game": 6,
+        "video games": 6,
+        "gaming": 5,
+        "gamer": 4,
+        "gamers": 4,
+        "xbox": 5,
+        "playstation": 5,
+        "ps5": 5,
+        "nintendo": 5,
+        "switch 2": 5,
+        "steam": 3,
+        "gameplay": 5,
+        "dlc": 5,
+        "game": 3
       }
     },
     {
@@ -1641,11 +1703,18 @@
       "description": "Notícias e contexto sobre universidades.",
       "parent_id": "EDUCATION",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "ENSINO_SUPERIOR",
+        "ensino-superior",
+        "Ensino superior"
+      ],
       "active": true,
       "display_order": 98,
       "terms": {
-        "universidades": 3
+        "universidades": 3,
+        "ensino superior": 5,
+        "ensino": 3,
+        "superior": 3
       }
     },
     {
@@ -1659,7 +1728,12 @@
       "active": true,
       "display_order": 99,
       "terms": {
-        "escolas": 3
+        "escolas": 3,
+        "escola": 3,
+        "school": 3,
+        "schools": 3,
+        "students": 3,
+        "alunos": 3
       }
     },
     {
@@ -1669,41 +1743,20 @@
       "description": "Notícias e contexto sobre carreira.",
       "parent_id": "EDUCATION",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "DESENVOLVIMENTO_DE_CARREIRA",
+        "desenvolvimento-de-carreira",
+        "Desenvolvimento de carreira",
+        "MERCADO_PROFISSIONAL",
+        "mercado-profissional",
+        "Mercado profissional"
+      ],
       "active": true,
       "display_order": 100,
       "terms": {
-        "carreira": 3
-      }
-    },
-    {
-      "id": "TRABALHO",
-      "slug": "trabalho",
-      "name": "Trabalho",
-      "description": "Notícias e contexto sobre trabalho.",
-      "parent_id": "ECONOMY",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 101,
-      "terms": {
-        "trabalho": 3
-      }
-    },
-    {
-      "id": "ENSINO_SUPERIOR",
-      "slug": "ensino-superior",
-      "name": "Ensino superior",
-      "description": "Notícias e contexto sobre ensino superior.",
-      "parent_id": "EDUCATION",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 102,
-      "terms": {
-        "ensino superior": 5,
-        "ensino": 3,
-        "superior": 3
+        "carreira": 3,
+        "desenvolvimento de carreira": 5,
+        "mercado profissional": 5
       }
     },
     {
@@ -2059,7 +2112,12 @@
       "active": true,
       "display_order": 126,
       "terms": {
-        "televisão": 3
+        "televisão": 3,
+        "television": 4,
+        "tv show": 4,
+        "emissora": 4,
+        "novela": 5,
+        "telejornal": 4
       }
     },
     {
@@ -2069,11 +2127,19 @@
       "description": "Notícias e contexto sobre streaming.",
       "parent_id": "ENTERTAINMENT",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "Netflix"
+      ],
       "active": true,
       "display_order": 127,
       "terms": {
-        "streaming": 3
+        "streaming": 3,
+        "netflix": 5,
+        "disney plus": 5,
+        "hbo max": 5,
+        "prime video": 5,
+        "spotify": 4,
+        "apple tv plus": 5
       }
     },
     {
@@ -2118,24 +2184,15 @@
       "description": "Notícias e contexto sobre arte.",
       "parent_id": "CULTURE",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "ARTES_VISUAIS",
+        "artes-visuais",
+        "Artes visuais"
+      ],
       "active": true,
       "display_order": 130,
       "terms": {
-        "arte": 5
-      }
-    },
-    {
-      "id": "ARTES_VISUAIS",
-      "slug": "artes-visuais",
-      "name": "Artes visuais",
-      "description": "Notícias e contexto sobre artes visuais.",
-      "parent_id": "CULTURE",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 131,
-      "terms": {
+        "arte": 5,
         "artes visuais": 5,
         "visuais": 3
       }
@@ -2147,11 +2204,16 @@
       "description": "Notícias e contexto sobre patrimônio.",
       "parent_id": "CULTURE",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "PATRIMONIO_HISTORICO",
+        "patrimonio-historico",
+        "Patrimônio histórico"
+      ],
       "active": true,
       "display_order": 132,
       "terms": {
-        "patrimônio": 3
+        "patrimônio": 3,
+        "patrimônio histórico": 5
       }
     },
     {
@@ -2276,11 +2338,28 @@
       "description": "Notícias e contexto sobre futebol.",
       "parent_id": "SPORTS",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "Soccer",
+        "Football"
+      ],
       "active": true,
       "display_order": 141,
       "terms": {
-        "futebol": 3
+        "futebol": 3,
+        "brasileirao": 6,
+        "campeonato brasileiro": 6,
+        "copa do brasil": 6,
+        "libertadores": 6,
+        "sul americana": 5,
+        "gol": 4,
+        "gols": 4,
+        "flamengo": 4,
+        "palmeiras": 4,
+        "corinthians": 4,
+        "vasco": 4,
+        "fluminense": 4,
+        "botafogo": 4,
+        "gremio": 4
       }
     },
     {
@@ -2290,7 +2369,10 @@
       "description": "Notícias e contexto sobre fórmula 1.",
       "parent_id": "SPORTS",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "F1",
+        "Formula 1"
+      ],
       "active": true,
       "display_order": 142,
       "terms": {
@@ -2333,11 +2415,18 @@
       "description": "Notícias e contexto sobre olimpíadas.",
       "parent_id": "SPORTS",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "ESPORTES_OLIMPICOS",
+        "esportes-olimpicos",
+        "Esportes olímpicos"
+      ],
       "active": true,
       "display_order": 145,
       "terms": {
-        "olimpíadas": 3
+        "olimpíadas": 3,
+        "esportes olímpicos": 5,
+        "esportes": 3,
+        "olímpicos": 3
       }
     },
     {
@@ -2380,22 +2469,6 @@
       "display_order": 148,
       "terms": {
         "automobilismo": 3
-      }
-    },
-    {
-      "id": "ESPORTES_OLIMPICOS",
-      "slug": "esportes-olimpicos",
-      "name": "Esportes olímpicos",
-      "description": "Notícias e contexto sobre esportes olímpicos.",
-      "parent_id": "SPORTS",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 149,
-      "terms": {
-        "esportes olímpicos": 5,
-        "esportes": 3,
-        "olímpicos": 3
       }
     },
     {
@@ -2508,20 +2581,6 @@
       "display_order": 157,
       "terms": {
         "administração pública": 5
-      }
-    },
-    {
-      "id": "GEOPOLITICA_GLOBAL",
-      "slug": "geopolitica-global",
-      "name": "Geopolítica global",
-      "description": "Notícias e contexto sobre geopolítica global.",
-      "parent_id": "WORLD",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 158,
-      "terms": {
-        "geopolítica global": 5
       }
     },
     {
@@ -2657,11 +2716,18 @@
       "description": "Notícias e contexto sobre política externa.",
       "parent_id": "POLITICS",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "RELACOES_EXTERIORES",
+        "relacoes-exteriores",
+        "Relações exteriores"
+      ],
       "active": true,
       "display_order": 168,
       "terms": {
-        "política externa": 5
+        "política externa": 5,
+        "relações exteriores": 5,
+        "relações": 3,
+        "exteriores": 3
       }
     },
     {
@@ -2721,20 +2787,6 @@
       }
     },
     {
-      "id": "MERCADO_DE_CAPITAIS",
-      "slug": "mercado-de-capitais",
-      "name": "Mercado de capitais",
-      "description": "Notícias e contexto sobre mercado de capitais.",
-      "parent_id": "ECONOMY",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 173,
-      "terms": {
-        "mercado de capitais": 5
-      }
-    },
-    {
       "id": "SEGUROS",
       "slug": "seguros",
       "name": "Seguros",
@@ -2755,11 +2807,16 @@
       "description": "Notícias e contexto sobre fintechs.",
       "parent_id": "ECONOMY",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "TECNOLOGIA_FINANCEIRA",
+        "tecnologia-financeira",
+        "Tecnologia financeira"
+      ],
       "active": true,
       "display_order": 175,
       "terms": {
-        "fintechs": 5
+        "fintechs": 5,
+        "tecnologia financeira": 5
       }
     },
     {
@@ -2825,11 +2882,26 @@
       "description": "Notícias e contexto sobre desenvolvimento de software.",
       "parent_id": "TECHNOLOGY",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "Programação",
+        "Programming",
+        "Desenvolvimento"
+      ],
       "active": true,
       "display_order": 180,
       "terms": {
-        "desenvolvimento de software": 5
+        "desenvolvimento de software": 5,
+        "programming": 5,
+        "programacao": 5,
+        "developer": 4,
+        "developers": 4,
+        "desenvolvedores": 4,
+        "coding": 5,
+        "github": 5,
+        "python": 4,
+        "javascript": 5,
+        "typescript": 5,
+        "open source code": 4
       }
     },
     {
@@ -2858,20 +2930,6 @@
       "display_order": 182,
       "terms": {
         "computação quântica": 5
-      }
-    },
-    {
-      "id": "TECNOLOGIA_FINANCEIRA",
-      "slug": "tecnologia-financeira",
-      "name": "Tecnologia financeira",
-      "description": "Notícias e contexto sobre tecnologia financeira.",
-      "parent_id": "TECHNOLOGY",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 183,
-      "terms": {
-        "tecnologia financeira": 5
       }
     },
     {
@@ -2909,11 +2967,16 @@
       "description": "Notícias e contexto sobre e-commerce.",
       "parent_id": "BUSINESS",
       "type": "subject",
-      "aliases": [],
+      "aliases": [
+        "COMERCIO_ELETRONICO",
+        "comercio-eletronico",
+        "Comércio eletrônico"
+      ],
       "active": true,
       "display_order": 186,
       "terms": {
-        "e-commerce": 5
+        "e-commerce": 5,
+        "comércio eletrônico": 5
       }
     },
     {
@@ -3239,34 +3302,6 @@
       }
     },
     {
-      "id": "MERCADO_PROFISSIONAL",
-      "slug": "mercado-profissional",
-      "name": "Mercado profissional",
-      "description": "Notícias e contexto sobre mercado profissional.",
-      "parent_id": "EDUCATION",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 210,
-      "terms": {
-        "mercado profissional": 5
-      }
-    },
-    {
-      "id": "DESENVOLVIMENTO_DE_CARREIRA",
-      "slug": "desenvolvimento-de-carreira",
-      "name": "Desenvolvimento de carreira",
-      "description": "Notícias e contexto sobre desenvolvimento de carreira.",
-      "parent_id": "EDUCATION",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 211,
-      "terms": {
-        "desenvolvimento de carreira": 5
-      }
-    },
-    {
       "id": "PEQUENAS_EMPRESAS",
       "slug": "pequenas-empresas",
       "name": "Pequenas empresas",
@@ -3292,20 +3327,6 @@
       "display_order": 213,
       "terms": {
         "governança corporativa": 5
-      }
-    },
-    {
-      "id": "COMERCIO_ELETRONICO",
-      "slug": "comercio-eletronico",
-      "name": "Comércio eletrônico",
-      "description": "Notícias e contexto sobre comércio eletrônico.",
-      "parent_id": "BUSINESS",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 214,
-      "terms": {
-        "comércio eletrônico": 5
       }
     },
     {
@@ -3603,20 +3624,6 @@
       }
     },
     {
-      "id": "PATRIMONIO_HISTORICO",
-      "slug": "patrimonio-historico",
-      "name": "Patrimônio histórico",
-      "description": "Notícias e contexto sobre patrimônio histórico.",
-      "parent_id": "CULTURE",
-      "type": "subject",
-      "aliases": [],
-      "active": true,
-      "display_order": 236,
-      "terms": {
-        "patrimônio histórico": 5
-      }
-    },
-    {
       "id": "ANIMACAO",
       "slug": "animacao",
       "name": "Animação",
@@ -3795,7 +3802,13 @@
       "active": true,
       "display_order": 249,
       "terms": {
-        "esportes eletrônicos": 5
+        "esportes eletrônicos": 5,
+        "esports": 6,
+        "e-sports": 6,
+        "campeonato de lol": 6,
+        "league of legends": 5,
+        "counter strike": 5,
+        "valorant": 5
       }
     },
     {
@@ -3914,6 +3927,66 @@
         "regulação de ia": 10,
         "regulação da inteligência artificial": 10,
         "ai regulation": 9
+      }
+    },
+    {
+      "id": "CRIPTOMOEDAS",
+      "slug": "criptomoedas",
+      "name": "Criptomoedas",
+      "description": "Bitcoin, criptoativos e blockchain",
+      "parent_id": "ECONOMY",
+      "type": "subject",
+      "aliases": [
+        "Cripto",
+        "Criptoativos",
+        "Crypto",
+        "Cryptocurrency",
+        "Bitcoin"
+      ],
+      "active": true,
+      "display_order": 1004,
+      "terms": {
+        "bitcoin": 6,
+        "cryptocurrency": 6,
+        "cryptocurrencies": 6,
+        "crypto": 5,
+        "criptomoeda": 6,
+        "criptomoedas": 6,
+        "criptoativo": 6,
+        "criptoativos": 6,
+        "ethereum": 6,
+        "stablecoin": 6,
+        "stablecoins": 6,
+        "blockchain": 4,
+        "coinbase": 5,
+        "binance": 5
+      }
+    },
+    {
+      "id": "SERIES",
+      "slug": "series",
+      "name": "Séries",
+      "description": "Séries de TV e streaming",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [
+        "Séries de TV",
+        "TV series",
+        "Seriados"
+      ],
+      "active": true,
+      "display_order": 1005,
+      "terms": {
+        "tv series": 6,
+        "serie de tv": 6,
+        "series de tv": 6,
+        "miniseries": 5,
+        "miniserie": 5,
+        "season finale": 6,
+        "nova temporada": 5,
+        "temporada final": 5,
+        "showrunner": 5,
+        "episodio final": 5
       }
     }
   ]

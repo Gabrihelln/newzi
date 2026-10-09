@@ -269,6 +269,12 @@ class ProductRepository:
             _,best=max(scored,key=lambda pair:(pair[0],pair[1]["published_at"],pair[1]["id"]))
             remaining.remove(best);source_counts[best["source_id"]]=source_counts.get(best["source_id"],0)+1
             taxonomy_id=best["primary_taxonomy_id"]
+            if selected and has_taxonomy:
+                # Label by the user's interest (as briefings do), not by the article's strongest generic tag.
+                from .content import primary_taxonomy
+                tags={row["taxonomy_id"]:row["score"] for row in self.db.execute("SELECT taxonomy_id,score FROM content_taxonomy WHERE content_id=?",(best["id"],))}
+                chosen=primary_taxonomy(tags,sorted(selected),registry)
+                if chosen: taxonomy_id=chosen["id"]
             label=registry.nodes.get(taxonomy_id,{}).get("name") if taxonomy_id else None
             output.append({"id":best["id"],"position":len(output)+1,"headline":best["title"],"summary":best["description"] or best["title"],
                 "category":label,"primary_taxonomy_id":taxonomy_id,"primary_taxonomy_label":label,"published_at":best["published_at"],
@@ -513,7 +519,7 @@ class ProductAPI:
         if delivery:
             from .scheduling import serialize_edition
             edition=serialize_edition(self.repo,delivery["edition_id"]); items=[]
-            for item in (edition or {}).get("items",[]): items.append({k:item.get(k) for k in ("id","position","headline","summary","why_it_matters","key_points","confidence","evidence_quality","sources","warnings","summary_provider","primary_taxonomy_id","primary_taxonomy_label")})
+            for item in (edition or {}).get("items",[]): items.append({k:item.get(k) for k in ("id","position","headline","summary","why_it_matters","key_points","confidence","evidence_quality","sources","warnings","summary_provider","primary_taxonomy_id","primary_taxonomy_label","image_url")})
             from .scheduling import BriefingProfile
             current_key=BriefingProfile.from_preferences(self.repo.get_preferences(uid)).key()
             status=delivery["status"]; audio_status=delivery["audio_status"]; audio_metadata=None
@@ -525,7 +531,7 @@ class ProductAPI:
             audio_url=None
             if audio_metadata and audio_metadata.get("status")=="READY":
                 audio_url=("/api/v1/me/briefings/"+delivery["id"]+"/audio/file?v="+audio_metadata["asset_version"]+"&voice="+audio_metadata["voice"])
-            return {"id":delivery["id"],"delivery_id":delivery["id"],"edition_id":delivery["edition_id"],"date":local_date,"status":status,"content_status":(edition or {}).get("status"),"audio_status":audio_status,"selected_voice_id":delivery["selected_voice_id"],"active_voice_id":delivery["active_voice_id"],"voice_fallback_reason":delivery["voice_fallback_reason"],"audio_variant_id":delivery["audio_artifact_id"],"active_audio_variant_id":delivery["audio_artifact_id"],"audio_url":audio_url,"audio_duration_ms":audio_metadata.get("duration_ms") if audio_url else None,"script_id":delivery["script_id"],"generation_stage":delivery["generation_stage"],"generation_started_at":delivery["generation_started_at"],"generation_updated_at":delivery["generation_updated_at"],"generation_error_code":delivery["generation_error_code"],"generated_at":(edition or {}).get("generated_at"),"items":items,"profile_stale":bool(edition and edition["profile_key"]!=current_key),"fallback_levels":sorted({w for item in items for w in item.get("warnings",[]) if isinstance(w,str) and w.startswith("FALLBACK_")})}
+            return {"id":delivery["id"],"delivery_id":delivery["id"],"edition_id":delivery["edition_id"],"date":local_date,"status":status,"content_status":(edition or {}).get("status"),"audio_status":audio_status,"selected_voice_id":delivery["selected_voice_id"],"active_voice_id":delivery["active_voice_id"],"voice_fallback_reason":delivery["voice_fallback_reason"],"audio_variant_id":delivery["audio_artifact_id"],"active_audio_variant_id":delivery["audio_artifact_id"],"audio_url":audio_url,"audio_duration_ms":audio_metadata.get("duration_ms") if audio_url else None,"script_id":delivery["script_id"],"generation_stage":delivery["generation_stage"],"generation_started_at":delivery["generation_started_at"],"generation_updated_at":delivery["generation_updated_at"],"generation_error_code":delivery["generation_error_code"],"generated_at":(edition or {}).get("generated_at"),"items":items,"profile_stale":bool(edition and edition["profile_key"]!=current_key and not edition["profile_key"].startswith(current_key+"_manual_")),"fallback_levels":sorted({w for item in items for w in item.get("warnings",[]) if isinstance(w,str) and w.startswith("FALLBACK_")})}
         row=self.repo.briefing_row(uid,local_date); legacy=self.repo.serialize_briefing(row) if row else None
         if legacy: return legacy
         job=self.repo.db.execute("SELECT status,error_code FROM generation_jobs WHERE user_id=? AND briefing_date=?",(uid,local_date)).fetchone()
@@ -572,8 +578,10 @@ class ProductAPI:
         previous=previous or {}
         old_profile=BriefingProfile.from_preferences(previous).key() if previous.get("topics") else None
         new_profile=BriefingProfile.from_preferences(current).key() if current.get("topics") else None
-        if onboarding or old_profile!=new_profile:
+        if onboarding:
             return self.scheduler.schedule_user_now(uid)
+        if old_profile!=new_profile:
+            return self.scheduler.regenerate_for_preferences(uid)
         if previous.get("briefing_time")!=current.get("briefing_time") or previous.get("timezone")!=current.get("timezone"):
             self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid)); self.repo.db.commit()
         if previous.get("audio_voice_id")!=current.get("audio_voice_id"):

@@ -78,11 +78,18 @@ def collect_sources(no_network=False, incremental=False):
         image_settings=settings.get("request",{})
         logging.info("[IMAGE] stage=enrichment status=started limit=%s workers=%s per_request_timeout_seconds=%s",image_settings.get("image_enrichment_batch_size",8),image_settings.get("image_enrichment_workers",4),image_settings.get("image_metadata_timeout_seconds",2.5))
         image_metrics=enrich_missing_images(store,limit=int(image_settings.get("image_enrichment_batch_size",8)),max_workers=int(image_settings.get("image_enrichment_workers",4)),timeout_seconds=float(image_settings.get("image_metadata_timeout_seconds",2.5))) if hasattr(store,"articles_needing_image") else {"checked":0,"found":0,"failed":0,"duration_ms":0,"updated_articles":[]}
-        image_metrics.pop("updated_articles",[])
+        enriched=image_metrics.pop("updated_articles",[])
+        # New stories are enriched before they reach the product index: carry the chosen
+        # image into the changed batch so indexing stores it instead of the RSS thumbnail.
+        enriched_by_id={article.article_id:article for article in enriched}
+        for article in changed:
+            chosen=enriched_by_id.get(article.article_id)
+            if chosen:
+                article.image_url,article.image_source,article.image_checked_at=chosen.image_url,chosen.image_source,chosen.image_checked_at
         articles=store.all_articles()
-        # Publish the metadata snapshot only. This repairs older rows whose
-        # images were enriched after indexing without re-running classification.
-        image_metrics["indexed_articles_updated"]=_publish_image_updates(articles)
+        # Publish only this cycle's image decisions (metadata only, no reclassification).
+        # A verified "no valid image" result also clears a stale broken/generic URL.
+        image_metrics["indexed_articles_updated"]=_publish_image_updates(enriched,allow_clear=True)
         logging.info("[IMAGE] stage=enrichment status=complete checked=%s found=%s failed=%s probes=%s timeouts=%s article_pages=%s indexed_image_updates=%s duration_ms=%s",image_metrics.get("checked",0),image_metrics.get("found",0),image_metrics.get("failed",0),image_metrics.get("image_probe_attempts",0),image_metrics.get("image_probe_timeouts",0),image_metrics.get("article_pages_fetched",0),image_metrics.get("indexed_articles_updated",0),image_metrics.get("duration_ms",0))
     if no_network:
         image_metrics={"checked":0,"found":0,"failed":0,"duration_ms":0,"indexed_articles_updated":0}
@@ -94,14 +101,14 @@ def collect_sources(no_network=False, incremental=False):
     return stats,(changed if incremental and not no_network else articles)
 
 
-def _publish_image_updates(articles):
+def _publish_image_updates(articles,allow_clear=False):
     if not articles:
         return 0
     try:
         sys.path.insert(0,str(PROJECT_ROOT/'backend'/'src'))
         from newzi_backend.product_backend import ProductRepository
         from newzi_backend.content import sync_article_image_metadata
-        return sync_article_image_metadata(ProductRepository(),articles)
+        return sync_article_image_metadata(ProductRepository(),articles,allow_clear=allow_clear)
     except Exception as exc:
         logging.warning("[IMAGE] Best-effort index update skipped: %s",exc)
         return 0
@@ -113,7 +120,7 @@ def backfill_article_images(limit=100):
     store=Store()
     result=enrich_missing_images(store,limit=limit,max_workers=int(settings.get("image_enrichment_workers",4)),timeout_seconds=float(settings.get("image_metadata_timeout_seconds",2.5)))
     updated=result.pop("updated_articles",[])
-    result["indexed_articles_updated"]=_publish_image_updates(updated)
+    result["indexed_articles_updated"]=_publish_image_updates(updated,allow_clear=True)
     return result
 
 def run(no_network=False):

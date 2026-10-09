@@ -218,8 +218,41 @@ VOICE_CATALOG = {
          "language": "pt-BR", "gender": "male", "provider_voice": "pt-BR-AntonioNeural"},
         {"id": "newzi_sofia", "name": "Sofia", "description": "Outra voz feminina em português brasileiro",
          "language": "pt-BR", "gender": "female", "provider_voice": "pt-BR-FranciscaNeural"},
-        {"id": "newzi_ava", "name": "Ava", "description": "English voice",
-         "language": "en", "gender": "female", "provider_voice": "en-US-EmmaMultilingualNeural"},
+        # Multilingual neural voices read both Portuguese and English; `languages` lists every
+        # briefing language a voice is offered for (`language` stays the voice's native locale).
+        {"id": "newzi_ava", "name": "Ava", "description": "Voz feminina multilíngue, expressiva e acolhedora",
+         "language": "en", "languages": ("en", "pt-BR"), "gender": "female", "provider_voice": "en-US-AvaMultilingualNeural"},
+        {"id": "newzi_andrew", "name": "Andrew", "description": "Voz masculina multilíngue, calorosa e confiante",
+         "language": "en", "languages": ("en", "pt-BR"), "gender": "male", "provider_voice": "en-US-AndrewMultilingualNeural"},
+        {"id": "newzi_emma", "name": "Emma", "description": "Voz feminina multilíngue, clara e conversacional",
+         "language": "en", "languages": ("en", "pt-BR"), "gender": "female", "provider_voice": "en-US-EmmaMultilingualNeural"},
+        {"id": "newzi_brian", "name": "Brian", "description": "Voz masculina multilíngue, casual e sincera",
+         "language": "en", "languages": ("en", "pt-BR"), "gender": "male", "provider_voice": "en-US-BrianMultilingualNeural"},
+        {"id": "newzi_william", "name": "William", "description": "Voz masculina multilíngue, amigável",
+         "language": "en", "languages": ("en", "pt-BR"), "gender": "male", "provider_voice": "en-AU-WilliamMultilingualNeural"},
+        {"id": "newzi_seraphina", "name": "Seraphina", "description": "Voz feminina multilíngue, amigável",
+         "language": "pt-BR", "languages": ("pt-BR", "en"), "gender": "female", "provider_voice": "de-DE-SeraphinaMultilingualNeural"},
+        {"id": "newzi_florian", "name": "Florian", "description": "Voz masculina multilíngue, amigável",
+         "language": "pt-BR", "languages": ("pt-BR", "en"), "gender": "male", "provider_voice": "de-DE-FlorianMultilingualNeural"},
+        {"id": "newzi_vivienne", "name": "Vivienne", "description": "Voz feminina multilíngue, amigável",
+         "language": "pt-BR", "languages": ("pt-BR", "en"), "gender": "female", "provider_voice": "fr-FR-VivienneMultilingualNeural"},
+        {"id": "newzi_remy", "name": "Remy", "description": "Voz masculina multilíngue, amigável",
+         "language": "pt-BR", "languages": ("pt-BR", "en"), "gender": "male", "provider_voice": "fr-FR-RemyMultilingualNeural"},
+        {"id": "newzi_giuseppe", "name": "Giuseppe", "description": "Voz masculina multilíngue, amigável",
+         "language": "pt-BR", "languages": ("pt-BR", "en"), "gender": "male", "provider_voice": "it-IT-GiuseppeMultilingualNeural"},
+        # Native English voices for users outside Brazil.
+        {"id": "newzi_jenny", "name": "Jenny", "description": "English (US) female voice, friendly and warm",
+         "language": "en", "gender": "female", "provider_voice": "en-US-JennyNeural"},
+        {"id": "newzi_aria", "name": "Aria", "description": "English (US) female voice, confident",
+         "language": "en", "gender": "female", "provider_voice": "en-US-AriaNeural"},
+        {"id": "newzi_christopher", "name": "Christopher", "description": "English (US) male voice, reliable and authoritative",
+         "language": "en", "gender": "male", "provider_voice": "en-US-ChristopherNeural"},
+        {"id": "newzi_guy", "name": "Guy", "description": "English (US) male voice, passionate",
+         "language": "en", "gender": "male", "provider_voice": "en-US-GuyNeural"},
+        {"id": "newzi_sonia", "name": "Sonia", "description": "English (UK) female voice",
+         "language": "en", "gender": "female", "provider_voice": "en-GB-SoniaNeural"},
+        {"id": "newzi_ryan", "name": "Ryan", "description": "English (UK) male voice",
+         "language": "en", "gender": "male", "provider_voice": "en-GB-RyanNeural"},
     ),
     "windows-sapi": (
         {"id": "newzi_maria", "name": "Maria", "description": "Voz local do Windows em português brasileiro",
@@ -399,6 +432,61 @@ def spoken_excerpt(value, max_words=55, max_sentences=2):
     return ""
 
 
+_LEAD_STOPWORDS = set("a o as os de da do das dos e em no na nos nas um uma para por com que se ao à é sobre após mais "
+                      "the and of to in for on with from after".split())
+_LEAD_PRONOUN_START = re.compile(r"^(ele|ela|eles|elas|isso|isto|esse|essa|este|esta|o caso|a medida|segundo ele|segundo ela|"
+                                 r"he|she|they|it|this)\b", re.I)
+_HEADLINE_WEB_SUFFIX = re.compile(r"\s*[;:|\-–—]\s*(veja|entenda|saiba|confira|assista|leia|ouça|vídeo|video|fotos|ao vivo|"
+                                  r"see|watch|read)\b.*$", re.I)
+_LEAD_PREFIX_NOISE = (
+    re.compile(r"^\s*(por|by)\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'.]+(\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'.]+){0,3}\s*[,\-–—|]\s*"),  # byline
+    re.compile(r"^\s*[A-ZÁÉÍÓÚÂÊÔÃÕÇ .]{3,40}\s*[—–-]\s+"),                                          # "SÃO PAULO — "
+    re.compile(r"^\s*\(?\d{1,2}/\d{1,2}(/\d{2,4})?\)?\s*[-–—]?\s*"),                                # dates
+)
+_LEAD_TAIL_NOISE = re.compile(r"\s*(leia mais|leia também|continue lendo|saiba mais|read more|the post .* appeared first on|"
+                              r"get our [^.]*?(newsletter|email|app|podcast)|sign up (to|for) [^.]*?newsletter).*$", re.I)
+
+
+def _content_words(value):
+    return {word for word in re.findall(r"\w+", (value or "").lower()) if word not in _LEAD_STOPWORDS and len(word) > 2}
+
+
+def _opening_words(text, max_words=90):
+    kept, count = [], 0
+    for sentence in re.split(r"(?<=[.!?])\s+", str(text or "").strip()):
+        if not sentence:
+            continue
+        kept.append(sentence)
+        count += len(sentence.split())
+        if count >= max_words:
+            break
+    return " ".join(kept)
+
+
+def clean_summary(summary):
+    """Summary without bylines, datelines, newsletter plugs or "read more" tails."""
+    text = str(summary or "")
+    for pattern in _LEAD_PREFIX_NOISE:
+        text = pattern.sub("", text, count=1)
+    return _LEAD_TAIL_NOISE.sub("", text)
+
+
+def spoken_lead(summary):
+    """Opening sentences of a cleaned summary, as narrated."""
+    return spoken_excerpt(clean_summary(summary))
+
+
+def lead_needs_headline(headline, lead):
+    """A headline is spoken only when the lead alone would not tell the listener what the story is about."""
+    if not lead or _LEAD_PRONOUN_START.match(lead):
+        return True
+    headline_words = _content_words(headline)
+    overlap = len(headline_words & _content_words(lead)) / max(1, len(headline_words))
+    # Capitalized words ("Dólar", "ChatGPT", "Petrobras", "Kathlen Romeu") identify the story.
+    names = {word.lower() for word in re.findall(r"\b[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'’-]{2,}", headline)} - _LEAD_STOPWORDS
+    return overlap < 0.3 and not names & set(re.findall(r"\w+", lead.lower()))
+
+
 class AudioScriptComposer:
     def __init__(self, translator=None):
         # Translation enrichment may be injected, but it is not on the critical
@@ -424,26 +512,26 @@ class AudioScriptComposer:
                       "why_it_matters": item.get("why_it_matters") or ""}
             if self.translator and "SOURCE_LANGUAGE_FALLBACK" in (item.get("warnings") or []):
                 try:
-                    translated=self.translator.translate(fields, language)
-                    digits=lambda value:re.findall(r"\d+(?:[.,]\d+)*",value)
-                    if not isinstance(translated,dict) or any(not isinstance(translated.get(key),str) for key in fields):
-                        raise PermanentAudioError("TRANSLATION_INVALID","translation did not preserve the script fields")
-                    if any(digits(fields[key])!=digits(translated[key]) for key in fields):
-                        raise PermanentAudioError("TRANSLATION_INVALID","translation changed a numeric fact")
-                    fields=translated
+                    # Only the narrated opening is translated, so the numeric check compares like with like.
+                    fields["summary"]=_opening_words(clean_summary(fields["summary"]))
+                    fields,partial=self._translate_checked(fields, language)
+                    if partial:
+                        self.translation_warnings.append({"item_id":item.get("id"),"code":"TRANSLATION_PARTIAL"})
                 except Exception as exc:
                     # Translation is optional enrichment; unsafe output or a missing
                     # local translator must not block otherwise valid audio.
                     code=exc.code if isinstance(exc,PermanentAudioError) else "TRANSLATION_UNAVAILABLE"
                     self.translation_warnings.append({"item_id":item.get("id"),"code":code})
             headline = spoken_text(fields["headline"])
-            summary = spoken_excerpt(fields["summary"])
+            summary = spoken_lead(fields["summary"])
             reason = spoken_excerpt(fields["why_it_matters"], max_words=25, max_sentences=1)
             if not headline and not summary:
                 continue
-            narrative = headline or summary
-            if summary and summary.casefold() != headline.casefold() and not summary.casefold().startswith(headline.casefold()):
-                narrative += (" " if narrative.endswith((".", "?", "!")) else ". ") + summary
+            # Summary first, like a presenter: the headline usually repeats the lead's opening sentence.
+            narrative = summary
+            if lead_needs_headline(headline, summary):
+                spoken_headline = _HEADLINE_WEB_SUFFIX.sub("", headline).strip(" .")
+                narrative = spoken_headline + ((" " if spoken_headline.endswith((".", "?", "!")) else ". ") + summary if summary else "")
             if reason and len(reason.split()) >= 8 and reason.casefold() not in narrative.casefold():
                 narrative += (" " if narrative.endswith((".", "?", "!")) else ". ") + reason
             transition_kind, transition = self._transition(previous, item, index, len(items), recent_transitions, portuguese)
@@ -458,6 +546,44 @@ class AudioScriptComposer:
         segments.append(("OUTRO", None, "Esse foi o briefing Newzi. Até a próxima."
                          if portuguese else "That was your Newzi briefing. See you next time."))
         return segments
+
+    @staticmethod
+    def _numbers(value):
+        # "1,400" (en) and "1.400" (pt) are the same fact, and so are "500 mil" and "500,000".
+        value = re.sub(r"(\d)\s+mil\b", r"\g<1>000", value or "")
+        return [re.sub(r"[.,]", "", number) for number in re.findall(r"\d+(?:[.,]\d+)*", value)]
+
+    def _translate_checked(self, fields, language):
+        """Translate fields, keeping only output that preserves every number of its source.
+
+        The summary is checked sentence by sentence and keeps the translated sentences up to the
+        first unsafe one; a field with no safe translation keeps its original text.
+        Returns (fields, partial).
+        """
+        sentences = [part for part in re.split(r"(?<=[.!?])\s+", fields["summary"]) if part]
+        source = {**{key: value for key, value in fields.items() if key != "summary"},
+                  **{f"summary_{position}": sentence for position, sentence in enumerate(sentences)}}
+        translated = self.translator.translate(source, language)
+        if not isinstance(translated, dict) or any(not isinstance(translated.get(key), str) for key in source):
+            raise PermanentAudioError("TRANSLATION_INVALID", "translation did not preserve the script fields")
+        safe = lambda key: self._numbers(source[key]) == self._numbers(translated[key])
+        result, partial = dict(fields), False
+        for key in ("headline", "why_it_matters"):
+            if source.get(key):
+                if safe(key): result[key] = translated[key]
+                else: partial = True
+        kept = []
+        for position in range(len(sentences)):
+            key = f"summary_{position}"
+            if not safe(key):
+                partial = True
+                break
+            kept.append(translated[key])
+        if kept:
+            result["summary"] = " ".join(kept)
+        elif sentences:
+            raise PermanentAudioError("TRANSLATION_INVALID", "translation changed a numeric fact")
+        return result, partial
 
     @staticmethod
     def _transition(previous, item, index, count, recent, portuguese):
@@ -564,12 +690,15 @@ class AudioService:
         # independent from the TTS provider/version.
         self.tts_version = f"{script_version}:{self.provider.name}:{self.provider.version}"
         self.script_version = self.tts_version
-        self.composer = composer or AudioScriptComposer()
+        if composer is None:
+            from .translation import default_translator
+            composer = AudioScriptComposer(translator=default_translator())
+        self.composer = composer
 
     def available_voices(self, language="pt-BR"):
         candidates = VOICE_CATALOG.get(self.provider.name, ())
         installed = self.provider.list_voices()
-        return [voice for voice in candidates if voice["language"] == language and
+        return [voice for voice in candidates if language in voice.get("languages", (voice["language"],)) and
                 any(voice["provider_voice"].casefold() in name.casefold() for name in installed)]
 
     def default_voice(self, language="pt-BR"):
@@ -591,7 +720,7 @@ class AudioService:
     def voice_catalog(self, language="pt-BR"):
         voices = []
         for profile in self.available_voices(language):
-            public = {key: value for key, value in profile.items() if key != "provider_voice"}
+            public = {key: value for key, value in profile.items() if key not in ("provider_voice", "languages")}
             public["preview_url"] = f"/api/v1/me/audio/voices/{profile['id']}/preview?v={self.provider.version}"
             voices.append(public)
         return {"voices": voices, "default_voice_id": self.default_voice(language)}

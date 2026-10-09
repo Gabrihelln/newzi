@@ -231,6 +231,9 @@ export function ContentPreferencesScreen({ onBack, onDone }: { onBack: () => voi
     </View>
     {!allContent && selectedTopics.length > 0 && <View style={{ marginBottom: 14 }}>
       <Text style={[st.helper, { marginBottom: 8 }]}>Selecionados ({selectedTopics.length}) · toque para remover</Text>
+      {selectedTopics.length > (prefs.briefing_size || 10) && <Text style={[st.helper, { marginBottom: 8 }]}>{selectedTopics.length > 20
+        ? 'Com muitos assuntos, seu briefing pode chegar a 20 notícias; nos dias com mais novidades, alguns assuntos podem ficar de fora.'
+        : `Para incluir todos os seus assuntos, o briefing pode ter mais de ${prefs.briefing_size || 10} notícias (até 20).`}</Text>}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{selectedTopics.map(code => {
         const topic = topicsByCode.get(code);
         const parent = topic?.parent_id ? topicsByCode.get(topic.parent_id)?.name : null;

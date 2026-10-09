@@ -468,3 +468,95 @@ sources:
     priority: 9
     trust_tier: 1
     enabled: true
+  # Portuguese-language sources, including international coverage, so pt-BR briefings rely less on translation.
+  - id: bbc_brasil
+    name: BBC News Brasil
+    url: https://www.bbc.com/portuguese
+    feed_url: https://feeds.bbci.co.uk/portuguese/rss.xml
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: GB
+    region: GLOBAL
+    categories: [world, politics, science, technology, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: dw_brasil
+    name: DW Brasil
+    url: https://www.dw.com/pt-br/
+    feed_url: https://rss.dw.com/rdf/rss-br-all
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: DE
+    region: GLOBAL
+    categories: [world, politics, science, environment, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: rfi_brasil
+    name: RFI Brasil
+    url: https://www.rfi.fr/br/
+    feed_url: https://www.rfi.fr/br/rss
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: FR
+    region: GLOBAL
+    categories: [world, politics, culture]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: g1_mundo
+    name: g1 Mundo
+    url: https://g1.globo.com/mundo/
+    feed_url: https://g1.globo.com/rss/g1/mundo/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [world, politics]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: g1_tecnologia
+    name: g1 Tecnologia
+    url: https://g1.globo.com/tecnologia/
+    feed_url: https://g1.globo.com/rss/g1/tecnologia/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [technology, ai, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: g1_ciencia_saude
+    name: g1 Ciência e Saúde
+    url: https://g1.globo.com/ciencia-e-saude/
+    feed_url: https://g1.globo.com/rss/g1/ciencia-e-saude/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [science, health, environment]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_mundo
+    name: Folha de S.Paulo Mundo
+    url: https://www1.folha.uol.com.br/mundo/
+    feed_url: https://feeds.folha.uol.com.br/mundo/rss091.xml
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [world, politics]
+    priority: 8
+    trust_tier: 1
+    enabled: true

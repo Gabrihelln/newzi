@@ -5,3 +5,6 @@ python-dateutil==2.9.0.post0
 firebase-admin>=6.5,<7
 edge-tts==7.2.7
 Pillow>=10,<13
+# CPU-only translation of foreign-language stories for briefing narration
+ctranslate2>=4.0,<5
+sentencepiece>=0.2,<0.3

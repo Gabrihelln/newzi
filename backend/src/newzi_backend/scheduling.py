@@ -184,6 +184,37 @@ class BriefingScheduler:
         self.repo.db.execute("INSERT INTO generation_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(job_id,user_id,local_date,datetime.now(timezone.utc).isoformat(),prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,datetime.now(timezone.utc).isoformat(),None,None,None,None,None,profile.key(),None))
         self.repo.db.commit(); return {"scheduled":True,"job_id":job_id}
 
+    def regenerate_for_preferences(self, user_id):
+        """Build a brand-new edition for today after a content-profile change.
+
+        Never reuses an edition cached earlier today (it may predate new content or selection rules).
+        The user's current briefing stays playable until the new audio is READY, then the delivery
+        is swapped by the worker (see BriefingGenerationWorker._publish_manual_refreshes).
+        """
+        prefs=self.repo.get_preferences(user_id)
+        if not prefs or (prefs.get("content_scope", "selected") != "all" and not prefs.get("topics")):
+            return {"scheduled":False,"reason":"PREFERENCES_INCOMPLETE"}
+        if not self.repo.config.audio_enabled:
+            return self.schedule_user_now(user_id)
+        ensure_phase42_schema(self.repo)
+        profile=BriefingProfile.from_preferences(prefs)
+        now=datetime.now(timezone.utc); now_iso=now.isoformat()
+        local_date=now.astimezone(ZoneInfo(prefs["timezone"])).date().isoformat()
+        self.repo.db.executemany("INSERT OR IGNORE INTO profile_taxonomy VALUES(?,?)",[(profile.key(),topic) for topic in profile.topics])
+        # Regenerations built from older preferences must not be published after this one.
+        self.repo.db.execute("UPDATE manual_refresh_requests SET status='FAILED',stage='FAILED_FINAL',error_code='SUPERSEDED',error_message='superseded by newer preferences',updated_at=?,finished_at=? WHERE user_id=? AND status IN ('PENDING','GENERATING')",(now_iso,now_iso,user_id))
+        # Today's scheduled job must not re-run with a cached edition and overwrite the regenerated one.
+        job=self.repo.db.execute("SELECT id,status,scheduled_for FROM generation_jobs WHERE user_id=? AND briefing_date=?",(user_id,local_date)).fetchone()
+        if job and job["status"]!="RUNNING":
+            due=job["scheduled_for"]<=now_iso
+            self.repo.db.execute("UPDATE generation_jobs SET profile_key=?,status=?,finished_at=COALESCE(finished_at,?),next_retry_at=NULL,error_code=NULL,error_message=NULL WHERE id=?",
+                (profile.key(),"COMPLETED" if due else job["status"],now_iso if due else None,job["id"]))
+        generation_id="generation_"+uuid.uuid4().hex
+        self.repo.db.execute("INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,selected_voice_id) VALUES(?,?,'PREFERENCES_CHANGED','PENDING','QUEUED',?,?,?)",
+            (generation_id,user_id,now_iso,now_iso,prefs.get("audio_voice_id")))
+        self.repo.db.commit()
+        return {"scheduled":True,"generation_id":generation_id,"reason":"PREFERENCES_CHANGED"}
+
     def run_forever(self, interval_seconds=None):
         interval = max(1.0, float(interval_seconds or os.getenv("SCHEDULER_POLL_SECONDS", "60")))
         try:
@@ -306,7 +337,12 @@ class BriefingGenerationWorker:
             if not prefs or (prefs.get('content_scope', 'selected') != 'all' and not prefs.get('topics')):
                 raise GenerationError('PREFERENCES_INCOMPLETE','briefing preferences are unavailable')
             profile=BriefingProfile.from_preferences(prefs)
-            ingestion=self._refresh_content_index(); ingestion_id=ingestion['id']
+            if request.get('reason')=='PREFERENCES_CHANGED':
+                # Speed matters here: compose from the shared index the periodic refresh keeps current
+                # (no ingestion is owned by this request, so failures never touch an ingestion run).
+                ingestion_id=None
+            else:
+                ingestion=self._refresh_content_index(); ingestion_id=ingestion['id']
             self.repo.db.execute("UPDATE manual_refresh_requests SET ingestion_run_id=?,stage='COMPOSITION',updated_at=? WHERE id=?",(ingestion_id,datetime.now(timezone.utc).isoformat(),request_id)); self.repo.db.commit()
             from .content import compose
             local_date=datetime.now(ZoneInfo(prefs['timezone'])).date().isoformat()

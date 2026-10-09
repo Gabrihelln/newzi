@@ -1,8 +1,13 @@
-import json, sqlite3, time
+import json, re, sqlite3, time
 from pathlib import Path
 from .models import Article, NewsEvent, iso, article_from_row
-from .images import canonical_image_url
+from .images import canonical_image_url, image_source_rank
 from .paths import ENGINE_DATA
+
+# Bump when the image selection policy changes so recent stories are re-evaluated once.
+IMAGE_ENRICHMENT_VERSION = "image-policy-v2"
+IMAGE_ENRICHMENT_WINDOW_DAYS = 30
+_DEFAULT_ARTWORK = re.compile(r"thumb_|default|coupon|placeholder|banner|fallback|social[-_]?card|og[-_]image|share[-_]image|expo[-_]hall")
 
 class Store:
     def __init__(self, path=None):
@@ -11,9 +16,11 @@ class Store:
         self.db = sqlite3.connect(self.path); self.db.row_factory = sqlite3.Row
         self.db.executescript("""CREATE TABLE IF NOT EXISTS articles (article_id TEXT PRIMARY KEY, source_id TEXT, source_name TEXT, title TEXT, description TEXT, url TEXT, canonical_url TEXT, published_at TEXT, collected_at TEXT, language TEXT, categories TEXT, author TEXT, image_url TEXT, image_source TEXT, image_checked_at TEXT); CREATE TABLE IF NOT EXISTS runs (run_id INTEGER PRIMARY KEY AUTOINCREMENT, generated_at TEXT, stats_json TEXT); CREATE TABLE IF NOT EXISTS source_health (source_id TEXT PRIMARY KEY,last_status TEXT,last_success_at TEXT,last_failure_at TEXT,consecutive_failures INTEGER NOT NULL DEFAULT 0,average_duration_ms REAL,last_duration_ms INTEGER,latest_article_at TEXT,etag TEXT,last_modified TEXT,circuit_open_until TEXT,last_error TEXT,last_metrics_json TEXT);""")
         article_columns={row[1] for row in self.db.execute("PRAGMA table_info(articles)")}
-        for name in ("image_url", "image_source", "image_checked_at"):
+        for name in ("image_url", "image_source", "image_checked_at", "image_enrichment_version"):
             if name not in article_columns:
                 self.db.execute(f"ALTER TABLE articles ADD COLUMN {name} TEXT")
+        self.db.execute("CREATE TABLE IF NOT EXISTS generic_images(source_id TEXT NOT NULL,image_url TEXT NOT NULL,detected_at TEXT NOT NULL,PRIMARY KEY(source_id,image_url))")
+        self.db.execute("CREATE INDEX IF NOT EXISTS idx_articles_source_image ON articles(source_id,image_url)")
         self.db.commit()
     def upsert_articles(self, articles):
         started=time.perf_counter(); metrics={"new":0,"updated":0,"unchanged":0,"image_metadata_updated":0,"by_source":{}}; changed=[]
@@ -25,6 +32,10 @@ class Store:
             fields=(a.source_id,a.source_name,a.title,a.description,a.url,a.canonical_url,iso(a.published_at),a.language,tags,a.author)
             previous=self.db.execute("SELECT source_id,source_name,title,description,url,canonical_url,published_at,language,categories,author,image_url,image_source,image_checked_at FROM articles WHERE article_id=?",(a.article_id,)).fetchone()
             source=metrics["by_source"].setdefault(a.source_id,{"new":0,"updated":0,"unchanged":0})
+            if previous is not None and previous["image_url"] and (a.image_url is None or image_source_rank(previous["image_source"])<image_source_rank(a.image_source)):
+                # A feed refresh must not replace a better verified image (e.g. the
+                # article's OpenGraph image) with its smaller RSS thumbnail.
+                a.image_url,a.image_source,a.image_checked_at=previous["image_url"],previous["image_source"],previous["image_checked_at"]
             if previous is None:
                 metrics["new"]+=1; source["new"]+=1; changed.append(a)
             elif tuple(previous[:10])!=fields:
@@ -59,10 +70,34 @@ class Store:
             rows.extend(self.db.execute(f"SELECT * FROM articles WHERE article_id IN ({marks})",batch))
         return [article_from_row(row) for row in rows]
     def articles_needing_image(self, limit=12):
-        rows=self.db.execute("SELECT * FROM articles WHERE (image_url IS NULL AND (image_checked_at IS NULL OR image_checked_at < datetime('now','-30 days'))) OR lower(image_url) LIKE '%/mascot.%' OR lower(image_url) LIKE '%/mascot/%' OR lower(image_url) LIKE '%/new-reading.%' OR lower(image_url) LIKE '%/new-waving.%' OR lower(image_url) LIKE '%/new-sunrise.%' OR lower(image_url) LIKE '%/new-celebrate.%' OR lower(image_url) LIKE '%/article-fallback.%' OR lower(image_url) LIKE '%/category-image.%' OR lower(image_url) LIKE '%/category-image-%' OR lower(image_url) LIKE '%/category-image/%' OR lower(image_url) LIKE '%/category-photo.%' OR lower(image_url) LIKE '%/category-photo-%' OR lower(image_url) LIKE '%/category-photo/%' OR lower(image_url) LIKE '%/placeholder.%' OR lower(image_url) LIKE '%/placeholder/%' OR lower(image_url) LIKE '%/generic.%' OR lower(image_url) LIKE '%/generic/%' OR lower(image_url) LIKE '%/default-image.%' OR lower(image_url) LIKE '%/random.%' OR lower(image_url) LIKE '%/favicon.%' OR lower(image_url) LIKE '%/favicon/%' OR lower(image_url) LIKE '%/favicons/%' OR lower(image_url) LIKE '%/logo.%' OR lower(image_url) LIKE '%/logo/%' OR lower(image_url) LIKE '%/logos/%' OR lower(image_url) LIKE '%/branding/%' OR (image_source LIKE 'rss:%' AND (image_checked_at IS NULL OR image_checked_at < datetime('now','-30 days'))) OR (image_source LIKE 'html:%' AND image_checked_at < datetime('now','-90 days')) ORDER BY COALESCE(published_at,collected_at) DESC LIMIT ?",(max(1,min(int(limit),1000)),)).fetchall()
+        """Stories users can still see that were never evaluated by the current image policy,
+        lack an image (retried every 3 days), or carry a source-wide generic picture."""
+        generic_patterns=("%/mascot.%","%/mascot/%","%/new-reading.%","%/new-waving.%","%/new-sunrise.%","%/new-celebrate.%","%/article-fallback.%","%/category-image%","%/category-photo%","%/placeholder.%","%/placeholder/%","%/generic.%","%/generic/%","%/default-image.%","%/random.%","%/favicon%","%/logo.%","%/logo/%","%/logos/%","%/branding/%")
+        generic_sql=" OR ".join("lower(a.image_url) LIKE ?" for _ in generic_patterns)
+        rows=self.db.execute(f"""SELECT a.* FROM articles a
+            WHERE datetime(COALESCE(a.published_at,a.collected_at))>=datetime('now',?)
+            AND (a.image_enrichment_version IS NULL OR a.image_enrichment_version<>?
+                OR (a.image_url IS NULL AND (a.image_checked_at IS NULL OR datetime(a.image_checked_at)<datetime('now','-3 days')))
+                OR EXISTS(SELECT 1 FROM generic_images g WHERE g.source_id=a.source_id AND g.image_url=a.image_url)
+                OR {generic_sql})
+            ORDER BY COALESCE(a.published_at,a.collected_at) DESC LIMIT ?""",
+            (f"-{IMAGE_ENRICHMENT_WINDOW_DAYS} days",IMAGE_ENRICHMENT_VERSION,*generic_patterns,max(1,min(int(limit),5000)))).fetchall()
         return [article_from_row(row) for row in rows]
     def save_article_image(self, article_id, image_url, image_source, checked_at):
-        self.db.execute("UPDATE articles SET image_url=?,image_source=?,image_checked_at=? WHERE article_id=?",(image_url,image_source,checked_at,article_id))
+        self.db.execute("UPDATE articles SET image_url=?,image_source=?,image_checked_at=?,image_enrichment_version=? WHERE article_id=?",(image_url,image_source,checked_at,IMAGE_ENRICHMENT_VERSION,article_id))
+        self.db.commit()
+    def is_generic_image(self, source_id, image_url, article_id):
+        """True for a source's default artwork rather than the story's own photo.
+
+        Editorial photos are legitimately reused by one related story, so reuse alone only
+        counts from three stories on; a default-looking file name counts from two."""
+        if self.db.execute("SELECT 1 FROM generic_images WHERE source_id=? AND image_url=?",(source_id,image_url)).fetchone():
+            return True
+        others=self.db.execute("SELECT COUNT(*) FROM (SELECT 1 FROM articles WHERE source_id=? AND image_url=? AND article_id<>? LIMIT 2)",(source_id,image_url,article_id)).fetchone()[0]
+        return others>=2 or (others>=1 and bool(_DEFAULT_ARTWORK.search(image_url.lower())))
+    def mark_generic_image(self, source_id, image_url):
+        from datetime import datetime, timezone
+        self.db.execute("INSERT OR IGNORE INTO generic_images(source_id,image_url,detected_at) VALUES(?,?,?)",(source_id,image_url,datetime.now(timezone.utc).isoformat()))
         self.db.commit()
     def get_source_health(self):
         return {row["source_id"]:dict(row) for row in self.db.execute("SELECT * FROM source_health")}

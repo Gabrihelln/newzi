@@ -7,6 +7,9 @@ request:
   max_response_bytes: 5000000
   max_concurrent_sources: 6
   max_age_days: 30
+  image_enrichment_batch_size: 40
+  image_enrichment_workers: 6
+  image_metadata_timeout_seconds: 3
   user_agent: "NewsEngine/0.1 (RSS collector; respectful low-volume client)"
 clustering:
   time_window_hours: 72

@@ -23,6 +23,27 @@ _MAX_IMAGE_REDIRECTS = 5
 IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif", ".svg")
 _LOGO_SEGMENTS = {"favicon", "favicons", "logo", "logos", "branding", "avatar", "avatars", "placeholder"}
 _GENERIC_IMAGE_SEGMENTS = {"category-image", "category-photo", "generic", "default-images", "random-images"}
+# Brand artwork embedded in a file name ("MicrosoftLogo_social", "site-logo-1200").
+# Portuguese words ending in "logo" (catálogo, diálogo, biólogo...) are not logos.
+_LOGO_STEM = re.compile(r"(?<!cata)(?<!dia)(?<!pro)(?<!bio)(?<!geo)(?<!eco)(?<!psico)(?<!astro)(?<!arqueo)logo(?:s)?(?:[_\-.]|$)")
+
+# Editorial preference for a story image: the publisher's OpenGraph image, then
+# Media RSS, then RSS enclosures, then any other image found in the article page.
+_IMAGE_SOURCE_RANKS = (
+    ("html:og:", 1),
+    ("rss:media:", 2),
+    ("rss:entry-image", 2),
+    ("rss:enclosure", 3),
+    ("rss:link-enclosure", 3),
+    ("html:", 4),
+    ("jsonld:", 4),
+)
+
+
+def image_source_rank(source):
+    """Lower is better; unknown or missing sources rank last."""
+    value = str(source or "")
+    return next((rank for prefix, rank in _IMAGE_SOURCE_RANKS if value.startswith(prefix)), 9)
 
 
 def canonical_image_url(candidate, base_url=""):
@@ -43,7 +64,10 @@ def canonical_image_url(candidate, base_url=""):
         # The Guardian's auto=format negotiation can return a remote WebP/AVIF
         # even though the stored path ends in .jpg. Keep the publisher's JPEG
         # rendition so iOS and Android receive a format React Native decodes.
-        if host == "i.guim.co.uk":
+        # Signed URLs (s=...) must stay byte-identical: dropping any parameter makes
+        # the Guardian image server answer 401.
+        signed = any(part.partition("=")[0].lower() == "s" for part in query.split("&"))
+        if host == "i.guim.co.uk" and not signed:
             query_parts = [part for part in query.split("&") if part.partition("=")[0].lower() != "auto"]
             query = "&".join(query_parts)
         if re.search(r"(?:\.avif(?:$|[?#])|format\(avif\))", path + "?" + query, re.IGNORECASE):
@@ -58,6 +82,8 @@ def canonical_image_url(candidate, base_url=""):
         if file_name.startswith(("favicon.", "logo.", "placeholder.")):
             return None
         image_stem = file_name.rsplit(".", 1)[0]
+        if _LOGO_STEM.search(image_stem):
+            return None
         if re.fullmatch(r"(?:new-(?:reading|waving|sunrise|celebrate)|mascot|article-fallback|category-(?:image|photo)(?:-[a-z0-9_-]+)?|generic|default-image|random)", image_stem):
             return None
         if re.search(r"(?:^|[/_-])(?:pixel|spacer|tracking)(?:[._/?-]|$)", parsed.path.lower()):
@@ -270,11 +296,17 @@ async def _probe_image_request(client, url):
         return validate_image_response(response.status_code, response.headers.get("Content-Type"), content_length, first, content_range)
 
 
-def _probe_image(url, timeout, *, article_id=None, source=None, diagnostics=None):
+PROBE_VALID = "valid"
+PROBE_INVALID = "invalid"
+PROBE_UNKNOWN = "unknown"
+
+
+def _probe_image_status(url, timeout, *, article_id=None, source=None, diagnostics=None):
+    """Return valid/invalid, or unknown when the network did not answer in time."""
     started = time.perf_counter()
     host = urlsplit(url).hostname or ""
     budget = _timeout_budget(timeout)
-    result = False
+    status = PROBE_INVALID
     error = None
     if diagnostics is not None:
         diagnostics["image_probe_attempts"] = diagnostics.get("image_probe_attempts", 0) + 1
@@ -282,22 +314,31 @@ def _probe_image(url, timeout, *, article_id=None, source=None, diagnostics=None
         async def run_probe():
             async with _make_async_client(timeout) as client:
                 return await asyncio.wait_for(_probe_image_request(client, url), timeout=budget)
-        result = asyncio.run(run_probe())
-        return result
-    except (asyncio.TimeoutError, httpx.TimeoutException) as exc:
+        status = PROBE_VALID if asyncio.run(run_probe()) else PROBE_INVALID
+        return status
+    except (asyncio.TimeoutError, httpx.TimeoutException):
         error = "timeout"
+        status = PROBE_UNKNOWN
         if diagnostics is not None:
             diagnostics["image_probe_timeouts"] = diagnostics.get("image_probe_timeouts", 0) + 1
-        return False
-    except (httpx.HTTPError, OSError, ValueError) as exc:
+        return status
+    except (httpx.TransportError, OSError):
+        error = "network"
+        status = PROBE_UNKNOWN
+        return status
+    except (httpx.HTTPError, ValueError) as exc:
         error = type(exc).__name__
-        return False
+        return status
     finally:
-        _logger.info("[IMAGE] operation=probe article_id=%s source=%s url_host=%s duration_ms=%s result=%s exception_category=%s byte_budget=%s", article_id or "-", source or "-", host, round((time.perf_counter()-started)*1000, 2), "valid" if result else "invalid", error or "-", _MAX_IMAGE_PROBE_BYTES)
+        _logger.info("[IMAGE] operation=probe article_id=%s source=%s url_host=%s duration_ms=%s result=%s exception_category=%s byte_budget=%s", article_id or "-", source or "-", host, round((time.perf_counter()-started)*1000, 2), status, error or "-", _MAX_IMAGE_PROBE_BYTES)
 
 
-def fetch_article_image(article_url, timeout_seconds=2.5, max_html_bytes=1_500_000, *, article_id=None, source=None, diagnostics=None):
-    """Fetch one canonical article page and discover/verify its own image only."""
+def _probe_image(url, timeout, *, article_id=None, source=None, diagnostics=None):
+    return _probe_image_status(url, timeout, article_id=article_id, source=source, diagnostics=diagnostics) == PROBE_VALID
+
+
+def fetch_article_page_candidates(article_url, timeout_seconds=2.5, max_html_bytes=1_500_000, *, article_id=None, source=None, diagnostics=None):
+    """Fetch one article page and return its own image candidates, or None if unreachable."""
     timeout = httpx.Timeout(connect=min(1.5, timeout_seconds), read=timeout_seconds, write=timeout_seconds, pool=1.0)
     deadline = time.monotonic() + timeout_seconds
     started = time.perf_counter()
@@ -310,7 +351,7 @@ def fetch_article_image(article_url, timeout_seconds=2.5, max_html_bytes=1_500_0
                 response.raise_for_status()
                 media_type = response.headers.get("Content-Type", "").lower()
                 if "html" not in media_type and "xhtml" not in media_type:
-                    return None, None
+                    return []
                 chunks = []
                 size = 0
                 for chunk in response.iter_bytes():
@@ -323,18 +364,57 @@ def fetch_article_image(article_url, timeout_seconds=2.5, max_html_bytes=1_500_0
                 document = b"".join(chunks).decode(response.encoding or "utf-8", errors="replace")
                 base_url = str(response.url)
     except (httpx.HTTPError, OSError, ValueError, UnicodeError):
+        if diagnostics is not None:
+            diagnostics["article_page_failures"] = diagnostics.get("article_page_failures", 0) + 1
         _logger.info("[IMAGE] operation=article_metadata article_id=%s source=%s url_host=%s duration_ms=%s result=failed exception_category=page_fetch", article_id or "-", source or "-", host, round((time.perf_counter()-started)*1000, 2))
-        return None, None
+        return None
     _logger.info("[IMAGE] operation=article_metadata article_id=%s source=%s url_host=%s duration_ms=%s result=parsed response_bytes=%s", article_id or "-", source or "-", urlsplit(base_url).hostname or host, round((time.perf_counter()-started)*1000, 2), size)
-    for index, (candidate, candidate_source) in enumerate(article_page_image_candidates(document, base_url)):
-        if index >= _MAX_ARTICLE_IMAGE_CANDIDATES:
-            break
-        try:
-            if _probe_image(candidate, timeout, article_id=article_id, source=source, diagnostics=diagnostics):
-                return candidate, candidate_source
-        except (httpx.HTTPError, OSError, ValueError):
-            continue
+    candidates = []
+    for candidate, candidate_source in article_page_image_candidates(document, base_url):
+        if candidate not in {url for url, _ in candidates}:
+            candidates.append((candidate, candidate_source))
+    return candidates
+
+
+def fetch_article_image(article_url, timeout_seconds=2.5, max_html_bytes=1_500_000, *, article_id=None, source=None, diagnostics=None):
+    """Fetch one canonical article page and discover/verify its own image only."""
+    timeout = httpx.Timeout(connect=min(1.5, timeout_seconds), read=timeout_seconds, write=timeout_seconds, pool=1.0)
+    candidates = fetch_article_page_candidates(article_url, timeout_seconds, max_html_bytes, article_id=article_id, source=source, diagnostics=diagnostics) or []
+    for candidate, candidate_source in sorted(candidates, key=lambda item: image_source_rank(item[1]))[:_MAX_ARTICLE_IMAGE_CANDIDATES]:
+        if _probe_image(candidate, timeout, article_id=article_id, source=source, diagnostics=diagnostics):
+            return candidate, candidate_source
     return None, None
+
+
+def resolve_article_image(article, timeout_seconds=2.5, *, diagnostics=None, exclude=()):
+    """Choose the best verified image: OpenGraph, Media RSS, enclosure, then other page images.
+
+    A network failure never discards an image the article already had; only a
+    probe that positively rejects an image removes it.
+    """
+    timeout = httpx.Timeout(connect=min(1.5, timeout_seconds), read=timeout_seconds, write=timeout_seconds, pool=1.0)
+    excluded = set(exclude or ())
+    page = fetch_article_page_candidates(article.url, timeout_seconds, article_id=article.article_id, source=article.source_name, diagnostics=diagnostics) or []
+    current = canonical_image_url(article.image_url, article.url) if article.image_url else None
+    existing = [(current, article.image_source or "rss:media:content")] if current else []
+    opengraph = [item for item in page if item[1].startswith("html:og:")][:2]
+    feed = [item for item in existing if item[1].startswith("rss:")]
+    other_page = [item for item in page if not item[1].startswith("html:og:")][:2]
+    previous = [item for item in existing if not item[1].startswith("rss:")]
+    ordered = []
+    for item in (*opengraph, *feed, *other_page, *previous):
+        if item[0] not in excluded and item[0] not in {url for url, _ in ordered}:
+            ordered.append(item)
+    tentative = None
+    for url, source in ordered[:5]:
+        status = _probe_image_status(url, timeout, article_id=article.article_id, source=article.source_name, diagnostics=diagnostics)
+        if status == PROBE_VALID:
+            return url, source
+        if status == PROBE_UNKNOWN:
+            if (url, source) in existing:
+                return url, source
+            tentative = tentative or (url, source)
+    return tentative or (None, None)
 
 
 def image_checked_timestamp():
@@ -347,24 +427,18 @@ def enrich_missing_images(store, limit=12, max_workers=4, timeout_seconds=2.5):
     if not candidates:
         return {"checked": 0, "found": 0, "failed": 0, "duration_ms": 0, "updated_articles": []}
     started = time.perf_counter()
-    checked = found = failed = 0
+    checked = found = failed = generic_rejections = 0
+    found_by_type = {}
     updated = []
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    def discover(article):
+    def discover(article, exclude=()):
         diagnostics = {}
-        timeout = httpx.Timeout(connect=min(1.5, timeout_seconds), read=timeout_seconds, write=timeout_seconds, pool=1.0)
-        if article.image_url and article.image_source and article.image_source.startswith("rss:"):
-            try:
-                if _probe_image(article.image_url, timeout, article_id=article.article_id, source=article.source_name, diagnostics=diagnostics):
-                    return article.image_url, article.image_source, diagnostics
-            except (httpx.HTTPError, OSError, ValueError):
-                pass
-        result = fetch_article_image(article.url, timeout_seconds, article_id=article.article_id, source=article.source_name, diagnostics=diagnostics)
-        return result[0], result[1], diagnostics
+        url, source = resolve_article_image(article, timeout_seconds, diagnostics=diagnostics, exclude=exclude)
+        return url, source, diagnostics
 
-    image_probe_attempts = image_probe_timeouts = article_pages_fetched = 0
-    with ThreadPoolExecutor(max_workers=max(1, min(int(max_workers), 6)), thread_name_prefix="newzi-image") as pool:
+    totals = {"image_probe_attempts": 0, "image_probe_timeouts": 0, "article_pages_fetched": 0, "article_page_failures": 0}
+    with ThreadPoolExecutor(max_workers=max(1, min(int(max_workers), 8)), thread_name_prefix="newzi-image") as pool:
         futures = {pool.submit(discover, article): article for article in candidates}
         for future in as_completed(futures):
             article = futures[future]
@@ -376,9 +450,21 @@ def enrich_missing_images(store, limit=12, max_workers=4, timeout_seconds=2.5):
                 url, source = None, None
                 diagnostics = {}
                 exception_category = type(exc).__name__
-            image_probe_attempts += diagnostics.get("image_probe_attempts", 0)
-            image_probe_timeouts += diagnostics.get("image_probe_timeouts", 0)
-            article_pages_fetched += diagnostics.get("article_pages_fetched", 0)
+            # A source-wide default picture (shared with another story of the same
+            # source) is not this story's image; fall back to the next candidate.
+            rejected = set()
+            while url and store.is_generic_image(article.source_id, url, article.article_id):
+                generic_rejections += 1
+                store.mark_generic_image(article.source_id, url)
+                rejected.add(url)
+                try:
+                    url, source, retry_diagnostics = discover(article, exclude=rejected)
+                except Exception:
+                    url, source, retry_diagnostics = None, None, {}
+                for key, value in retry_diagnostics.items():
+                    diagnostics[key] = diagnostics.get(key, 0) + value
+            for key in totals:
+                totals[key] += diagnostics.get(key, 0)
             checked += 1
             failed += int(url is None)
             timestamp = image_checked_timestamp()
@@ -389,5 +475,7 @@ def enrich_missing_images(store, limit=12, max_workers=4, timeout_seconds=2.5):
             updated.append(article)
             if url:
                 found += 1
-            _logger.info("[IMAGE] progress=%s/%s article_id=%s source=%s operation=enrichment url_host=%s duration_ms=%s result=%s exception_category=%s", checked, len(candidates), article.article_id, article.source_name, urlsplit(url or article.url).hostname or "", round((time.perf_counter()-operation_started)*1000, 2), "resolved" if url else "no_image", exception_category)
-    return {"checked": checked, "found": found, "failed": failed, "image_probe_attempts": image_probe_attempts, "image_probe_timeouts": image_probe_timeouts, "article_pages_fetched": article_pages_fetched, "duration_ms": int((time.perf_counter() - started) * 1000), "updated_articles": updated}
+                kind = {1: "opengraph", 2: "media_rss", 3: "enclosure", 4: "article_page"}.get(image_source_rank(source), "other")
+                found_by_type[kind] = found_by_type.get(kind, 0) + 1
+            _logger.info("[IMAGE] progress=%s/%s article_id=%s source=%s operation=enrichment url_host=%s duration_ms=%s result=%s image_source=%s exception_category=%s", checked, len(candidates), article.article_id, article.source_name, urlsplit(url or article.url).hostname or "", round((time.perf_counter()-operation_started)*1000, 2), "resolved" if url else "no_image", source or "-", exception_category)
+    return {"checked": checked, "found": found, "failed": failed, "generic_rejections": generic_rejections, "found_by_type": found_by_type, **totals, "duration_ms": int((time.perf_counter() - started) * 1000), "updated_articles": updated}
