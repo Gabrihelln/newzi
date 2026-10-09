@@ -4,6 +4,11 @@ import { api } from '../api/client';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
 import type { AudioMetadata, Briefing } from '../types/api';
 
+// iOS: the Playback session keeps the briefing audible with the screen locked (with
+// UIBackgroundModes=audio in Info.plist) and when the silent switch is on.
+// Android: media volume stream, and other apps' audio yields while the briefing plays.
+Sound.setCategory('Playback');
+
 export type PlaybackState = { position: number; duration: number; playing: boolean; paused: boolean; ended: boolean; buffering: boolean; loaded: boolean; started?: boolean; speed?: number };
 export type AudioContext = { url: string; briefing: Briefing; metadata: AudioMetadata };
 

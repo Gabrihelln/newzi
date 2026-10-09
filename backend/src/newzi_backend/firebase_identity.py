@@ -6,6 +6,7 @@ runtime validation is complete.
 """
 from .identity import Identity, IdentityProvider
 import logging
+import threading
 
 log = logging.getLogger("newzi.firebase_auth")
 
@@ -13,6 +14,7 @@ log = logging.getLogger("newzi.firebase_auth")
 class FirebaseAdminIdentityProvider(IdentityProvider):
     def __init__(self, repo, project_id=""):
         self.repo = repo
+        self._state = threading.local()
         self.project_id = project_id or None
         try:
             import firebase_admin
@@ -23,6 +25,15 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
         except Exception as exc:
             raise RuntimeError("Firebase Admin SDK is required when FIREBASE_AUTH_ENABLED is enabled") from exc
         self.last_verify_reason = None
+
+    @property
+    def last_verify_reason(self):
+        # Per-thread: concurrent requests must not read each other's verification result.
+        return getattr(self._state, "reason", None)
+
+    @last_verify_reason.setter
+    def last_verify_reason(self, value):
+        self._state.reason = value
 
     def authenticate(self, credentials):
         raise PermissionError("Firebase Authentication must be performed by the client")

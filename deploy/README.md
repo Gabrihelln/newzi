@@ -36,7 +36,7 @@ TTS_PROVIDER=edge-tts
 TTS_VOICE=newzi_lucas
 ```
 
-O envio FCM fica desativado nesse modelo inicial. O backend atual consome `FCM_ACCESS_TOKEN` estático e não renova o OAuth token; conecte um mecanismo seguro de renovação antes de definir `NOTIFICATIONS_ENABLED=true` e `PUSH_PROVIDER=fcm`. Nunca grave um token temporário de curta duração como configuração permanente. Firebase Admin e FCM devem usar o mesmo projeto.
+Com `PUSH_PROVIDER=fcm`, o backend envia pelo Firebase Admin SDK usando a conta de serviço de `GOOGLE_APPLICATION_CREDENTIALS`; o SDK gera e renova sozinho o token OAuth. `FCM_PROJECT_ID` é opcional (padrão: `FIREBASE_PROJECT_ID`). Firebase Admin e FCM devem usar o mesmo projeto.
 
 5. Ajuste `server_name` e os caminhos do certificado no Nginx. Emita o certificado TLS, instale o arquivo de configuração e valide com `nginx -t`.
 6. Copie os dois `.service` para `/etc/systemd/system/`, execute `systemctl daemon-reload`, habilite `newzi-api` e `newzi-worker` e verifique seus logs com `journalctl -u newzi-api -u newzi-worker`.

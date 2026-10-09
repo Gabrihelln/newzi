@@ -1,5 +1,5 @@
 ﻿"""Local identity provider abstraction for Phase 4.3."""
-import hashlib, hmac, secrets, time
+import hashlib, hmac, secrets, threading, time
 from datetime import datetime, timedelta, timezone
 
 
@@ -50,9 +50,14 @@ class LocalIdentityProvider(IdentityProvider):
 
 
 class LocalAuthRateLimiter:
-    def __init__(self, limit=10, window_seconds=60): self.limit=limit; self.window=window_seconds; self.hits={}
+    """Sliding-window limiter, safe across HTTP threads; idle keys are pruned so memory stays bounded."""
+    def __init__(self, limit=10, window_seconds=60): self.limit=limit; self.window=window_seconds; self.hits={}; self._lock=threading.Lock(); self._next_prune=time.monotonic()+window_seconds
     def allow(self,key):
-        now=time.time(); values=[x for x in self.hits.get(key,[]) if now-x<self.window]; allowed=len(values)<self.limit
-        if allowed: values.append(now)
-        self.hits[key]=values; return allowed
+        with self._lock:
+            now=time.monotonic()
+            if now>=self._next_prune:
+                self.hits={k:v for k,v in self.hits.items() if v and now-v[-1]<self.window}; self._next_prune=now+self.window
+            values=[x for x in self.hits.get(key,[]) if now-x<self.window]; allowed=len(values)<self.limit
+            if allowed: values.append(now)
+            self.hits[key]=values; return allowed
 

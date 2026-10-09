@@ -1,5 +1,6 @@
 """Run the local NEWS ENGINE product API."""
 import json
+import logging
 import os
 import traceback
 from pathlib import Path
@@ -30,6 +31,8 @@ def load_local_environment():
 
 
 load_local_environment()
+logging.basicConfig(level=os.getenv('LOG_LEVEL','WARNING').upper(), format='%(asctime)s [%(levelname)s] %(name)s: %(message)s')
+MAX_BODY_BYTES = 1024 * 1024
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -41,10 +44,26 @@ class Handler(BaseHTTPRequestHandler):
             print(f"[Backend HTTP {request_id or 'none'}] received")
             print(f"[Backend HTTP {request_id or 'none'}] header_names={names}")
         return {str(name).lower(): value for name, value in self.headers.items()}
+    def _client_ip(self):
+        peer = self.client_address[0] if self.client_address else ''
+        # Only a local reverse proxy (deploy/nginx sets X-Real-IP) may name the real client;
+        # a direct client cannot spoof its address through the header.
+        if peer in ('127.0.0.1', '::1', '::ffff:127.0.0.1'):
+            forwarded = (self.headers.get('X-Real-IP') or '').strip()
+            if forwarded: return forwarded
+        return peer
+    def _api(self, method, body=None):
+        try:
+            return self.api.handle(method, self.path, body, self._headers_for_api(), client_ip=self._client_ip())
+        finally:
+            # Each request runs on its own thread; release that thread's SQLite connection.
+            self.api.repo.close_thread_connection()
     def _send(self, status, value):
+        if status == 204:
+            self.send_response(204); self.end_headers(); return
         raw=json.dumps(value,ensure_ascii=False).encode("utf-8"); self.send_response(status); self.send_header("Content-Type","application/json; charset=utf-8"); self.send_header("Content-Length",str(len(raw))); self.end_headers(); self.wfile.write(raw)
     def do_GET(self):
-        status, payload = self.api.handle("GET", self.path, headers=self._headers_for_api())
+        status, payload = self._api("GET")
         if status == 200 and isinstance(payload, dict) and isinstance(payload.get("_image_bytes"), bytes):
             raw=payload["_image_bytes"]
             self.send_response(200); self.send_header("Content-Type",payload.get("mime_type","image/jpeg")); self.send_header("Content-Length",str(len(raw))); self.send_header("Cache-Control","private, max-age=86400"); self.send_header("X-Content-Type-Options","nosniff"); self.end_headers(); self.wfile.write(raw)
@@ -60,12 +79,15 @@ class Handler(BaseHTTPRequestHandler):
         self._send(status, payload)
     def do_PUT(self): self._json("PUT")
     def do_POST(self): self._json("POST")
+    def do_DELETE(self): self._json("DELETE")
     def _json(self, method):
-        try: body=json.loads(self.rfile.read(int(self.headers.get("Content-Length",0)) or 0) or b"{}")
+        try: length=int(self.headers.get("Content-Length") or 0)
+        except ValueError: self._send(400,{"error":"invalid_content_length"}); return
+        if length<0 or length>MAX_BODY_BYTES: self._send(413,{"error":"payload_too_large"}); return
+        try: body=json.loads(self.rfile.read(length) or b"{}")
         except Exception: self._send(400,{"error":"invalid_json"}); return
-        self._send(*self.api.handle(method,self.path,body,self._headers_for_api()))
+        self._send(*self._api(method,body))
     def log_message(self,*args): return
-
 
 if __name__ == "__main__":
     os.chdir(PROJECT_ROOT)

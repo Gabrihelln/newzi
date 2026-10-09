@@ -32,19 +32,52 @@ class DevelopmentPushProvider(PushProvider):
 
 
 class FCMPushProvider(PushProvider):
-    """FCM HTTP v1 boundary; credentials stay outside the repository."""
+    """FCM HTTP v1 through the Firebase Admin SDK.
+
+    The SDK mints and refreshes the short-lived OAuth token from the service account in
+    GOOGLE_APPLICATION_CREDENTIALS; credentials stay outside the repository.
+    """
     name = "fcm"
+    def __init__(self, project_id=None):
+        self.project_id = project_id or os.getenv("FCM_PROJECT_ID") or os.getenv("FIREBASE_PROJECT_ID") or None
+        self._messaging = None
+
+    def _client(self):
+        if self._messaging is None:
+            import firebase_admin
+            from firebase_admin import messaging
+            if not firebase_admin._apps:
+                firebase_admin.initialize_app(options={"projectId": self.project_id} if self.project_id else None)
+            self._messaging = messaging
+        return self._messaging
+
     def send(self, token, title, body, data):
-        if not os.getenv("FCM_ACCESS_TOKEN") or not os.getenv("FCM_PROJECT_ID"):
-            return PushResult(False, failure_reason="FCM_NOT_CONFIGURED", retryable=False)
         try:
-            import httpx
-            response = httpx.post(f"https://fcm.googleapis.com/v1/projects/{os.environ['FCM_PROJECT_ID']}/messages:send", headers={"Authorization": f"Bearer {os.environ['FCM_ACCESS_TOKEN']}", "Content-Type": "application/json"}, json={"message": {"token": token, "notification": {"title": title, "body": body}, "data": {str(k): str(v) for k, v in data.items()}}}, timeout=10)
-            if response.status_code in {404, 410}: return PushResult(False, failure_reason="TOKEN_INVALID", token_invalid=True)
-            if response.status_code >= 500: return PushResult(False, failure_reason="PROVIDER_UNAVAILABLE", retryable=True)
-            if response.status_code >= 400: return PushResult(False, failure_reason="PROVIDER_REJECTED")
-            return PushResult(True, (response.json().get("name") if response.content else None))
+            messaging = self._client()
+            from firebase_admin import exceptions
         except Exception:
+            return PushResult(False, failure_reason="FCM_NOT_CONFIGURED", retryable=False)
+        message = messaging.Message(
+            token=token,
+            notification=messaging.Notification(title=title, body=body),
+            data={str(k): str(v) for k, v in data.items()},
+            android=messaging.AndroidConfig(priority="high"),
+            apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(sound="default"))))
+        try:
+            return PushResult(True, messaging.send(message))
+        except (messaging.UnregisteredError, messaging.SenderIdMismatchError):
+            return PushResult(False, failure_reason="TOKEN_INVALID", token_invalid=True)
+        except exceptions.InvalidArgumentError as exc:
+            # FCM answers INVALID_ARGUMENT for a malformed registration token as well as for a bad payload.
+            invalid_token = "registration token" in str(exc).lower()
+            return PushResult(False, failure_reason="TOKEN_INVALID" if invalid_token else "PROVIDER_REJECTED", token_invalid=invalid_token)
+        except (messaging.QuotaExceededError, exceptions.UnavailableError, exceptions.InternalError, exceptions.DeadlineExceededError):
+            return PushResult(False, failure_reason="PROVIDER_UNAVAILABLE", retryable=True)
+        except exceptions.FirebaseError:
+            return PushResult(False, failure_reason="PROVIDER_REJECTED")
+        except Exception as exc:
+            if type(exc).__name__ in {"DefaultCredentialsError", "RefreshError"}:
+                return PushResult(False, failure_reason="FCM_NOT_CONFIGURED", retryable=False)
             return PushResult(False, failure_reason="PROVIDER_UNAVAILABLE", retryable=True)
 
 
@@ -70,9 +103,13 @@ class NotificationService:
         if platform not in {"ANDROID", "IOS"}: raise ValueError("platform must be ANDROID or IOS")
         if not token or len(token) < 10: raise ValueError("push_token is required")
         existing = self.repo.db.execute("SELECT * FROM push_devices WHERE push_token=?", (token,)).fetchone(); t = now_iso()
-        if existing and existing["user_id"] != user_id: raise PermissionError("push token already belongs to another user")
         did = existing["id"] if existing else "device_" + uuid.uuid4().hex
-        if existing: self.repo.db.execute("UPDATE push_devices SET platform=?,device_identifier=?,app_version=?,locale=?,timezone=?,enabled=1,updated_at=?,last_seen_at=?,invalidated_at=NULL WHERE id=?", (platform,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),t,t,did))
+        if existing and existing["user_id"] != user_id:
+            # The same phone signed in with another account: an FCM token identifies the app install,
+            # so it now belongs to the authenticated user. The previous owner's queued pushes must not reach it.
+            self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',last_error='device reassigned to another user',updated_at=? WHERE device_id=? AND user_id<>? AND status IN ('PENDING','RUNNING')", (t, did, user_id))
+            self._event("device_reassigned", device_id=did)
+        if existing: self.repo.db.execute("UPDATE push_devices SET user_id=?,platform=?,device_identifier=?,app_version=?,locale=?,timezone=?,enabled=1,updated_at=?,last_seen_at=?,invalidated_at=NULL WHERE id=?", (user_id,platform,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),t,t,did))
         else: self.repo.db.execute("INSERT INTO push_devices VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (did,user_id,platform,token,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),1,t,t,t,None))
         self.repo.db.commit(); return self.public_device(self.repo.db.execute("SELECT * FROM push_devices WHERE id=?", (did,)).fetchone())
 
@@ -114,6 +151,11 @@ class NotificationService:
     def run_once(self, now=None):
         now=now or datetime.now(timezone.utc); stale=(now-timedelta(minutes=30)).isoformat(); self.repo.db.execute("UPDATE notification_jobs SET status='PENDING',updated_at=?,last_error='stale notification recovered' WHERE status='RUNNING' AND updated_at<? AND attempt_count<max_attempts",(now_iso(),stale)); self.repo.db.commit(); job=self.repo.db.execute("SELECT j.*,d.push_token,d.enabled,d.invalidated_at FROM notification_jobs j JOIN push_devices d ON d.id=j.device_id WHERE j.status='PENDING' AND j.scheduled_for<=? AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) ORDER BY j.scheduled_for LIMIT 1",(now.isoformat(),now.isoformat())).fetchone()
         if not job: return {"jobs_claimed":0,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0}
+        owner=self.repo.db.execute("SELECT user_id FROM push_devices WHERE id=?",(job["device_id"],)).fetchone()
+        if not job["enabled"] or job["invalidated_at"] or not owner or owner["user_id"]!=job["user_id"]:
+            # Logged-out, invalidated or reassigned device: never deliver this user's briefing to it.
+            self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='device disabled or reassigned' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
+            return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
         ready=self.repo.db.execute("""SELECT 1 FROM user_briefing_deliveries d JOIN audio_artifacts a ON a.id=d.audio_artifact_id
             JOIN audio_scripts s ON s.id=a.audio_script_id AND s.edition_id=d.edition_id
             WHERE d.id=? AND d.user_id=? AND d.status='READY' AND d.audio_status='READY'

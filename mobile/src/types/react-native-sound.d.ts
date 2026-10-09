@@ -2,6 +2,7 @@ declare module 'react-native-sound' {
   type Completion = (success: boolean) => void;
   type LoadCompletion = (error?: Error | null) => void;
   export default class Sound {
+    static setCategory(category: 'Ambient' | 'SoloAmbient' | 'Playback' | 'Record' | 'PlayAndRecord' | 'AudioProcessing' | 'MultiRoute' | 'Alarm', mixWithOthers?: boolean): void;
     constructor(filename: string, basePath?: string, onLoad?: LoadCompletion);
     play(callback?: Completion): boolean;
     pause(callback?: () => void): void;

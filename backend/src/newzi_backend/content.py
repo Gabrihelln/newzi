@@ -433,7 +433,8 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         summary = ((enriched["summary"] if enriched else content["description"]) or title).strip()
         provider = enriched["generator_version"] if enriched else "deterministic_fallback"
         warnings = ["FALLBACK_" + level, "__summary_provider__:" + provider]
-        if age_hours > 24:
+        # The level carries this candidate's own age (EXTENDED_ = older than 24h).
+        if level.startswith("EXTENDED_"):
             warnings.append("FALLBACK_NO_FRESH_CONTENT_FOR_TOPIC")
         if content["id"] in previous_events:
             warnings.append("FALLBACK_RECENT_EVENT_REUSE")

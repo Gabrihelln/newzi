@@ -4,7 +4,7 @@ This module deliberately keeps product persistence separate from engine/cache da
 The HTTP facade is dependency-free for local development; it can later be replaced by
 FastAPI without changing the repository, adapter, or orchestration contracts.
 """
-import json, logging, os, re, sqlite3, uuid
+import json, logging, os, re, sqlite3, threading, uuid
 from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, unquote
@@ -90,7 +90,26 @@ def validate_preferences(data, defaults=None):
 class ProductRepository:
     def __init__(self, path=None, config=None):
         self.config = config or ProductConfig(); self.path = Path(path or self.config.db_path); self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(self.path, check_same_thread=False, timeout=30); self.db.row_factory = sqlite3.Row; self.db.execute("PRAGMA foreign_keys=ON"); self.db.execute("PRAGMA busy_timeout=30000"); self.db.execute("PRAGMA journal_mode=WAL"); self.migrate()
+        # One connection per thread: the threaded HTTP server must never interleave
+        # transactions of concurrent requests on a shared sqlite3 connection.
+        self._local = threading.local(); self.migrate()
+
+    @property
+    def db(self):
+        connection = getattr(self._local, "db", None)
+        if connection is None:
+            connection = sqlite3.connect(self.path, timeout=30); connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys=ON"); connection.execute("PRAGMA busy_timeout=30000"); connection.execute("PRAGMA journal_mode=WAL")
+            self._local.db = connection
+        return connection
+
+    def close_thread_connection(self):
+        """Close the calling thread's connection (rolling back anything left uncommitted)."""
+        connection = getattr(self._local, "db", None)
+        if connection is not None:
+            self._local.db = None
+            try: connection.rollback()
+            finally: connection.close()
 
     def migrate(self):
         self.db.executescript("""
@@ -457,30 +476,37 @@ class ProductAPI:
         else:
             self.identity=LocalIdentityProvider(self.repo)
         self.rate_limiter=LocalAuthRateLimiter()
+        self._auth_state=threading.local()
         from .audio import AudioService, ensure_audio_schema
         ensure_audio_schema(self.repo); self.audio = AudioService(self.repo)
         from .notifications import NotificationService, ensure_notification_schema
         ensure_notification_schema(self.repo); self.notifications = NotificationService(self.repo)
     def _error(self, code, message, request_id, status): return status,{"error":{"code":code,"message":message,"request_id":request_id}}
-    def _identity(self, headers):
-        auth=""
+    @staticmethod
+    def _authorization_header(headers):
         for name, value in (headers or {}).items():
             if str(name).casefold() == "authorization":
-                auth=value
-                break
+                return value or ""
+        return ""
+    @classmethod
+    def _bearer_token(cls, headers):
+        auth=cls._authorization_header(headers)
+        return auth[7:].strip() if auth.lower().startswith("bearer ") else ""
+    def _identity(self, headers):
+        auth=self._authorization_header(headers)
         log.info("[Backend Auth] authorization_header_present=%s", bool(auth))
         if not auth:
-            self._last_auth_failure = "AUTH_MISSING_HEADER"
+            self._auth_state.failure = "AUTH_MISSING_HEADER"
             return None
         if not auth.lower().startswith("bearer "):
-            self._last_auth_failure = "AUTH_INVALID_SCHEME"
+            self._auth_state.failure = "AUTH_INVALID_SCHEME"
             return None
         token=auth[7:].strip()
         if not token:
-            self._last_auth_failure = "AUTH_EMPTY_TOKEN"
+            self._auth_state.failure = "AUTH_EMPTY_TOKEN"
             return None
         identity=self.identity.resolve(token)
-        self._last_auth_failure = getattr(self.identity, "last_verify_reason", None) if not identity else None
+        self._auth_state.failure = getattr(self.identity, "last_verify_reason", None) if not identity else None
         return identity
     def _client_briefing(self, uid, local_date):
         delivery=self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? AND local_date=? ORDER BY created_at DESC LIMIT 1",(uid,local_date)).fetchone()
@@ -575,8 +601,9 @@ class ProductAPI:
         row=self.repo.db.execute("SELECT id FROM briefings WHERE id=? AND user_id=?",(briefing_id,uid)).fetchone()
         if row: return None
         return None
-    def handle(self, method, path, body=None, headers=None):
+    def handle(self, method, path, body=None, headers=None, client_ip=None):
         request_id="req_"+uuid.uuid4().hex; headers=headers or {}; data=body or {}; clean=path.split("?")[0]; parts=[p for p in clean.split("/") if p]
+        client_key=client_ip or "unknown"
         try:
             if method=="GET" and clean=="/health": return 200,{"status":"ok","service":"newzi-product-backend","database":"sqlite"}
             if method=="GET" and clean=="/ready":
@@ -586,7 +613,7 @@ class ProductAPI:
             if method=="GET" and parts==["api","v1","client","config"]: return 200,{"supported_languages":["pt-BR","en"],"supported_briefing_sizes":[5,10,15],"country_scopes":["LOCAL","GLOBAL","BOTH"],"topics":self.repo.list_topics()}
             if parts==["api","v1","auth","register"] and method=="POST":
                 if self.config.firebase_auth_enabled: return self._error("AUTH_PROVIDER_CLIENT_SIDE","use Firebase Authentication",request_id,410)
-                if not self.rate_limiter.allow("register"):
+                if not self.rate_limiter.allow("register:ip:"+client_key):
                     return self._error("RATE_LIMITED","too many requests",request_id,429)
                 from .identity import Identity
                 try: identity,token,expires=self.identity.register(data.get("email"),data.get("password"),data.get("display_name"))
@@ -594,7 +621,10 @@ class ProductAPI:
                 return 201,{"user":self.repo.public_user(self.repo.get_user(identity.user_id)),"session":{"token":token,"expires_at":expires}}
             if parts==["api","v1","auth","login"] and method=="POST":
                 if self.config.firebase_auth_enabled: return self._error("AUTH_PROVIDER_CLIENT_SIDE","use Firebase Authentication",request_id,410)
-                if not self.rate_limiter.allow("login"):
+                # Per client and per account: one abusive client can no longer lock everyone out,
+                # and credential stuffing against a single account is still bounded.
+                login_email=str(data.get("email") or "").strip().casefold()[:254]
+                if not self.rate_limiter.allow("login:ip:"+client_key) or (login_email and not self.rate_limiter.allow("login:email:"+login_email)):
                     return self._error("RATE_LIMITED","too many requests",request_id,429)
                 try: identity,token,expires=self.identity.authenticate(data)
                 except PermissionError: return self._error("INVALID_CREDENTIALS","invalid credentials",request_id,401)
@@ -615,10 +645,10 @@ class ProductAPI:
                     raise
             if parts==["api","v1","auth","logout"] and method=="POST":
                 if not identity: return self._error("AUTH_REQUIRED","authentication required",request_id,401)
-                self.identity.revoke((headers.get("Authorization") or "")[7:].strip()); self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE user_id=?",(datetime.utcnow().isoformat()+"Z",datetime.utcnow().isoformat()+"Z",identity.user_id)); self.repo.db.commit(); return 200,{"status":"ok"}
+                self.identity.revoke(self._bearer_token(headers)); self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE user_id=?",(datetime.utcnow().isoformat()+"Z",datetime.utcnow().isoformat()+"Z",identity.user_id)); self.repo.db.commit(); return 200,{"status":"ok"}
             if parts[:3]==["api","v1","me"]:
                 if not identity:
-                    log.warning("[Backend Auth] authorization_rejected reason=%s", getattr(self, "_last_auth_failure", None) or "AUTH_REQUIRED")
+                    log.warning("[Backend Auth] authorization_rejected reason=%s", getattr(self._auth_state, "failure", None) or "AUTH_REQUIRED")
                     return self._error("AUTH_REQUIRED","authentication required",request_id,401)
                 uid=identity.user_id; user=self.repo.get_user(uid)
                 if parts==["api","v1","me"] and method=="GET": return 200,self.repo.public_user(user)
@@ -824,10 +854,13 @@ class ProductAPI:
                     row=self.repo.db.execute("SELECT * FROM briefings WHERE id=? AND user_id=?",(bid,uid)).fetchone(); return (200,self.repo.serialize_briefing(row)) if row else self._error("RESOURCE_NOT_FOUND","briefing not found",request_id,404)
             if len(parts)>=4 and parts[:3]==["api","v1","users"]:
                 uid=parts[3]
-                if identity and uid!=identity.user_id: return self._error("FORBIDDEN","resource access denied",request_id,403)
+                if not identity: return self._error("AUTH_REQUIRED","authentication required",request_id,401)
+                if uid!=identity.user_id: return self._error("FORBIDDEN","resource access denied",request_id,403)
                 if method=="GET" and len(parts)==4: result=self.repo.public_user(self.repo.get_user(uid)); return (200,result) if result else self._error("RESOURCE_NOT_FOUND","user not found",request_id,404)
                 if len(parts)>=5 and parts[4]=="preferences":
-                    if method=="GET": return 200,self.repo.get_preferences(uid) or self._error("RESOURCE_NOT_FOUND","preferences not found",request_id,404)
+                    if method=="GET":
+                        prefs=self.repo.get_preferences(uid)
+                        return (200,prefs) if prefs else self._error("RESOURCE_NOT_FOUND","preferences not found",request_id,404)
                     if method=="PUT": return 200,self.repo.save_preferences(uid,data)
                 if len(parts)>=5 and parts[4]=="briefings":
                     if len(parts)==5 and method=="GET": return 200,{"items":self.repo.list_briefings(uid)}
@@ -896,8 +929,11 @@ class ProductAPI:
                 result,mode=self.orchestrator.generate(parts[4]); return 200,{"mode":mode,"briefing":result}
             return self._error("RESOURCE_NOT_FOUND","not found",request_id,404)
         except ValueError as exc: return self._error("VALIDATION_ERROR",str(exc),request_id,400)
-        except Exception as exc:
-            if self.config.app_env == "development": log.exception("product api request failed", extra={"request_id":request_id})
+        except PermissionError: return self._error("FORBIDDEN","resource access denied",request_id,403)
+        except Exception:
+            # Always recorded: the client only receives the request_id, so this log line is the
+            # sole trace of a production failure. The query string is omitted (it may carry user input).
+            log.exception("product api request failed request_id=%s method=%s path=%s", request_id, method, clean)
             return self._error("INTERNAL_ERROR","internal error",request_id,500)
 
 

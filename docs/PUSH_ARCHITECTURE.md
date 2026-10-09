@@ -2,7 +2,7 @@
 
 ## Boundary and provider
 
-The Product Backend owns delivery eligibility and notification jobs. `PushProvider` exposes `send(token, title, body, data)` and returns success, provider message id, retryability and invalid-token classification. Development uses `DevelopmentPushProvider`, which records safe local sends. `FCMPushProvider` is the production boundary and reads `FCM_PROJECT_ID`/`FCM_ACCESS_TOKEN` from the environment; no credentials or tokens are committed.
+The Product Backend owns delivery eligibility and notification jobs. `PushProvider` exposes `send(token, title, body, data)` and returns success, provider message id, retryability and invalid-token classification. Development uses `DevelopmentPushProvider`, which records safe local sends. `FCMPushProvider` is the production boundary: it sends through the Firebase Admin SDK (`firebase_admin.messaging`) with the service account in `GOOGLE_APPLICATION_CREDENTIALS`, which refreshes OAuth tokens itself, and an optional `FCM_PROJECT_ID` (defaults to `FIREBASE_PROJECT_ID`); no credentials or tokens are committed.
 
 Firebase scope is messaging only. Product identity, database, scheduler, briefings and audio remain in the existing Product Backend.
 
