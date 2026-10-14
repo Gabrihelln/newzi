@@ -1,10 +1,12 @@
 import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { colors } from '../theme';
+import { useTheme } from '../theme';
 
-export type IconName = 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor';
+export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor';
 
-export function Icon({ name, color = colors.text, size = 22 }: { name: IconName; color?: string; size?: number }) {
+export function Icon({ name, color: requested, size = 22 }: { name: IconName; color?: string; size?: number }) {
+  const theme = useTheme();
+  const color = requested ?? theme.colors.text;
   const stroke = { stroke: color, strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
   return <Svg width={size} height={size} viewBox="0 0 24 24">
     {name === 'search' && <><Circle cx="10.8" cy="10.8" r="7.2" {...stroke} /><Path d="m16 16 5 5" {...stroke} /></>}
@@ -23,6 +25,9 @@ export function Icon({ name, color = colors.text, size = 22 }: { name: IconName;
     {name === 'profile' && <><Circle cx="12" cy="8" r="4" {...stroke} /><Path d="M4 21a8 8 0 0 1 16 0" {...stroke} /></>}
     {name === 'topic' && <><Path d="M4 18V9m5 9V5m5 13v-6m5 6V7" {...stroke} /><Path d="m3 7 6-3 5 4 7-5" {...stroke} /></>}
     {name === 'settings' && <><Circle cx="12" cy="12" r="3.2" {...stroke} /><Path d="M9.81 4.93 L10.09 2.59 L13.91 2.59 L14.19 4.93 A7.4 7.4 0 0 1 15.45 5.45L15.45 5.45 L17.30 4.00 L20.00 6.70 L18.55 8.55 A7.4 7.4 0 0 1 19.07 9.81L19.07 9.81 L21.41 10.09 L21.41 13.91 L19.07 14.19 A7.4 7.4 0 0 1 18.55 15.45L18.55 15.45 L20.00 17.30 L17.30 20.00 L15.45 18.55 A7.4 7.4 0 0 1 14.19 19.07L14.19 19.07 L13.91 21.41 L10.09 21.41 L9.81 19.07 A7.4 7.4 0 0 1 8.55 18.55L8.55 18.55 L6.70 20.00 L4.00 17.30 L5.45 15.45 A7.4 7.4 0 0 1 4.93 14.19L4.93 14.19 L2.59 13.91 L2.59 10.09 L4.93 9.81 A7.4 7.4 0 0 1 5.45 8.55L5.45 8.55 L4.00 6.70 L6.70 4.00 L8.55 5.45 A7.4 7.4 0 0 1 9.81 4.93Z" {...stroke} /></>}
+    {name === 'ball' && <><Circle cx="12" cy="12" r="9" {...stroke} /><Path d="m12 7.5 3.4 2.5-1.3 4h-4.2l-1.3-4ZM12 3v4.5m3.4 2.5 5-1.6m-6.3 5.6 3 4.2M9.9 14l-3 4.2M8.6 10l-5-1.6" {...stroke} /></>}
+    {name === 'trending' && <Path d="M3 17l6-6 4 4 8-8M14 7h7v7" {...stroke} />}
+    {name === 'moon' && <Path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a6.8 6.8 0 0 0 10.7 10.7Z" {...stroke} />}
     {name === 'sun' && <><Circle cx="12" cy="12" r="4" {...stroke} /><Path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" {...stroke} /></>}
     {name === 'lock' && <><Rect x="4" y="10" width="16" height="11" rx="2" {...stroke} /><Path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" {...stroke} /></>}
     {name === 'card' && <><Rect x="3" y="5" width="18" height="14" rx="2" {...stroke} /><Path d="M3 10h18m-14 5h4" {...stroke} /></>}

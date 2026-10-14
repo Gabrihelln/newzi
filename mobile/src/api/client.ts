@@ -1,8 +1,10 @@
 import { API_BASE_URL, LOGGING_ENABLED, devLog } from '../config/env';
-import { getFirebaseIdToken } from '../services/firebaseAuth';
-import { firebaseAuth } from '../services/firebaseAuth';
-import { saveUserPreferences } from '../services/firestoreUser';
-import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, HomeData, NotificationSettings, SavedOverview, SavedStoryPage } from '../types/api';
+import { firebaseAuth, getFirebaseIdToken } from '../services/firebaseAuth';
+import { cachedRead } from '../services/offlineCache';
+import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballOverview, FootballStandings, HomeData, Subscription, NotificationSettings, SavedOverview, SavedStoryPage } from '../types/api';
+
+/** What users read when the app cannot reach the server: no technical terms. */
+export const CONNECTION_ERROR_MESSAGE = 'Sem conexão com o Newzi. Verifique sua internet e tente novamente.';
 
 export class ClientError extends Error {
   code: string;
@@ -23,9 +25,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     try {
       token = await getFirebaseIdToken();
     } catch {
-      throw new ClientError('Não foi possível obter a sessão Firebase.', 'TOKEN_ERROR');
+      throw new ClientError('Não foi possível confirmar seu acesso. Entre novamente na sua conta.', 'TOKEN_ERROR');
     }
-    if (isBootstrapRoute && !token) throw new ClientError('Sessão Firebase ausente.', 'TOKEN_ERROR');
+    if (isBootstrapRoute && !token) throw new ClientError('Sua sessão terminou. Entre novamente na sua conta.', 'TOKEN_ERROR');
     if (isBootstrapRoute) {
       devLog(`[API Auth] authorization_header_present=${Boolean(token)}`);
       devLog(`[API Auth] scheme=${token ? 'Bearer' : 'none'}`);
@@ -61,38 +63,47 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   } catch (error) {
     if (error instanceof ClientError) { if (LOGGING_ENABLED) devLog(`[HTTP ${requestId}] error=${error.code} status=${error.status ?? 'none'}`); throw error; }
     if (error instanceof Error && error.name === 'AbortError') throw new ClientError('A conexão demorou demais. Tente novamente.', 'TIMEOUT');
-    throw new ClientError('Não foi possível alcançar o backend. OFFLINE ou backend indisponível.', 'BACKEND_UNREACHABLE');
+    throw new ClientError(CONNECTION_ERROR_MESSAGE, 'BACKEND_UNREACHABLE');
   } finally { clearTimeout(timeout); }
 }
+
+// Saved answers are per account: the key starts with the signed-in user's id.
+const cached = <T,>(key: unknown[], fetcher: () => Promise<T>) => cachedRead<T>([firebaseAuth.currentUser?.uid || 'anonymous', ...key], fetcher);
 
 export const api = {
   logout: () => apiRequest('/api/v1/auth/logout', { method: 'POST' }),
   me: () => apiRequest<any>('/api/v1/me'),
   config: () => apiRequest<any>('/api/v1/client/config'),
   onboarding: () => apiRequest<any>('/api/v1/me/onboarding'),
-  saveOnboarding: async (body: any) => { const result = await apiRequest<any>('/api/v1/me/onboarding', { method: 'PUT', body: JSON.stringify(body) }); if (firebaseAuth.currentUser) await saveUserPreferences(firebaseAuth.currentUser, body); return result; },
+  // The backend is the only store of preferences; nothing is mirrored to Firestore.
+  saveOnboarding: (body: any) => apiRequest<any>('/api/v1/me/onboarding', { method: 'PUT', body: JSON.stringify(body) }),
   preferences: () => apiRequest<any>('/api/v1/me/preferences'),
   contentRevision: () => apiRequest<{ revision: number; updated_at: string | null }>('/api/v1/me/content/revision'),
-  home: async () => {
+  home: () => cached(['home'], async () => {
     const result = await apiRequest<HomeData>('/api/v1/me/home');
     const today = result.today_briefing;
     if (today?.audio_url && !/^https?:\/\//i.test(today.audio_url)) {
       return { ...result, today_briefing: { ...today, audio_url: `${API_BASE_URL}${today.audio_url}` } };
     }
     return result;
-  },
-  savePreferences: async (body: any) => { const result = await apiRequest<any>('/api/v1/me/preferences', { method: 'PUT', body: JSON.stringify(body) }); if (firebaseAuth.currentUser) await saveUserPreferences(firebaseAuth.currentUser, body).catch(() => undefined); return result; },
-  today: () => apiRequest<any>('/api/v1/me/briefings/today'),
-  history: (limit = 20, cursor?: string) => apiRequest<BriefingHistoryPage>(`/api/v1/me/briefings?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`),
+  }),
+  savePreferences: (body: any) => apiRequest<any>('/api/v1/me/preferences', { method: 'PUT', body: JSON.stringify(body) }),
+  today: () => cached(['today'], () => apiRequest<any>('/api/v1/me/briefings/today')),
+  history: (limit = 20, cursor?: string) => cached(['history', limit, cursor || ''], () => apiRequest<BriefingHistoryPage>(`/api/v1/me/briefings?limit=${limit}${cursor ? `&cursor=${cursor}` : ''}`)),
   news: (limit = 20, filters: { query?: string; topic?: string; discovery?: boolean } = {}) => {
     const params = new URLSearchParams({ limit: String(limit) });
     if (filters.query) params.set('q', filters.query);
     if (filters.topic) params.set('topic', filters.topic);
     if (filters.discovery) params.set('discovery', 'true');
-    return apiRequest<{ items: BriefingItem[] }>(`/api/v1/me/news?${params.toString()}`);
+    return cached(['news', params.toString()], () => apiRequest<{ items: BriefingItem[] }>(`/api/v1/me/news?${params.toString()}`));
   },
+  // scope 'explore': the Explore card, for everyone; default: only for people who follow football.
+  football: (scope?: 'explore') => cached(['football-v2', scope || 'followed'], () => apiRequest<FootballOverview>(`/api/v1/me/football${scope ? `?scope=${scope}` : ''}`)),
+  subscription: () => apiRequest<Subscription>('/api/v1/me/subscription'),
+  footballStandings: (code: string) => cached(['football-standings', code], () => apiRequest<FootballStandings>(`/api/v1/me/football/standings/${encodeURIComponent(code)}`)),
+  story: (storyId: string) => cached(['story', storyId], () => apiRequest<{ item: BriefingItem }>(`/api/v1/me/news/${encodeURIComponent(storyId)}`)),
   savedStories: () => apiRequest<{ items: BriefingItem[] }>('/api/v1/me/saved'),
-  savedOverview: () => apiRequest<SavedOverview>('/api/v1/me/saved/overview'),
+  savedOverview: () => cached(['savedOverview'], () => apiRequest<SavedOverview>('/api/v1/me/saved/overview')),
   savedStoriesPage: (limit = 40, cursor?: string, topicId?: string) => { const params = new URLSearchParams({ limit: String(limit) }); if (cursor) params.set('cursor', cursor); if (topicId) params.set('topic', topicId); return apiRequest<SavedStoryPage>(`/api/v1/me/saved?${params.toString()}`); },
   saveReadingProgress: (storyId: string, progress: number) => apiRequest<{ status: string; progress: number }>(`/api/v1/me/saved/${encodeURIComponent(storyId)}/progress`, { method: 'PUT', body: JSON.stringify({ progress }) }),
   savedBriefings: () => apiRequest<{ items: Briefing[] }>('/api/v1/me/saved-briefings'),
@@ -101,8 +112,9 @@ export const api = {
   saveStory: (story: BriefingItem) => apiRequest<{ item: BriefingItem }>('/api/v1/me/saved', { method: 'PUT', body: JSON.stringify({ story }) }),
   removeSavedStory: (storyId: string) => apiRequest<{ status: string }>(`/api/v1/me/saved/${encodeURIComponent(storyId)}`, { method: 'DELETE' }),
   articleFeedback: (storyId: string, rating?: number) => apiRequest<{ rating: number | null; updated_at: string | null }>(`/api/v1/me/articles/${encodeURIComponent(storyId)}/feedback`, rating === undefined ? undefined : { method: 'PUT', body: JSON.stringify({ rating }) }),
-  briefing: (id: string) => apiRequest<any>(`/api/v1/me/briefings/${encodeURIComponent(id)}`),
-  audio: async (id: string) => { const result = await apiRequest<AudioMetadata>(`/api/v1/me/briefings/${encodeURIComponent(id)}/audio`); return result.audio_url && !/^https?:\/\//i.test(result.audio_url) ? { ...result, audio_url: `${API_BASE_URL}${result.audio_url}` } : result; },
+  briefing: (id: string) => cached(['briefing', id], () => apiRequest<any>(`/api/v1/me/briefings/${encodeURIComponent(id)}`)),
+  // Cached too: offline, the player still finds the audio URL and plays the file already on disk.
+  audio: (id: string) => cached(['audio', id], async () => { const result = await apiRequest<AudioMetadata>(`/api/v1/me/briefings/${encodeURIComponent(id)}/audio`); return result.audio_url && !/^https?:\/\//i.test(result.audio_url) ? { ...result, audio_url: `${API_BASE_URL}${result.audio_url}` } : result; }),
   saveBriefingListeningProgress: (id: string, progressSeconds: number, durationSeconds: number) => apiRequest<{ status: string; completed: boolean }>(`/api/v1/me/briefings/${encodeURIComponent(id)}/progress`, { method: 'PUT', body: JSON.stringify({ progress_seconds: progressSeconds, duration_seconds: durationSeconds }) }),
   retryDeliveryAudio: (id: string) => apiRequest<any>(`/api/v1/me/briefings/${encodeURIComponent(id)}/audio/retry`, { method: 'POST' }),
   audioVoices: async () => { const catalog = await apiRequest<AudioVoiceCatalog>('/api/v1/me/audio/voices'); return { ...catalog, voices: catalog.voices.map(voice => ({ ...voice, preview_url: `${API_BASE_URL}${voice.preview_url}` })) }; },

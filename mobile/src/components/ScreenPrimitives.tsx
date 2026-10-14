@@ -1,17 +1,21 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, elevation, radius, spacing, typography } from '../theme';
+import { elevation, radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 
 export function BrandPage({ children, contentStyle }: { children: React.ReactNode; contentStyle?: object }) {
+  const s = useStyles(makeStyles);
+  const theme = useTheme();
   return <SafeAreaView style={s.safe}>
-    <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <StatusBar barStyle={theme.statusBar} backgroundColor={theme.colors.background} />
     <ScrollView contentContainerStyle={[s.content, contentStyle]} keyboardShouldPersistTaps="handled">{children}</ScrollView>
   </SafeAreaView>;
 }
 
 export function BrandPageHeader({ title, subtitle, onBack }: { title: string; subtitle?: string; onBack: () => void }) {
+  const s = useStyles(makeStyles);
+  const { colors } = useTheme();
   return <View style={s.header}>
     <Pressable accessibilityRole="button" accessibilityLabel="Voltar" hitSlop={8} onPress={onBack} style={s.back}>
       <View style={{ transform: [{ rotate: '180deg' }] }}><Icon name="chevron" color={colors.textPrimary} size={21} /></View>
@@ -24,16 +28,20 @@ export function BrandPageHeader({ title, subtitle, onBack }: { title: string; su
 }
 
 export function SettingsCard({ children, style }: { children: React.ReactNode; style?: object }) {
+  const s = useStyles(makeStyles);
   return <View style={[s.card, style]}>{children}</View>;
 }
 
 export function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const s = useStyles(makeStyles);
   return <View style={s.section}><Text accessibilityRole="header" style={s.sectionTitle}>{title}</Text>{children}</View>;
 }
 
 export function ScreenState({ kind, title, message, onRetry }: {
   kind: 'loading' | 'empty' | 'error'; title: string; message?: string; onRetry?: () => void;
 }) {
+  const s = useStyles(makeStyles);
+  const { colors } = useTheme();
   return <View style={s.state}>
     {kind === 'loading' && <ActivityIndicator accessibilityLabel={title} color={colors.primary} size="large" />}
     {kind !== 'loading' && <Text accessibilityRole={kind === 'error' ? 'alert' : undefined} style={s.stateTitle}>{title}</Text>}
@@ -44,7 +52,7 @@ export function ScreenState({ kind, title, message, onRetry }: {
   </View>;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xxxl },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl, minHeight: 56 },
@@ -59,5 +67,5 @@ const s = StyleSheet.create({
   stateTitle: { color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontSize: typography.h3, lineHeight: 24, fontWeight: '800', textAlign: 'center' },
   stateMessage: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: typography.bodySmall, lineHeight: 20, textAlign: 'center' },
   retry: { minHeight: 46, minWidth: 150, borderRadius: radius.pill, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.lg },
-  retryText: { color: colors.surface, fontFamily: typography.fontFamily.ui, fontSize: typography.bodySmall, fontWeight: '700' },
+  retryText: { color: colors.onPrimary, fontFamily: typography.fontFamily.ui, fontSize: typography.bodySmall, fontWeight: '700' },
 });

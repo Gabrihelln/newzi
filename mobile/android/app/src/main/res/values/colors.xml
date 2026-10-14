@@ -1,3 +1,5 @@
 <resources>
     <color name="ic_launcher_background">#061E39</color>
+    <!-- Window and navigation bar; values-night holds the dark-mode values. -->
+    <color name="app_background">#F7FBFF</color>
 </resources>

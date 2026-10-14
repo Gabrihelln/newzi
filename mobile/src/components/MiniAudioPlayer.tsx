@@ -3,7 +3,7 @@ import { Animated, Image, PanResponder, Pressable, Text, View } from 'react-nati
 import { dismissMiniAudio, getAudioProgress, pauseAudio, playAudio, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
 import type { Briefing } from '../types/api';
-import { colors, radius, spacing, typography } from '../theme';
+import { radius, spacing, typography, useTheme } from '../theme';
 import { Icon } from './Icon';
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
@@ -13,6 +13,7 @@ const CLOSE_SIZE = 26;
 const CLOSE_OFFSET = CLOSE_SIZE / 2;
 
 export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) => void }) {
+  const { colors } = useTheme();
   const [session, setSession] = useState<AudioContext | null>(null);
   const [playback, setPlayback] = useState<PlaybackState | null>(null);
   const translateY = useRef(new Animated.Value(0)).current;
@@ -57,14 +58,14 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
   // The close control sits on the card's top-right corner, half outside the card but inside this
   // container's bounds: Android does not deliver touches to children drawn outside their parent.
   return <Animated.View {...panResponder.panHandlers} style={{ width: '92%', maxWidth: 520, alignSelf: 'center', paddingTop: CLOSE_OFFSET, paddingHorizontal: CLOSE_OFFSET, marginBottom: spacing.xs, overflow: 'visible', zIndex: 20, elevation: 20, transform: [{ translateY }] }}>
-    <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, minHeight: 94, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, shadowColor: '#496B99', shadowOpacity: .14, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 }}>
+    <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, minHeight: 94, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, shadowColor: colors.shadow.color, shadowOpacity: .14, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Expandir player do briefing" onPress={() => onExpand(session.briefing)}
         style={{ flex: 1, minHeight: 66, flexDirection: 'row', alignItems: 'center' }}>
         <Image source={cover} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 58, height: 58, borderRadius: radius.md, marginRight: spacing.md }} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
         <Text numberOfLines={1} style={{ color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontWeight: '800', fontSize: 15 }}>Seu briefing diário</Text>
         <Text numberOfLines={1} style={{ color: colors.secondary, fontSize: 12, marginTop: 4 }}>{date} · {clock(playback.position)} / {clock(playback.duration)}</Text>
-        <View style={{ height: 4, backgroundColor: '#DBE7F4', borderRadius: 3, marginTop: 8, overflow: 'hidden' }}><View style={{ width: `${progress * 100}%`, height: 4, backgroundColor: colors.primary, borderRadius: 3 }} /></View>
+        <View style={{ height: 4, backgroundColor: colors.track, borderRadius: 3, marginTop: 8, overflow: 'hidden' }}><View style={{ width: `${progress * 100}%`, height: 4, backgroundColor: colors.primary, borderRadius: 3 }} /></View>
         </View>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={playback.playing ? 'Pausar áudio' : 'Reproduzir áudio'}
@@ -75,7 +76,7 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
       </Pressable>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel="Fechar mini player" accessibilityHint="Pausa o áudio e mantém o progresso" onPress={() => requestDismiss()}
-      hitSlop={{ top: 6, right: 6, bottom: 12, left: 12 }} style={({ pressed }) => ({ position: 'absolute', top: 0, right: 0, width: CLOSE_SIZE, height: CLOSE_SIZE, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: '#496B99', shadowOpacity: .22, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 10, zIndex: 30, opacity: pressed ? .7 : 1 })}>
+      hitSlop={{ top: 6, right: 6, bottom: 12, left: 12 }} style={({ pressed }) => ({ position: 'absolute', top: 0, right: 0, width: CLOSE_SIZE, height: CLOSE_SIZE, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.shadow.color, shadowOpacity: .22, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 10, zIndex: 30, opacity: pressed ? .7 : 1 })}>
       <Icon name="close" color={colors.textPrimary} size={13} />
     </Pressable>
   </Animated.View>;

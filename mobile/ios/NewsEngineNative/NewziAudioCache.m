@@ -62,6 +62,24 @@ RCT_EXPORT_METHOD(download:(NSString *)url
   }] resume];
 }
 
+// Path of an already downloaded file, or nil: lets playback start from disk (offline) or stream.
+RCT_EXPORT_METHOD(cachedPath:(NSString *)url
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  NSString *directory = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject stringByAppendingPathComponent:@"newzi-audio"];
+  NSString *key = NewziAudioKey(url);
+  for (NSString *extension in @[@"wav", @"mp3", @"m4a", @"aac"]) {
+    NSString *cached = [directory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.%@", key, extension]];
+    NSDictionary *attributes = [[NSFileManager defaultManager] attributesOfItemAtPath:cached error:nil];
+    if ([attributes[NSFileSize] unsignedLongLongValue] > 0) {
+      resolve(cached);
+      return;
+    }
+  }
+  resolve([NSNull null]);
+}
+
 RCT_EXPORT_METHOD(savePosition:(NSString *)url seconds:(nonnull NSNumber *)seconds)
 {
   [[NSUserDefaults standardUserDefaults] setDouble:seconds.doubleValue forKey:[@"newzi-audio-" stringByAppendingString:NewziAudioKey(url)]];

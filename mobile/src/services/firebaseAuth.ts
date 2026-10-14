@@ -95,12 +95,12 @@ export function friendlyFirebaseAuthError(error: unknown) {
     'auth/user-not-found': 'Não encontramos uma conta com este e-mail.',
     'auth/user-disabled': 'Esta conta está desativada.',
     'auth/account-exists-with-different-credential': 'Este e-mail já usa outro método de acesso.',
-    'auth/operation-not-allowed': 'Este método de acesso ainda não está habilitado no Firebase.',
+    'auth/operation-not-allowed': 'Este método de acesso não está disponível no momento.',
     'auth/popup-closed-by-user': 'A autenticação foi cancelada.',
     'auth/web-context-cancelled': 'A autenticação foi cancelada.',
   };
-  if (error instanceof Error && error.message === 'GOOGLE_SIGN_IN_NOT_CONFIGURED') return 'O acesso com Google precisa ser configurado neste build.';
+  if (error instanceof Error && error.message === 'GOOGLE_SIGN_IN_NOT_CONFIGURED') return 'O acesso com Google não está disponível no momento.';
   if (error instanceof Error && error.message === 'AUTH_CANCELLED') return 'A autenticação foi cancelada.';
-  if (error instanceof Error && error.message === 'GOOGLE_ID_TOKEN_MISSING') return 'Não foi possível obter o token do Google. Confira a configuração do Firebase.';
+  if (error instanceof Error && error.message === 'GOOGLE_ID_TOKEN_MISSING') return 'Não foi possível entrar com o Google. Tente novamente.';
   return messages[code] || 'Não foi possível concluir a operação. Tente novamente.';
 }

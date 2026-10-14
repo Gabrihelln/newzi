@@ -1,0 +1,4 @@
+<resources>
+    <!-- Dark icons on the navigation bar over the light background; false in values-night. -->
+    <bool name="light_system_bars">true</bool>
+</resources>

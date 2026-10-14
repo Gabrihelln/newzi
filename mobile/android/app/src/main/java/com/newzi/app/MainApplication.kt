@@ -24,8 +24,10 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel = NotificationChannel("daily_briefing", "Briefing diário", NotificationManager.IMPORTANCE_DEFAULT)
-      getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+      // One channel per push kind (the backend picks it), so each can be muted in Android settings.
+      val manager = getSystemService(NotificationManager::class.java)
+      manager.createNotificationChannel(NotificationChannel("daily_briefing", "Briefing diário", NotificationManager.IMPORTANCE_DEFAULT))
+      manager.createNotificationChannel(NotificationChannel("breaking_news", "Notícias urgentes", NotificationManager.IMPORTANCE_HIGH))
     }
     loadReactNative(this)
   }

@@ -1,18 +1,42 @@
 import { NativeModules } from 'react-native';
-import Sound from 'react-native-sound';
+import type { OnBufferData, OnLoadData, OnPlaybackStateChangedData, OnProgressData, VideoRef } from 'react-native-video';
 import { api } from '../api/client';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
 import type { AudioMetadata, Briefing } from '../types/api';
 
-// iOS: the Playback session keeps the briefing audible with the screen locked (with
-// UIBackgroundModes=audio in Info.plist) and when the silent switch is on.
-// Android: media volume stream, and other apps' audio yields while the briefing plays.
-Sound.setCategory('Playback');
+// Playback runs in one native media player (react-native-video: Media3 on Android, AVPlayer on iOS),
+// rendered invisibly by <AudioEngine /> at the app root. It shows lock-screen and notification
+// controls, answers headset/Bluetooth/car buttons, and keeps playing in the background.
+// A briefing already on disk plays from the file (also offline); otherwise it streams with the
+// session token, so playback starts before the download finishes, and is cached for next time.
 
 export type PlaybackState = { position: number; duration: number; playing: boolean; paused: boolean; ended: boolean; buffering: boolean; loaded: boolean; started?: boolean; speed?: number };
 export type AudioContext = { url: string; briefing: Briefing; metadata: AudioMetadata };
+export type EngineSource = { key: number; uri: string; headers?: Record<string, string>; title: string };
+export type EngineSnapshot = { source: EngineSource | null; paused: boolean; rate: number };
 
-let current: Sound | null = null;
+type AudioCache = {
+  cachedPath?: (url: string) => Promise<string | null>;
+  download?: (url: string, token: string) => Promise<string>;
+  savePosition?: (url: string, seconds: number) => void;
+  getPosition?: (url: string) => Promise<number>;
+  clear?: () => void;
+};
+const cache = (): AudioCache => (NativeModules.NewziAudioCache || {}) as AudioCache;
+
+const LOAD_TIMEOUT_MS = 30000;
+// A brief "not playing" also happens while the stream buffers; only a lasting one is a user pause.
+const EXTERNAL_PAUSE_DELAY_MS = 700;
+
+let engine: VideoRef | null = null;
+let snapshot: EngineSnapshot = { source: null, paused: true, rate: 1 };
+const engineListeners = new Set<() => void>();
+let sourceSeq = 0;
+let pendingLoad: { key: number; startAt: number; startRatio?: number; resumePlaying?: boolean; resolve: () => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> } | null = null;
+let nativeBuffering = false;
+let nativePlaying = false;
+let externalPauseTimer: ReturnType<typeof setTimeout> | undefined;
+
 let currentUrl: string | null = null;
 let loadingUrl: string | null = null;
 let loadingPromise: Promise<void> | null = null;
@@ -38,25 +62,113 @@ export function sameBriefing(a: Briefing | null | undefined, b: Briefing | null 
 
 function briefingKey(briefing: Briefing) { return briefing.delivery_id || briefing.id || briefing.edition_id || ''; }
 
+export function briefingAudioTitle(briefing: Briefing | null | undefined) {
+  const [year, month, day] = String(briefing?.date || '').split('-');
+  return day && month && year ? `Briefing de ${day}/${month}` : 'Briefing do dia';
+}
+
 function update(patch: Partial<PlaybackState>) {
   state = { ...state, ...patch };
   listeners.forEach(listener => listener(state));
 }
 
-/** Mark playback of `sound` as finished; safe to call from both the native completion callback and progress polling. */
-function finishPlayback(sound: Sound, success: boolean) {
-  if (current !== sound || !state.playing) return;
-  update({ playing: false, paused: !success, ended: success, started: false, position: success ? state.duration : state.position });
-  if (success) persistBriefingProgress(state.duration, state.duration, true);
-  if (success && currentUrl) NativeModules.NewziAudioCache?.savePosition?.(currentUrl, 0);
+// ---------------------------------------------------------------- engine bridge (used by <AudioEngine />)
+function setEngine(patch: Partial<EngineSnapshot>) {
+  snapshot = { ...snapshot, ...patch };
+  engineListeners.forEach(listener => listener());
+}
+export function subscribeEngine(listener: () => void) { engineListeners.add(listener); return () => { engineListeners.delete(listener); }; }
+export function getEngineSnapshot() { return snapshot; }
+export function attachEngine(ref: VideoRef | null) { engine = ref; }
+
+function isCurrent(key: number) { return snapshot.source?.key === key; }
+
+export function onEngineLoad(key: number, data: OnLoadData) {
+  if (!isCurrent(key)) return;
+  const duration = data.duration || 0;
+  const load = pendingLoad && pendingLoad.key === key ? pendingLoad : null;
+  let position = load?.startRatio != null ? duration * load.startRatio : load?.startAt || 0;
+  position = position > 0 && position < duration - 1 ? position : 0;
+  if (position) engine?.seek(position);
+  nativeBuffering = false;
+  update({ position, duration, buffering: false, loaded: true, ended: false });
+  if (load) {
+    clearTimeout(load.timer);
+    pendingLoad = null;
+    if (load.resumePlaying) startPlayback();
+    load.resolve();
+  }
+}
+
+export function onEngineError(key: number, error: unknown) {
+  if (!isCurrent(key)) return;
+  const message = typeof error === 'object' && error ? JSON.stringify(error).slice(0, 200) : String(error);
+  if (pendingLoad && pendingLoad.key === key) {
+    clearTimeout(pendingLoad.timer);
+    pendingLoad.reject(new Error(`audio failed to load: ${message}`));
+    pendingLoad = null;
+    return;
+  }
+  setEngine({ paused: true });
+  update({ playing: false, paused: true, buffering: false });
+}
+
+export function onEngineProgress(key: number, data: OnProgressData) {
+  if (!isCurrent(key) || pendingLoad) return;
+  const duration = state.duration || data.seekableDuration || 0;
+  update({ position: data.currentTime, duration });
+  persistBriefingProgress(data.currentTime, duration);
+  if (currentUrl && Date.now() - lastSavedAt > 5000) {
+    cache().savePosition?.(currentUrl, data.currentTime);
+    lastSavedAt = Date.now();
+  }
+}
+
+export function onEngineEnd(key: number) {
+  if (!isCurrent(key)) return;
+  finishPlayback();
+}
+
+export function onEngineBuffer(key: number, data: OnBufferData) {
+  if (!isCurrent(key)) return;
+  nativeBuffering = data.isBuffering;
+  update({ buffering: data.isBuffering });
+}
+
+/** Reconcile pauses and plays issued outside the app: lock screen, notification, headset, car. */
+export function onEnginePlaybackStateChanged(key: number, data: OnPlaybackStateChangedData) {
+  if (!isCurrent(key) || pendingLoad) return;
+  nativePlaying = data.isPlaying;
+  if (externalPauseTimer) { clearTimeout(externalPauseTimer); externalPauseTimer = undefined; }
+  if (data.isSeeking) return;
+  if (data.isPlaying && !state.playing && state.loaded) {
+    setEngine({ paused: false });
+    update({ playing: true, paused: false, ended: false, started: true });
+  } else if (!data.isPlaying && state.playing) {
+    externalPauseTimer = setTimeout(() => {
+      externalPauseTimer = undefined;
+      if (!isCurrent(key) || nativePlaying || nativeBuffering || !state.playing) return;
+      if (state.duration > 0 && state.position >= state.duration - 1) { finishPlayback(); return; }
+      pauseAudio();
+    }, EXTERNAL_PAUSE_DELAY_MS);
+  }
+}
+
+// ---------------------------------------------------------------- playback
+function finishPlayback() {
+  if (externalPauseTimer) { clearTimeout(externalPauseTimer); externalPauseTimer = undefined; }
+  setEngine({ paused: true });
+  update({ playing: false, paused: false, ended: true, started: false, position: state.duration });
+  persistBriefingProgress(state.duration, state.duration, true);
+  if (currentUrl) cache().savePosition?.(currentUrl, 0);
 }
 
 function persistBriefingProgress(position: number, duration: number, force = false) {
-  const briefingId=audioContext?.briefing?.delivery_id || audioContext?.briefing?.id;
-  if (!briefingId || !Number.isFinite(position) || !Number.isFinite(duration) || duration<=0) return Promise.resolve();
-  if (!force && Date.now()-lastProgressSyncAt<15000) return Promise.resolve();
-  lastProgressSyncAt=Date.now();
-  return api.saveBriefingListeningProgress(briefingId,Math.max(0,Math.min(position,duration)),duration).catch(()=>undefined);
+  const briefingId = audioContext?.briefing?.delivery_id || audioContext?.briefing?.id;
+  if (!briefingId || !Number.isFinite(position) || !Number.isFinite(duration) || duration <= 0) return Promise.resolve();
+  if (!force && Date.now() - lastProgressSyncAt < 15000) return Promise.resolve();
+  lastProgressSyncAt = Date.now();
+  return api.saveBriefingListeningProgress(briefingId, Math.max(0, Math.min(position, duration)), duration).catch(() => undefined);
 }
 
 export function subscribeAudio(listener: (state: PlaybackState) => void) {
@@ -76,17 +188,115 @@ export function getAudioContext() { return audioContext; }
 export function setAudioContext(url: string, briefing: Briefing, metadata: AudioMetadata) {
   if (currentUrl !== url) return;
   const readyVariant = readyVoiceVariant;
-  if (readyVariant && readyVariant.briefingId === briefingKey(briefing) && metadata.voice !== readyVariant.voice) {
-    audioContext = { url, briefing, metadata };
-    contextListeners.forEach(listener => listener(audioContext));
-    void switchAudioVariant(readyVariant.url, readyVariant.briefing, readyVariant.metadata);
-    return;
-  }
   audioContext = { url, briefing, metadata };
   contextListeners.forEach(listener => listener(audioContext));
+  if (readyVariant && readyVariant.briefingId === briefingKey(briefing) && metadata.voice !== readyVariant.voice) {
+    void switchAudioVariant(readyVariant.url, readyVariant.briefing, readyVariant.metadata);
+  }
 }
 
-/** Switch a loaded briefing to a validated voice variant without losing its global playback position. */
+/** Source for a briefing URL: the downloaded file when there is one, else the authenticated stream. */
+async function resolveSource(url: string) {
+  const local = await cache().cachedPath?.(url).catch(() => null);
+  if (local) return { uri: local.startsWith('file://') ? local : `file://${local}` };
+  const token = await getFirebaseIdToken();
+  if (!token) throw new Error('authentication required for audio');
+  // Download in the background so the next play (or one without network) comes from disk.
+  cache().download?.(url, token).catch(() => undefined);
+  return { uri: url, headers: { Authorization: `Bearer ${token}` } };
+}
+
+function openSource(url: string, resolved: { uri: string; headers?: Record<string, string> }, title: string,
+  options: { startAt?: number; startRatio?: number; resumePlaying?: boolean } = {}) {
+  if (pendingLoad) { clearTimeout(pendingLoad.timer); pendingLoad.reject(new Error('audio load superseded')); pendingLoad = null; }
+  const key = ++sourceSeq;
+  nativeBuffering = true; nativePlaying = false;
+  currentUrl = url;
+  const loaded = new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      if (pendingLoad?.key !== key) return;
+      pendingLoad = null;
+      reject(new Error('audio load timed out'));
+    }, LOAD_TIMEOUT_MS);
+    pendingLoad = { key, startAt: options.startAt || 0, startRatio: options.startRatio, resumePlaying: options.resumePlaying, resolve, reject, timer };
+  });
+  setEngine({ source: { key, ...resolved, title }, paused: true });
+  return loaded;
+}
+
+export async function loadAudio(url: string, title = 'Briefing do dia') {
+  if (!/^https?:\/\//i.test(url)) throw new Error('invalid audio URL');
+  if (currentUrl === url && snapshot.source && state.loaded) return;
+  if (loadingUrl === url && loadingPromise) return loadingPromise;
+  loadingUrl = url;
+  update({ buffering: true });
+  loadingPromise = (async () => {
+    const resolved = await resolveSource(url);
+    const saved = await cache().getPosition?.(url).catch(() => 0) || 0;
+    audioContext = null;
+    contextListeners.forEach(listener => listener(null));
+    update({ position: 0, duration: 0, playing: false, paused: false, ended: false, loaded: false, started: false });
+    await openSource(url, resolved, title, { startAt: saved });
+  })();
+  try { await loadingPromise; }
+  catch (error) { update({ buffering: false, loaded: false }); throw error; }
+  finally { loadingUrl = null; loadingPromise = null; }
+}
+
+function startPlayback() {
+  if (state.ended) { engine?.seek(0); update({ position: 0 }); }
+  setEngine({ paused: false });
+  update({ playing: true, paused: false, ended: false, started: true });
+}
+
+export function playAudio(): Promise<void> {
+  if (!snapshot.source || !state.loaded) return Promise.reject(new Error('audio not loaded'));
+  startPlayback();
+  return Promise.resolve();
+}
+
+export function pauseAudio() {
+  if (externalPauseTimer) { clearTimeout(externalPauseTimer); externalPauseTimer = undefined; }
+  setEngine({ paused: true });
+  update({ playing: false, paused: true });
+  persistBriefingProgress(state.position, state.duration, true);
+  if (currentUrl) cache().savePosition?.(currentUrl, state.position);
+}
+
+/** Dismiss the mini player while keeping the same briefing and resume position. */
+export async function dismissMiniAudio() {
+  setEngine({ paused: true });
+  update({ playing: false, paused: true, started: false, ended: false });
+  await Promise.all([
+    persistBriefingProgress(state.position, state.duration, true),
+    currentUrl ? Promise.resolve(cache().savePosition?.(currentUrl, state.position)).catch(() => undefined) : Promise.resolve(),
+  ]);
+}
+
+export function setPlaybackSpeed(speed: number) {
+  if (![0.75, 1, 1.25, 1.5, 2].includes(speed)) return;
+  setEngine({ rate: speed });
+  update({ speed });
+}
+
+export function seekTo(seconds: number) {
+  if (!snapshot.source) return;
+  const position = Math.max(0, Math.min(seconds, state.duration || seconds));
+  engine?.seek(position);
+  update({ position, ended: false });
+  if (currentUrl) cache().savePosition?.(currentUrl, position);
+}
+
+export async function seekAudio(offset: number) { seekTo(state.position + offset); }
+
+export function restartAudio() { seekTo(0); }
+
+/** Current playback state; the native player reports position through progress events. */
+export function getAudioProgress(): Promise<PlaybackState> { return Promise.resolve(state); }
+
+export const isPlaying = async () => state.playing;
+
+/** Switch a loaded briefing to a validated voice variant without losing its relative playback position. */
 export async function switchAudioVariant(url: string, briefing: Briefing, metadata: AudioMetadata) {
   const existingContext = audioContext;
   const key = briefingKey(briefing);
@@ -99,53 +309,19 @@ export async function switchAudioVariant(url: string, briefing: Briefing, metada
   }
   const run = ++variantSwitchRun;
   const oldUrl = currentUrl;
-  let replacement: Sound | null = null;
   try {
-    const token = await getFirebaseIdToken();
-    if (!token) throw new Error('authentication required for audio');
-    const cache = NativeModules.NewziAudioCache as { download: (url: string, token: string) => Promise<string> } | undefined;
-    if (!cache?.download) throw new Error('native audio cache unavailable; rebuild the app');
-    const localPath = await cache.download(url, token);
-    replacement = await new Promise<Sound>((resolve, reject) => {
-      const value = new Sound(localPath, '', error => error ? reject(error) : resolve(value));
-    });
-    if (run !== variantSwitchRun || currentUrl !== oldUrl || audioContext !== existingContext) {
-      replacement.release();
-      return;
-    }
-    const before = await getAudioProgress();
-    if (run !== variantSwitchRun || currentUrl !== oldUrl || audioContext !== existingContext) {
-      replacement.release();
-      return;
-    }
-    const normalizedProgress = before.duration > 0 ? Math.max(0, Math.min(1, before.position / before.duration)) : 0;
-    const wasPlaying = before.playing;
-    const wasPaused = before.paused;
-    const wasStarted = Boolean(before.started);
-    const speed = before.speed || 1;
-    const old = current;
-    const duration = replacement.getDuration();
-    const position = Math.max(0, Math.min(duration, duration * normalizedProgress));
-    if (position) replacement.setCurrentTime(position);
-    current = replacement;
-    currentUrl = url;
+    const resolved = await resolveSource(url);
+    if (run !== variantSwitchRun || currentUrl !== oldUrl || audioContext !== existingContext) return;
+    const ratio = state.duration > 0 ? Math.max(0, Math.min(1, state.position / state.duration)) : 0;
+    const wasPlaying = state.playing;
     audioContext = { url, briefing, metadata };
     readyVoiceVariant = null;
-    old?.pause();
-    old?.release();
     contextListeners.forEach(listener => listener(audioContext));
-    update({ position, duration, playing: false, paused: wasPaused || (!wasPlaying && wasStarted), ended: normalizedProgress >= 1,
-      buffering: false, loaded: true, started: wasStarted, speed });
-    NativeModules.NewziAudioCache?.savePosition?.(url, position);
-    persistBriefingProgress(position, duration, true);
-    if (wasPlaying && normalizedProgress < 1) {
-      update({ playing: true, paused: false, ended: false, started: true });
-      replacement.play(success => finishPlayback(replacement!, success));
-      replacement.setSpeed(speed);
-    }
+    update({ playing: false, buffering: true });
+    await openSource(url, resolved, briefingAudioTitle(briefing), { startRatio: ratio, resumePlaying: wasPlaying && ratio < 1 });
+    persistBriefingProgress(state.position, state.duration, true);
   } catch {
-    replacement?.release();
-    // Keep the old valid artifact and playback session if downloading/loading the variant fails.
+    // Keep the previous context when the variant cannot be loaded; the user can retry from the player.
   }
 }
 
@@ -182,116 +358,10 @@ export function syncSelectedBriefingVoice(briefing: Briefing, voice: string) {
   void poll();
 }
 
-export async function loadAudio(url: string) {
-  if (!/^https?:\/\//i.test(url)) throw new Error('invalid audio URL');
-  if (current && currentUrl === url) return;
-  if (loadingUrl === url && loadingPromise) return loadingPromise;
-  loadingUrl = url;
-  update({ buffering: true });
-  loadingPromise = (async () => {
-    const token = await getFirebaseIdToken();
-    if (!token) throw new Error('authentication required for audio');
-    const cache = NativeModules.NewziAudioCache as { download: (url: string, token: string) => Promise<string> } | undefined;
-    if (!cache?.download) throw new Error('native audio cache unavailable; rebuild the app');
-    const localPath = await cache.download(url, token);
-    const sound = await new Promise<Sound>((resolve, reject) => {
-      const value = new Sound(localPath, '', error => error ? reject(error) : resolve(value));
-    });
-    if (currentUrl !== url) {
-      current?.pause();
-      current?.release();
-      current = sound;
-      currentUrl = url;
-      audioContext = null;
-      contextListeners.forEach(listener => listener(null));
-      const saved = await (NativeModules.NewziAudioCache as { getPosition?: (url: string) => Promise<number> })
-        .getPosition?.(url).catch(() => 0) || 0;
-      const position = saved < sound.getDuration() - 1 ? saved : 0;
-      if (position) sound.setCurrentTime(position);
-      update({ position, duration: sound.getDuration(), playing: false, paused: false,
-        ended: false, buffering: false, loaded: true, started: false });
-    } else {
-      sound.release();
-    }
-  })();
-  try { await loadingPromise; }
-  catch (error) { update({ buffering: false, loaded: Boolean(current) }); throw error; }
-  finally { loadingUrl = null; loadingPromise = null; }
-}
-
-export function playAudio(): Promise<void> {
-  if (!current) return Promise.reject(new Error('audio not loaded'));
-  const sound = current;
-  if (state.ended) sound.setCurrentTime(0);
-  update({ playing: true, paused: false, ended: false, started: true });
-  sound.play(success => finishPlayback(sound, success));
-  // Apply speed only after play(): on Android, setPlaybackParams starts a paused MediaPlayer,
-  // which would make play() return early without registering the completion listener.
-  sound.setSpeed(state.speed || 1);
-  return Promise.resolve();
-}
-
-export function pauseAudio() {
-  current?.pause();
-  update({ playing: false, paused: true });
-  persistBriefingProgress(state.position,state.duration,true);
-  if (currentUrl) NativeModules.NewziAudioCache?.savePosition?.(currentUrl, state.position);
-}
-
-/** Dismiss the mini player while keeping the same briefing and resume position. */
-export async function dismissMiniAudio() {
-  const progress=await getAudioProgress();
-  current?.pause();
-  update({ playing:false,paused:true,started:false,ended:false });
-  await Promise.all([
-    persistBriefingProgress(progress.position,progress.duration,true),
-    currentUrl ? Promise.resolve(NativeModules.NewziAudioCache?.savePosition?.(currentUrl,progress.position)).catch(()=>undefined) : Promise.resolve(),
-  ]);
-}
-
-export function setPlaybackSpeed(speed: number) {
-  if (![0.75, 1, 1.25, 1.5, 2].includes(speed)) return;
-  if (state.playing) current?.setSpeed(speed);
-  update({ speed });
-}
-
-export function seekTo(seconds: number) {
-  if (!current) return;
-  const position = Math.max(0, Math.min(seconds, state.duration || current.getDuration()));
-  current.setCurrentTime(position);
-  update({ position, ended: false });
-  if (currentUrl) NativeModules.NewziAudioCache?.savePosition?.(currentUrl, position);
-}
-
-export async function seekAudio(offset: number) {
-  const progress = await getAudioProgress();
-  seekTo(progress.position + offset);
-}
-
-export function restartAudio() { seekTo(0); }
-
-export function getAudioProgress(): Promise<PlaybackState> {
-  if (!current) return Promise.resolve(state);
-  const sound = current;
-  return new Promise(resolve => sound.getCurrentTime((position, nativePlaying) => {
-    update({ position, duration: sound.getDuration() || state.duration });
-    // Fallback when the native completion callback is lost: the player stopped at the end of the track.
-    if (state.playing && nativePlaying === false && state.duration > 0 && position >= state.duration - 1) finishPlayback(sound, true);
-    persistBriefingProgress(position,current?.getDuration() || state.duration);
-    if (currentUrl && Date.now() - lastSavedAt > 5000) {
-      NativeModules.NewziAudioCache?.savePosition?.(currentUrl, position);
-      lastSavedAt = Date.now();
-    }
-    resolve(state);
-  }));
-}
-
-export const isPlaying = async () => state.playing;
-
 export function releaseAudio() {
-  current?.pause();
-  current?.release();
-  current = null;
+  if (pendingLoad) { clearTimeout(pendingLoad.timer); pendingLoad.reject(new Error('audio released')); pendingLoad = null; }
+  if (externalPauseTimer) { clearTimeout(externalPauseTimer); externalPauseTimer = undefined; }
+  setEngine({ source: null, paused: true, rate: 1 });
   currentUrl = null;
   audioContext = null;
   lastProgressSyncAt = 0;
@@ -301,5 +371,5 @@ export function releaseAudio() {
 
 export function clearCachedAudio() {
   releaseAudio();
-  NativeModules.NewziAudioCache?.clear?.();
+  cache().clear?.();
 }

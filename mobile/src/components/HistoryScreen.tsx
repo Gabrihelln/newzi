@@ -3,7 +3,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { api } from '../api/client';
 import { getAudioContext, subscribeAudioContext } from '../audio/player';
 import type { Briefing, BriefingItem } from '../types/api';
-import { colors, elevation, radius, spacing, typography } from '../theme';
+import {elevation, radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import { BrandPageHeader, ScreenState } from './ScreenPrimitives';
 import { Icon } from './Icon';
 import { ArticleImage } from './ArticleImage';
@@ -12,6 +12,9 @@ export function HistoryScreen({ onBack, onAudio }: {
   onBack: () => void;
   onAudio: (briefing: Briefing) => void;
 }) {
+  const s = useStyles(makeStyles);
+  const theme = useTheme();
+  const { colors } = theme;
   const [items, setItems] = useState<Briefing[]>([]);
   const [cursor, setCursor] = useState<string>();
   const [initialLoading, setInitialLoading] = useState(true);
@@ -87,7 +90,7 @@ export function HistoryScreen({ onBack, onAudio }: {
   />;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.huge, flexGrow: 1 },
   row: { minHeight: 92, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, marginBottom: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.shadow.color, shadowOpacity: colors.shadow.opacity, shadowRadius: colors.shadow.radius, shadowOffset: colors.shadow.offset, elevation: elevation.card },

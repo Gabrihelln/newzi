@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, NativeModules, Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
-import Sound from 'react-native-sound';
+import Video from 'react-native-video';
 import { api } from '../api/client';
 import { pauseAudio, syncSelectedBriefingVoice } from '../audio/player';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
 import type { AudioVoiceCatalog, Briefing, Preferences } from '../types/api';
-import { colors, radius, spacing, styles, typography } from '../theme';
+import { radius, spacing, typography, useBaseStyles, useTheme } from '../theme';
 import { Icon } from './Icon';
 
 export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; onSaved?: (id: string) => void }) {
+  const styles = useBaseStyles();
+  const { colors } = useTheme();
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [catalog, setCatalog] = useState<AudioVoiceCatalog | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -17,16 +19,14 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [message, setMessage] = useState('');
-  const sound = useRef<Sound | null>(null);
+  // The sample plays in its own short-lived player, separate from the briefing player.
+  const [previewSource, setPreviewSource] = useState<{ id: string; uri: string } | null>(null);
   const previewRun = useRef(0);
   const mounted = useRef(true);
 
   const stopPreview = () => {
     previewRun.current++;
-    sound.current?.pause();
-    sound.current?.release();
-    sound.current = null;
-    if (mounted.current) { setPreviewing(null); setPreviewLoading(null); }
+    if (mounted.current) { setPreviewSource(null); setPreviewing(null); setPreviewLoading(null); }
   };
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
       })
       .catch(() => { if (mounted.current) setMessage('Não foi possível carregar as vozes.'); })
       .finally(() => { if (mounted.current) setLoading(false); });
-    return () => { mounted.current = false; previewRun.current++; sound.current?.pause(); sound.current?.release(); sound.current = null; };
+    return () => { mounted.current = false; previewRun.current++; };
   }, []);
 
   const playPreview = async (id: string, url: string) => {
@@ -58,17 +58,8 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
       if (!cache?.download) throw new Error('audio cache unavailable');
       const path = await cache.download(url, token);
       if (previewRun.current !== run || !mounted.current) return;
-      const value = await new Promise<Sound>((resolve, reject) => {
-        const created = new Sound(path, '', error => error ? reject(error) : resolve(created));
-      });
-      if (previewRun.current !== run || !mounted.current) { value.release(); return; }
-      sound.current = value;
+      setPreviewSource({ id, uri: path.startsWith('file://') ? path : `file://${path}` });
       setPreviewing(id);
-      value.play(() => {
-        value.release();
-        if (sound.current === value) sound.current = null;
-        if (mounted.current && previewRun.current === run) setPreviewing(null);
-      });
     } catch {
       if (mounted.current && previewRun.current === run) setMessage('Não foi possível reproduzir o exemplo agora.');
     } finally {
@@ -140,5 +131,9 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
       </Pressable>
       {prefs?.audio_voice_id && <Text style={[styles.muted, { textAlign: 'center', marginTop: spacing.md, fontSize: 12 }]}>Sua escolha fica salva na sua conta.</Text>}
     </ScrollView>
+    {previewSource && <Video key={previewSource.id} source={{ uri: previewSource.uri }} paused={false} disableFocus={false}
+      onEnd={() => { if (mounted.current) { setPreviewSource(null); setPreviewing(null); } }}
+      onError={() => { if (mounted.current) { setPreviewSource(null); setPreviewing(null); setMessage('Não foi possível reproduzir o exemplo agora.'); } }}
+      style={{ position: 'absolute', width: 0, height: 0 }} />}
   </SafeAreaView>;
 }

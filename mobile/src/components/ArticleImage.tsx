@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Platform, StyleProp, View, ViewStyle } from 'react-native';
 import { API_BASE_URL } from '../config/env';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
-import { colors } from '../theme';
+import { useTheme } from '../theme';
 import { Icon } from './Icon';
 
 type Props = { uri?: string | null; articleId?: string; style?: StyleProp<ViewStyle>; accessibilityLabel?: string };
@@ -34,6 +34,7 @@ function needsWebpProxy(value?: string | null) {
 type LoadState = { key: string; token: string | null; loaded: boolean; failed: boolean };
 
 export function ArticleImage({ uri, articleId, style, accessibilityLabel = 'Imagem da notícia' }: Props) {
+  const { colors } = useTheme();
   const key = `${articleId || ''}|${uri || ''}`;
   const proxy = Platform.OS === 'ios' && needsWebpProxy(uri);
   const [state, setState] = useState<LoadState | null>(null);
@@ -60,7 +61,7 @@ export function ArticleImage({ uri, articleId, style, accessibilityLabel = 'Imag
   const imageUri = proxy && articleId ? `${apiBase}/api/v1/articles/${encodeURIComponent(articleId)}/image` : uri;
   const showImage = valid && Boolean(imageUri) && Boolean(current) && !current?.failed && (!proxy || Boolean(current?.token));
   const loading = valid && !current?.failed && (!current?.loaded || !current);
-  return <View accessible accessibilityLabel={accessibilityLabel} style={[{ overflow: 'hidden', backgroundColor: '#EAF3FB', alignItems: 'center', justifyContent: 'center' }, style]}>
+  return <View accessible accessibilityLabel={accessibilityLabel} style={[{ overflow: 'hidden', backgroundColor: colors.placeholder, alignItems: 'center', justifyContent: 'center' }, style]}>
     {showImage && imageUri
       ? <Image key={key} source={{ uri: imageUri, ...(current?.token ? { headers: { Authorization: `Bearer ${current.token}` } } : {}) }} onLoad={() => setState(value => value?.key === key ? { ...value, loaded: true } : value)} onError={() => setState(value => value?.key === key ? { ...value, failed: true } : value)} resizeMode="cover" accessibilityLabel={accessibilityLabel} style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} />
       : loading ? <ActivityIndicator accessibilityLabel="Carregando imagem da notícia" size="small" color={colors.secondary} /> : <Icon name="image" color={colors.secondary} size={24} />}

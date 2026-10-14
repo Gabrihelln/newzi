@@ -1,3 +1,4 @@
-// Local-only development override for the current physical Android device.
-// Replace this address for another network; production uses __NEWS_ENGINE_API_URL__.
-export const DEV_API_URL = 'http://192.168.2.10:8090';
+// Optional development override, e.g. 'http://192.168.0.10:8090' for a backend on another machine.
+// Leave it empty: development builds reach the API on the computer that serves the Metro bundle
+// (same address, port 8090), so a new Wi-Fi IP needs no change here.
+export const DEV_API_URL = '';

@@ -3,11 +3,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api/client';
 import { firebaseAuth } from '../services/firebaseAuth';
 import type { User } from '../types/api';
-import { colors, radius, spacing, typography } from '../theme';
+import {radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import { BrandPage, BrandPageHeader, ScreenState, SettingsCard, SettingsSection } from './ScreenPrimitives';
 import { Icon } from './Icon';
 
 export function AccountScreen({ onBack, onLogout, onEditProfile }: { onBack: () => void; onLogout: () => void; onEditProfile: () => void }) {
+  const s = useStyles(makeStyles);
+  const theme = useTheme();
+  const { colors } = theme;
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
 
@@ -54,10 +57,13 @@ export function AccountScreen({ onBack, onLogout, onEditProfile }: { onBack: () 
 }
 
 function Info({ label, value }: { label: string; value: string }) {
+  const s = useStyles(makeStyles);
+  const theme = useTheme();
+  const { colors } = theme;
   return <View style={s.info}><Text style={s.label}>{label}</Text><Text style={s.value}>{value}</Text></View>;
 }
 
-const s = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   info: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.surfaceSoft },
   label: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: typography.caption },
   value: { color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontSize: typography.body, lineHeight: 23, fontWeight: '600', marginTop: spacing.xs },

@@ -26,6 +26,19 @@ class NewziAudioCacheModule(private val context: ReactApplicationContext) : Reac
   private fun key(url: String): String = MessageDigest.getInstance("SHA-256")
     .digest(url.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
+  private fun cachedFile(url: String): File? {
+    val directory = File(context.cacheDir, "newzi-audio")
+    val key = key(url)
+    return listOf("wav", "mp3", "m4a", "aac").map { File(directory, "$key.$it") }
+      .firstOrNull { it.isFile && it.length() > 0 }
+  }
+
+  /** Path of an already downloaded file, or null: lets playback start from disk (offline) or stream. */
+  @ReactMethod
+  fun cachedPath(url: String, promise: Promise) {
+    promise.resolve(cachedFile(url)?.absolutePath)
+  }
+
   @ReactMethod
   fun download(url: String, token: String, promise: Promise) {
     executor.execute {
@@ -38,8 +51,7 @@ class NewziAudioCacheModule(private val context: ReactApplicationContext) : Reac
         val key = key(url)
         val directory = File(context.cacheDir, "newzi-audio")
         directory.mkdirs()
-        val cached = listOf("wav", "mp3", "m4a", "aac").map { File(directory, "$key.$it") }
-          .firstOrNull { it.isFile && it.length() > 0 }
+        val cached = cachedFile(url)
         if (cached != null) {
           promise.resolve(cached.absolutePath)
           return@execute
