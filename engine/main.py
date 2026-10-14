@@ -9,6 +9,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "engine" / "src"))
 sys.path.insert(0, str(PROJECT_ROOT / "backend" / "src"))
+if __name__ == "__main__":
+    # Like the API, the CLI and the worker read the repository-root .env (process variables win).
+    from newzi_backend.env import load_local_environment
+    load_local_environment()
 from newzi_engine.collectors.registry import load_sources, load_settings
 from newzi_engine.collectors.rss import RSSCollector
 from newzi_engine.images import enrich_missing_images
@@ -47,7 +51,10 @@ def collect_sources(no_network=False, incremental=False):
     else:
         health=store.get_source_health(); max_workers=max(1,int(settings.get("request",{}).get("max_concurrent_sources",6)))
         def fetch(source):
-            saved=health.get(source['id'],{}); open_until=saved.get('circuit_open_until')
+            saved=health.get(source['id'],{})
+            # A new feed URL starts clean: no circuit breaker or cache validators from the old address.
+            if json.loads(saved.get('last_metrics_json') or '{}').get('feed_url') not in (None,source['feed_url']): saved={}
+            open_until=saved.get('circuit_open_until')
             if open_until:
                 try:
                     if datetime.fromisoformat(open_until.replace('Z','+00:00'))>datetime.now(timezone.utc):
@@ -60,10 +67,7 @@ def collect_sources(no_network=False, incremental=False):
             futures=[pool.submit(fetch,source) for source in sources]
             for future in as_completed(futures): fetched.append(future.result())
         for source,batch,error,metrics,validators in fetched:
-            ok=not error
-            if metrics.get('status')=='BACKOFF': ok=False
-            if metrics.get('status')=='NOT_MODIFIED': ok=True
-            if metrics.get('status') not in ('BACKOFF',): store.save_source_result(source['id'],metrics,validators,error)
+            if metrics.get('status') not in ('BACKOFF',): store.save_source_result(source['id'],metrics,validators,error,feed_url=source['feed_url'])
             collected.extend(batch)
             results.append({"source_id":source['id'],"name":source['name'],"status":metrics.get('status','FAILED'),"duration_ms":int(metrics.get('duration_ms') or 0),"fetch_ms":int(metrics.get('fetch_ms') or 0),"ttfb_ms":int(metrics.get('ttfb_ms') or 0),"download_ms":int(metrics.get('download_ms') or 0),"parse_ms":int(metrics.get('parse_ms') or 0),"discovery_ms":int(metrics.get('discovery_ms') or 0),"response_bytes":int(metrics.get('response_bytes') or 0),"http_status":metrics.get('http_status'),"articles_seen":int(metrics.get('articles_seen') or 0),"articles_new":0,"newest_article":metrics.get('newest_article'),"error":error})
             logging.info("[COLLECT] %s: %s (%s, %sms)",source['name'],len(batch),error or 'OK',metrics.get('duration_ms',0))
@@ -182,65 +186,39 @@ def profile_source(source_id):
     timings['total_profile_ms']=round((time.perf_counter()-started)*1000,2); timings['source_id']=source_id; timings['source_name']=source['name']; timings['error']=error; print(json.dumps(timings,ensure_ascii=False,indent=2))
 
 if __name__ == "__main__":
-    parser=argparse.ArgumentParser(); parser.add_argument("--diagnostics",action="store_true"); parser.add_argument("--no-network",action="store_true"); parser.add_argument("--profile-source",metavar="SOURCE_ID"); parser.add_argument("--backfill-article-images",action="store_true"); parser.add_argument("--image-backfill-limit",type=int,default=100); parser.add_argument("--semantic-probe",action="store_true"); parser.add_argument("--semantic-evaluate",action="store_true"); parser.add_argument("--semantic-calibrate",action="store_true"); parser.add_argument("--semantic-hierarchical-evaluate",action="store_true"); parser.add_argument("--semantic-hierarchical-only",action="store_true"); parser.add_argument("--semantic-hybrid-evaluate",action="store_true"); parser.add_argument("--semantic-phase-23",action="store_true"); parser.add_argument("--semantic-phase-32",action="store_true"); parser.add_argument("--semantic-phase-321",action="store_true"); parser.add_argument("--semantic-phase-33",action="store_true"); parser.add_argument("--scheduler-once",action="store_true"); parser.add_argument("--worker-once",action="store_true"); parser.add_argument("--scheduler",action="store_true"); parser.add_argument("--worker",action="store_true"); parser.add_argument("--worker-batch",action="store_true"); parser.add_argument("--delivery-once",action="store_true"); parser.add_argument("--delivery-worker",action="store_true"); parser.add_argument("--taxonomy-health",action="store_true"); parser.add_argument("--briefing-health",action="store_true"); parser.add_argument("--briefing-diagnostic",metavar="DELIVERY_OR_USER_ID"); args=parser.parse_args()
+    parser=argparse.ArgumentParser(); parser.add_argument("--diagnostics",action="store_true"); parser.add_argument("--no-network",action="store_true"); parser.add_argument("--profile-source",metavar="SOURCE_ID"); parser.add_argument("--backfill-article-images",action="store_true"); parser.add_argument("--image-backfill-limit",type=int,default=100); parser.add_argument("--scheduler-once",action="store_true"); parser.add_argument("--worker-once",action="store_true"); parser.add_argument("--scheduler",action="store_true"); parser.add_argument("--worker",action="store_true"); parser.add_argument("--worker-batch",action="store_true"); parser.add_argument("--delivery-once",action="store_true"); parser.add_argument("--delivery-worker",action="store_true"); parser.add_argument("--roles",default=None,help="worker roles to run, e.g. news,audio (default: WORKER_ROLES or all)"); parser.add_argument("--taxonomy-health",action="store_true"); parser.add_argument("--briefing-health",action="store_true"); parser.add_argument("--source-health",action="store_true"); parser.add_argument("--briefing-diagnostic",metavar="DELIVERY_OR_USER_ID"); args=parser.parse_args()
     if args.profile_source: profile_source(args.profile_source); raise SystemExit(0)
     if args.backfill_article_images:
         print(json.dumps(backfill_article_images(args.image_backfill_limit),ensure_ascii=False,indent=2)); raise SystemExit(0)
+    if args.source_health:
+        from newzi_backend.product_backend import ProductRepository
+        from newzi_backend.source_health import source_health_report
+        print(json.dumps(source_health_report(ProductRepository()),ensure_ascii=False,indent=2)); raise SystemExit(0)
     if args.briefing_health or args.briefing_diagnostic:
         from newzi_backend.product_backend import ProductRepository
         from newzi_backend.scheduling import briefing_diagnostic, briefing_health
         repo=ProductRepository()
         result=briefing_health(repo) if args.briefing_health else briefing_diagnostic(repo,args.briefing_diagnostic)
         print(json.dumps(result,ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_probe:
-        from newzi_engine.llm.probe import run_probe
-        print(json.dumps(run_probe(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_evaluate:
-        from newzi_engine.semantic.evaluate import run_evaluation
-        print(json.dumps(run_evaluation(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_calibrate:
-        from newzi_engine.semantic.evaluate import run_calibration
-        print(json.dumps(run_calibration(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_hierarchical_evaluate:
-        from newzi_engine.semantic.evaluate import run_phase_222
-        print(json.dumps(run_phase_222(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_hierarchical_only:
-        from newzi_engine.semantic.evaluate import rerun_hierarchical_only
-        print(json.dumps(rerun_hierarchical_only(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_hybrid_evaluate:
-        from newzi_engine.semantic.evaluate import run_candidate_evaluation, run_hybrid_evaluation, run_verifier_false_split_analysis
-        print(json.dumps({"candidates":run_candidate_evaluation(),"hybrid":run_hybrid_evaluation(),"verifier":run_verifier_false_split_analysis()},ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_phase_23:
-        from newzi_engine.semantic.phase23 import run_phase_23
-        print(json.dumps(run_phase_23(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_phase_32:
-        from newzi_engine.semantic.phase32 import run_phase32
-        print(json.dumps(run_phase32(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_phase_321:
-        from newzi_engine.semantic.quality321 import run_phase321
-        print(json.dumps(run_phase321(),ensure_ascii=False,indent=2)); raise SystemExit(0)
-    if args.semantic_phase_33:
-        from newzi_engine.semantic.phase33 import run_phase33
-        print(json.dumps(run_phase33(),ensure_ascii=False,indent=2)); raise SystemExit(0)
     if args.delivery_once:
         from newzi_backend.product_backend import ProductRepository
         from newzi_backend.scheduling import BriefingDeliveryWorker
-        print(json.dumps(BriefingDeliveryWorker(ProductRepository()).run_once(),ensure_ascii=False,indent=2)); raise SystemExit(0)
+        print(json.dumps(BriefingDeliveryWorker(ProductRepository(),roles=args.roles).run_once(),ensure_ascii=False,indent=2)); raise SystemExit(0)
     if args.scheduler_once or args.worker_once:
         from newzi_backend.product_backend import ProductRepository
         from newzi_backend.scheduling import BriefingDeliveryWorker, BriefingScheduler
-        repo=ProductRepository(); result=BriefingScheduler(repo).run_once() if args.scheduler_once else BriefingDeliveryWorker(repo).run_once(); print(json.dumps(result,ensure_ascii=False,indent=2)); raise SystemExit(0)
+        repo=ProductRepository(); result=BriefingScheduler(repo).run_once() if args.scheduler_once else BriefingDeliveryWorker(repo,roles=args.roles).run_once(); print(json.dumps(result,ensure_ascii=False,indent=2)); raise SystemExit(0)
     if args.delivery_worker:
         from newzi_backend.product_backend import ProductRepository
         from newzi_backend.scheduling import BriefingDeliveryWorker
-        BriefingDeliveryWorker(ProductRepository()).run_forever(); raise SystemExit(0)
+        BriefingDeliveryWorker(ProductRepository(),roles=args.roles).run_forever(); raise SystemExit(0)
     if args.scheduler or args.worker or args.worker_batch:
         from newzi_backend.product_backend import ProductRepository
         from newzi_backend.scheduling import BriefingDeliveryWorker, BriefingScheduler
         repo=ProductRepository()
         if args.scheduler: BriefingScheduler(repo).run_forever()
-        elif args.worker: BriefingDeliveryWorker(repo).run_forever()
-        else: print(json.dumps(BriefingDeliveryWorker(repo).run_once(),ensure_ascii=False,indent=2))
+        elif args.worker: BriefingDeliveryWorker(repo,roles=args.roles).run_forever()
+        else: print(json.dumps(BriefingDeliveryWorker(repo,roles=args.roles).run_once(),ensure_ascii=False,indent=2))
         raise SystemExit(0)
     if args.taxonomy_health:
         from newzi_backend.product_backend import ProductRepository

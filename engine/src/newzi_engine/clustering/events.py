@@ -2,10 +2,23 @@ import hashlib
 import logging
 import time
 from collections import defaultdict
-from .similarity import can_reach_merge_or_audit_floor, prepare_similarity_features, signal_pair, should_merge
+from .similarity import can_reach_merge_or_audit_floor, mark_specific_terms, prepare_similarity_features, signal_pair, should_merge
 from ..models import NewsEvent
 from ..utils.text import tokens
 from ..editorial.fingerprint import apply_fingerprint
+
+# Bump when merge rules change: the product index re-clusters its recent stories once.
+CLUSTER_VERSION = "anchor-specific-v2"
+
+
+def _fits_anchor(signals):
+    """A joining story must still be about the event's first story, not only its closest member.
+
+    Without this, single-link merging chains unrelated stories through shared brands
+    (Gemini launch -> Pixel leak -> Moto Watch -> ...).
+    """
+    return not signals["conflict"] and (signals["specific_shared"] >= 2 or signals["title_similarity"] >= .25)
+
 
 def _representative(articles, source_priorities=None):
     priorities = source_priorities or {}
@@ -17,11 +30,12 @@ def cluster_articles(articles, settings, sources=None, diagnostics=False):
     feature_started = time.perf_counter()
     for article in articles: apply_fingerprint(article)
     ordered = sorted(articles, key=lambda a: a.published_at or a.collected_at)
-    features = [prepare_similarity_features(article) for article in ordered]
+    features = mark_specific_terms([prepare_similarity_features(article) for article in ordered])
     feature_ms = (time.perf_counter() - feature_started) * 1000
     postings = defaultdict(list)
     article_events = {}
     article_by_index = {}
+    anchors = {}  # id(event) -> index of the story that opened it
     comparisons = 0; candidate_pairs = 0; candidate_generation_ms = 0.0
     cheap_pruning_ms = 0.0; similarity_ms = 0.0; event_lookup_ms = 0.0
     event_mutation_ms = 0.0; feature_postings_ms = 0.0
@@ -36,7 +50,7 @@ def cluster_articles(articles, settings, sources=None, diagnostics=False):
             candidate_indices.update(postings.get(term, ()))
         candidate_generation_ms += (time.perf_counter() - candidate_started) * 1000
         candidate_pairs += len(candidate_indices)
-        best = None; best_signals = None
+        best = None; best_signals = None; best_index = None
         # Pairs without shared title/subject/entity evidence cannot reach the
         # merge threshold or the near-miss audit threshold, so skip them safely.
         for existing_index in sorted(candidate_indices):
@@ -53,16 +67,20 @@ def cluster_articles(articles, settings, sources=None, diagnostics=False):
             event_lookup_started = time.perf_counter()
             existing_event = article_events[existing_index]
             if best_signals is None or signals["confidence"] > best_signals["confidence"]:
-                best, best_signals = existing_event, signals
+                best, best_signals, best_index = existing_event, signals, existing_index
             event_lookup_ms += (time.perf_counter() - event_lookup_started) * 1000
         mutation_started = time.perf_counter()
-        if best and should_merge(best_signals):
+        merge = bool(best) and should_merge(best_signals)
+        if merge and best_index != anchors[id(best)]:
+            anchor_index = anchors[id(best)]
+            merge = _fits_anchor(signal_pair(article, ordered[anchor_index], window_hours, features_a=current_features, features_b=features[anchor_index]))
+        if merge:
             best.articles.append(article); best.article_ids.append(article.article_id); best.source_ids = sorted(set(best.source_ids + [article.source_id])); best.publisher_ids = sorted(set(best.publisher_ids + [article.publisher_id or article.source_id])); best.last_seen_at = max(best.last_seen_at, article.published_at or article.collected_at); best.categories = sorted({c for c in best.categories + article.categories if c != "OTHER"}) or ["OTHER"]; best.keywords = sorted(set(best.keywords + list(tokens(article.title)))); best.primary_entities = sorted(set(best.primary_entities + article.fingerprint.get("primary_subject", []))); best.representative_title = _representative(best.articles, priorities); best.cluster_confidence = round(max(best.cluster_confidence, best_signals["confidence"]), 2); best.merge_audit.append({"article_a": best.articles[0].title, "article_b": article.title, "genre": article.content_genre, "fingerprint_a": best.articles[0].fingerprint, "fingerprint_b": article.fingerprint, **best_signals}); audit["merges"].append(best.merge_audit[-1])
         else:
             if best_signals and best_signals["confidence"] >= 35: audit["near_misses"].append({"article_a": best.articles[0].title if best else "", "article_b": article.title, **best_signals})
             eid = hashlib.sha256((article.canonical_url or article.title).encode()).hexdigest()[:16]
             events.append(NewsEvent(eid, article.title, list(article.categories) or ["OTHER"], [article.article_id], [article.source_id], article.published_at or article.collected_at, article.published_at or article.collected_at, article.published_at, keywords=sorted(tokens(article.title)), articles=[article], cluster_confidence=0.0, publisher_ids=[article.publisher_id or article.source_id], primary_entities=article.fingerprint.get("primary_subject", []), content_genre=article.content_genre, fingerprint=article.fingerprint))
-            best = events[-1]
+            best = events[-1]; anchors[id(best)] = index
         event_mutation_ms += (time.perf_counter() - mutation_started) * 1000
         article_events[index] = best
         article_by_index[index] = article

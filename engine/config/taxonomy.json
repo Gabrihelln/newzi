@@ -2227,7 +2227,28 @@
       "active": true,
       "display_order": 133,
       "terms": {
-        "celebridades": 3
+        "celebridades": 3,
+        "celebridade": 4,
+        "famosos": 5,
+        "famosa": 4,
+        "famoso": 4,
+        "assume namoro": 6,
+        "namoro": 4,
+        "namorado": 3,
+        "namorada": 3,
+        "separacao": 4,
+        "fim do casamento": 5,
+        "fim do namoro": 6,
+        "affair": 5,
+        "flagra": 5,
+        "flagrado": 5,
+        "flagrada": 5,
+        "ex-bbb": 5,
+        "influenciadora": 3,
+        "influenciador": 3,
+        "look": 2,
+        "gravidez": 3,
+        "gravida": 3
       }
     },
     {
@@ -3987,6 +4008,145 @@
         "temporada final": 5,
         "showrunner": 5,
         "episodio final": 5
+      }
+    },
+    {
+      "id": "NOVELAS",
+      "slug": "novelas",
+      "name": "Novelas",
+      "description": "Capítulos, elenco e bastidores das novelas",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [
+        "Telenovelas"
+      ],
+      "active": true,
+      "display_order": 1006,
+      "terms": {
+        "novela": 6,
+        "novelas": 6,
+        "telenovela": 6,
+        "folhetim": 5,
+        "resumo da novela": 6,
+        "proximos capitulos": 6,
+        "capitulo de hoje": 5,
+        "autor da novela": 5,
+        "autora da novela": 5,
+        "novela das nove": 6,
+        "novela das seis": 6,
+        "novela das sete": 6,
+        "remake": 3
+      }
+    },
+    {
+      "id": "REALITY_SHOWS",
+      "slug": "reality-shows",
+      "name": "Reality shows",
+      "description": "BBB, A Fazenda e outros realities",
+      "parent_id": "ENTERTAINMENT",
+      "type": "subject",
+      "aliases": [
+        "Realities",
+        "BBB"
+      ],
+      "active": true,
+      "display_order": 1007,
+      "terms": {
+        "reality show": 6,
+        "reality": 4,
+        "bbb": 6,
+        "big brother brasil": 6,
+        "big brother": 5,
+        "a fazenda": 5,
+        "paredao": 6,
+        "eliminado do": 4,
+        "eliminada do": 4,
+        "masterchef": 6,
+        "the voice": 4,
+        "estrela da casa": 5,
+        "ilha record": 5,
+        "de ferias com o ex": 5,
+        "casamento as cegas": 5
+      }
+    },
+    {
+      "id": "BRASILEIRAO",
+      "slug": "brasileirao",
+      "name": "Brasileirão",
+      "description": "Campeonato Brasileiro de futebol",
+      "parent_id": "FUTEBOL",
+      "type": "subject",
+      "aliases": [
+        "Campeonato Brasileiro"
+      ],
+      "active": true,
+      "display_order": 1008,
+      "terms": {
+        "brasileirao": 6,
+        "campeonato brasileiro": 6,
+        "serie a": 4,
+        "serie b": 4,
+        "rodada do brasileirao": 6,
+        "tabela do brasileirao": 6,
+        "lider do brasileirao": 6
+      }
+    },
+    {
+      "id": "LIBERTADORES",
+      "slug": "libertadores",
+      "name": "Libertadores",
+      "description": "Copa Libertadores da América",
+      "parent_id": "FUTEBOL",
+      "type": "subject",
+      "aliases": [
+        "Copa Libertadores"
+      ],
+      "active": true,
+      "display_order": 1009,
+      "terms": {
+        "libertadores": 6,
+        "copa libertadores": 6,
+        "conmebol libertadores": 6
+      }
+    },
+    {
+      "id": "COPA_DO_BRASIL",
+      "slug": "copa-do-brasil",
+      "name": "Copa do Brasil",
+      "description": "Copa do Brasil de futebol",
+      "parent_id": "FUTEBOL",
+      "type": "subject",
+      "aliases": [],
+      "active": true,
+      "display_order": 1010,
+      "terms": {
+        "copa do brasil": 6
+      }
+    },
+    {
+      "id": "CURIOSIDADES",
+      "slug": "curiosidades",
+      "name": "Curiosidades",
+      "description": "Fatos curiosos, descobertas e o porquê das coisas",
+      "type": "domain",
+      "aliases": [],
+      "active": true,
+      "display_order": 1011,
+      "terms": {
+        "curiosidade": 5,
+        "curiosidades": 5,
+        "voce sabia": 6,
+        "fatos curiosos": 6,
+        "fato curioso": 6,
+        "mito ou verdade": 6,
+        "o que acontece se": 5,
+        "o que acontece com": 4,
+        "descoberta curiosa": 6,
+        "recorde mundial": 4,
+        "guinness": 5,
+        "misterio": 3,
+        "bizarro": 4,
+        "inusitado": 4
       }
     }
   ]

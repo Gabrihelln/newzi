@@ -50,9 +50,9 @@ sources:
     priority: 8
     enabled: true
   - id: nvidia_ai
-    name: NVIDIA Deep Learning Blog
-    url: https://blogs.nvidia.com/blog/category/deep-learning/
-    feed_url: https://blogs.nvidia.com/blog/category/deep-learning/feed/
+    name: NVIDIA Blog
+    url: https://blogs.nvidia.com/
+    feed_url: https://blogs.nvidia.com/feed/
     type: rss
     language: en
     country: US
@@ -162,7 +162,7 @@ sources:
   - id: microsoft_news
     name: Microsoft News Center
     url: https://news.microsoft.com/
-    feed_url: https://news.microsoft.com/feed/
+    feed_url: https://news.microsoft.com/source/feed/
     type: rss
     language: en
     country: US
@@ -226,7 +226,7 @@ sources:
   - id: valor_economico
     name: Valor Econômico
     url: https://valor.globo.com/
-    feed_url: https://valor.globo.com/rss/
+    feed_url: https://valor.globo.com/rss/valor/
     type: rss
     language: pt-BR
     country: BR
@@ -445,7 +445,8 @@ sources:
   - id: nasa_jpl_news
     name: NASA Jet Propulsion Laboratory News
     url: https://www.jpl.nasa.gov/news/
-    feed_url: https://www.jpl.nasa.gov/feeds/news/
+    # jpl.nasa.gov/feeds/news answers 403 to feed readers; NASA republishes JPL content here.
+    feed_url: https://www.nasa.gov/centers-and-facilities/jpl/feed/
     type: rss
     source_type: PRIMARY
     language: en
@@ -455,14 +456,15 @@ sources:
     priority: 9
     trust_tier: 1
     enabled: true
-  - id: who_news
-    name: World Health Organization News
-    url: https://www.who.int/news
-    feed_url: https://www.who.int/rss-feeds/news-english.xml
+  # WHO's own news feed stopped in Feb 2026; UN News covers WHO in Portuguese.
+  - id: onu_news_saude
+    name: ONU News Saúde
+    url: https://news.un.org/pt/news/topic/health
+    feed_url: https://news.un.org/feed/subscribe/pt/news/topic/health/feed/rss.xml
     type: rss
     source_type: PRIMARY
-    language: en
-    country: CH
+    language: pt-BR
+    country: US
     region: GLOBAL
     categories: [health, science]
     priority: 9
@@ -485,7 +487,7 @@ sources:
   - id: dw_brasil
     name: DW Brasil
     url: https://www.dw.com/pt-br/
-    feed_url: https://rss.dw.com/rdf/rss-br-all
+    feed_url: https://rss.dw.com/xml/rss-br-top
     type: rss
     source_type: JOURNALISM
     language: pt-BR
@@ -534,16 +536,30 @@ sources:
     priority: 8
     trust_tier: 1
     enabled: true
-  - id: g1_ciencia_saude
-    name: g1 Ciência e Saúde
-    url: https://g1.globo.com/ciencia-e-saude/
-    feed_url: https://g1.globo.com/rss/g1/ciencia-e-saude/
+  # g1 split "Ciência e Saúde" into two sections; the combined feed stopped in Aug 2024.
+  - id: g1_saude
+    name: g1 Saúde
+    url: https://g1.globo.com/saude/
+    feed_url: https://g1.globo.com/rss/g1/saude/
     type: rss
     source_type: JOURNALISM
     language: pt-BR
     country: BR
     region: BR
-    categories: [science, health, environment]
+    categories: [health, science]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: g1_ciencia
+    name: g1 Ciência
+    url: https://g1.globo.com/ciencia/
+    feed_url: https://g1.globo.com/rss/g1/ciencia/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [science, environment]
     priority: 8
     trust_tier: 1
     enabled: true
@@ -558,5 +574,97 @@ sources:
     region: BR
     categories: [world, politics]
     priority: 8
+    trust_tier: 1
+    enabled: true
+  # Sports, entertainment, celebrities and curiosities (added 2026-10-14).
+  - id: ge
+    name: ge
+    url: https://ge.globo.com/
+    feed_url: https://ge.globo.com/rss/ge/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [sports, futebol]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: espn_brasil
+    name: ESPN Brasil
+    url: https://www.espn.com.br/
+    feed_url: https://www.espn.com.br/rss
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [sports, futebol]
+    priority: 7
+    trust_tier: 1
+    enabled: true
+  - id: gazeta_esportiva
+    name: Gazeta Esportiva
+    url: https://www.gazetaesportiva.com/
+    feed_url: https://www.gazetaesportiva.com/feed/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [sports, futebol]
+    priority: 7
+    trust_tier: 1
+    enabled: true
+  - id: g1_pop_arte
+    name: g1 Pop & Arte
+    url: https://g1.globo.com/pop-arte/
+    feed_url: https://g1.globo.com/rss/g1/pop-arte/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [entertainment, celebridades, novelas]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: contigo
+    name: Contigo!
+    url: https://contigo.com.br/
+    feed_url: https://contigo.com.br/feed
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [celebridades, novelas, reality-shows]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: metropoles
+    name: Metrópoles
+    url: https://www.metropoles.com/
+    feed_url: https://www.metropoles.com/feed
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [brazil, celebridades]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: superinteressante
+    name: Superinteressante
+    url: https://super.abril.com.br/
+    feed_url: https://super.abril.com.br/feed/
+    type: rss
+    source_type: JOURNALISM
+    language: pt-BR
+    country: BR
+    region: BR
+    categories: [curiosidades, science]
+    priority: 7
     trust_tier: 1
     enabled: true

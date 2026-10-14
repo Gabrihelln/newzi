@@ -1,6 +1,6 @@
 import json, re, sqlite3, time
 from pathlib import Path
-from .models import Article, NewsEvent, iso, article_from_row
+from .models import iso, article_from_row
 from .images import canonical_image_url, image_source_rank
 from .paths import ENGINE_DATA
 
@@ -101,10 +101,10 @@ class Store:
         self.db.commit()
     def get_source_health(self):
         return {row["source_id"]:dict(row) for row in self.db.execute("SELECT * FROM source_health")}
-    def save_source_result(self, source_id, metrics, validators=None, error=None, now=None):
+    def save_source_result(self, source_id, metrics, validators=None, error=None, now=None, feed_url=None):
         from datetime import datetime, timezone, timedelta
         now=now or datetime.now(timezone.utc).isoformat(); validators=validators or {}
-        previous=self.db.execute("SELECT consecutive_failures,average_duration_ms FROM source_health WHERE source_id=?",(source_id,)).fetchone()
+        previous=self.db.execute("SELECT consecutive_failures,average_duration_ms,last_metrics_json FROM source_health WHERE source_id=?",(source_id,)).fetchone()
         error_text=str(error or "")
         environment_blocked=bool(error_text) and ("[WinError 10013]" in error_text or "operation not permitted" in error_text.lower())
         failed=bool(error) and not environment_blocked
@@ -114,12 +114,17 @@ class Store:
         duration=int(metrics.get("duration_ms") or 0); average=duration if not old_average else old_average*.8+duration*.2
         open_until=None
         if failures>=3: open_until=(datetime.now(timezone.utc)+timedelta(minutes=min(360,5*(2**min(6,failures-3))))).isoformat()
+        if metrics.get("status")=="NOT_MODIFIED" and previous and previous[2]:
+            # A 304 carries no feed body: keep what the last full response said about the feed.
+            prior=json.loads(previous[2]); metrics={**{k:prior[k] for k in ("feed_items","items_too_old","feed_newest_item") if k in prior},**metrics}
         status="BLOCKED" if environment_blocked else metrics.get("status")
         self.db.execute("""INSERT INTO source_health(source_id,last_status,last_success_at,last_failure_at,consecutive_failures,average_duration_ms,last_duration_ms,latest_article_at,etag,last_modified,circuit_open_until,last_error,last_metrics_json)
           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET last_status=excluded.last_status,last_success_at=COALESCE(excluded.last_success_at,source_health.last_success_at),last_failure_at=COALESCE(excluded.last_failure_at,source_health.last_failure_at),consecutive_failures=excluded.consecutive_failures,average_duration_ms=excluded.average_duration_ms,last_duration_ms=excluded.last_duration_ms,latest_article_at=COALESCE(excluded.latest_article_at,source_health.latest_article_at),etag=COALESCE(excluded.etag,source_health.etag),last_modified=COALESCE(excluded.last_modified,source_health.last_modified),circuit_open_until=excluded.circuit_open_until,last_error=excluded.last_error,last_metrics_json=excluded.last_metrics_json""",
-          (source_id,status,now if not error else None,now if failed else None,failures,average,duration,metrics.get("newest_article"),validators.get("etag"),validators.get("last_modified"),open_until,error,json.dumps({**metrics,"status":status},ensure_ascii=False)))
+          (source_id,status,now if not error else None,now if failed else None,failures,average,duration,metrics.get("newest_article"),validators.get("etag"),validators.get("last_modified"),open_until,error,json.dumps({**metrics,"status":status,"feed_url":feed_url},ensure_ascii=False)))
         self.db.commit()
     def all_articles(self): return [article_from_row(r) for r in self.db.execute("SELECT * FROM articles ORDER BY COALESCE(published_at,collected_at) DESC")]
+    def articles_published_since(self, cutoff):
+        return [article_from_row(r) for r in self.db.execute("SELECT * FROM articles WHERE published_at>=? ORDER BY published_at", (iso(cutoff),))]
     def purge_older_than(self, cutoff):
         """Drop articles published (or, undated, collected) before ``cutoff``; returns the count removed."""
         removed=self.db.execute("DELETE FROM articles WHERE COALESCE(published_at,collected_at)<?",(iso(cutoff),)).rowcount

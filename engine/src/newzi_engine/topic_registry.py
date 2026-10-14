@@ -74,6 +74,10 @@ class Taxonomy:
     def ancestors(self, node_id):
         return list(self._ancestors.get(node_id, ()))
 
+    def roots(self):
+        """Active top-level domains (Tecnologia, Economia, ...)."""
+        return sorted(node_id for node_id, node in self.nodes.items() if not node.get("parent_id") and node.get("active", True))
+
     def descendants(self, node_id):
         return list(self._descendants.get(node_id, ()))
 

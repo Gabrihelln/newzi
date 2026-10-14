@@ -4,6 +4,7 @@ from ..utils.text import normalize_title, tokens
 from ..editorial.fingerprint import fingerprint
 
 GENERIC = {"new", "news", "update", "updates", "launch", "launches", "announces", "announced", "available", "latest", "major", "introducing", "inside", "first", "look", "technology", "tech", "company", "service", "features", "model"}
+YEAR = re.compile(r"(19|20)\d\d")
 KNOWN = {"meta", "meta one", "openai", "sam altman", "google", "apple", "microsoft", "amazon", "aws", "anthropic", "claude", "gemini", "gpt", "volvo", "xc60", "xc90", "john deere", "disrupt", "infrastructure lab", "data centers", "child safety", "software platforms"}
 
 def cosine(a, b):
@@ -51,6 +52,19 @@ def prepare_similarity_features(article):
     }
 
 
+def mark_specific_terms(features, min_common=5, common_share=.012, max_common=20):
+    """Keep, per article, the distinctive terms that are rare in this batch.
+
+    A term in many unrelated stories (a brand, a celebrity) proves nothing about two stories
+    being the same event; a rare one ("watermarking", "argon") does.
+    """
+    frequency = Counter(term for item in features for term in item["distinctive"])
+    limit = min(max_common, max(min_common, int(common_share * len(features))))
+    for item in features:
+        item["specific"] = frozenset(term for term in item["distinctive"] if frequency[term] <= limit)
+    return features
+
+
 def can_reach_merge_or_audit_floor(a, b, features_a, features_b):
     """Cheap upper bound; false means the pair cannot merge or be audited."""
     title_a, title_b = features_a["title_terms"], features_b["title_terms"]
@@ -71,7 +85,6 @@ def can_reach_merge_or_audit_floor(a, b, features_a, features_b):
 def signal_pair(a, b, window_hours=72, *, features_a=None, features_b=None):
     features_a = features_a or prepare_similarity_features(a)
     features_b = features_b or prepare_similarity_features(b)
-    fa, fb = features_a["fingerprint"], features_b["fingerprint"]
     da, db = features_a["subjects"], features_b["subjects"]
     title_terms_a, title_terms_b = features_a["title_terms"], features_b["title_terms"]
     shared_title_terms = title_terms_a & title_terms_b
@@ -85,16 +98,20 @@ def signal_pair(a, b, window_hours=72, *, features_a=None, features_b=None):
     shared_actions = features_a["actions"] & features_b["actions"]
     distinctive_a, distinctive_b = features_a["distinctive"], features_b["distinctive"]
     distinctive_overlap_score = len(distinctive_a & distinctive_b) / max(1, min(len(distinctive_a), len(distinctive_b))) if distinctive_a and distinctive_b else 0.0
+    # Brand names and years are shared by unrelated stories ("OpenAI ... ads" vs "OpenAI ... wallet").
+    specific_shared = features_a.get("specific", distinctive_a) & features_b.get("specific", distinctive_b)
+    specific_shared = {term for term in specific_shared if term not in KNOWN and not YEAR.fullmatch(term)}
     conflicts = (not shared_entities and not shared_products and bool(da and db)) or (("child safety" in da and "software platforms" in db) or ("software platforms" in da and "child safety" in db))
     genre_conflict = a.content_genre in {"PROMOTION", "EVENT_PROMOTION", "ROUNDUP", "DEAL_COUPON", "BUYING_GUIDE"} or b.content_genre in {"PROMOTION", "EVENT_PROMOTION", "ROUNDUP", "DEAL_COUPON", "BUYING_GUIDE"}
     action_agreement = bool(shared_actions or a.content_genre == b.content_genre)
     if conflicts: overlap *= .1
     confidence = 100 * (.30 * title + .30 * overlap + .15 * temporal + .15 * bool(shared_entities or shared_products) + .10 * (0 if same_source else 1))
     if conflicts: confidence *= .25
-    return {"title_similarity": round(title, 3), "token_overlap": round(raw_overlap, 3), "entity_overlap": round(distinctive_overlap_score, 3), "distinctive_overlap": round(overlap, 3), "temporal_score": round(temporal, 3), "same_source": same_source, "conflict": bool(conflicts), "genre_conflict": genre_conflict, "action_agreement": action_agreement, "shared_entities": sorted(shared_entities | shared_products), "confidence": round(confidence, 2)}
+    return {"title_similarity": round(title, 3), "token_overlap": round(raw_overlap, 3), "entity_overlap": round(distinctive_overlap_score, 3), "distinctive_overlap": round(overlap, 3), "temporal_score": round(temporal, 3), "same_source": same_source, "conflict": bool(conflicts), "genre_conflict": genre_conflict, "action_agreement": action_agreement, "shared_entities": sorted(shared_entities | shared_products), "specific_shared": len(specific_shared), "confidence": round(confidence, 2)}
 
 def should_merge(signals):
     if signals["conflict"] or signals["genre_conflict"] or not signals["action_agreement"]: return False
     if signals["same_source"]: return signals["title_similarity"] >= .72 and signals["distinctive_overlap"] >= .45
-    return ((signals["entity_overlap"] >= .50 and signals["distinctive_overlap"] >= .40) or (signals["title_similarity"] >= .58 and signals["distinctive_overlap"] >= .30) or (signals["title_similarity"] >= .45 and signals["token_overlap"] >= .60 and signals["action_agreement"])) and signals["temporal_score"] > 0 and signals["confidence"] >= 35
+    entity_evidence = signals.get("specific_shared", 3) >= 3 or signals["title_similarity"] >= .35
+    return ((signals["entity_overlap"] >= .50 and signals["distinctive_overlap"] >= .40 and entity_evidence) or (signals["title_similarity"] >= .58 and signals["distinctive_overlap"] >= .30) or (signals["title_similarity"] >= .45 and signals["token_overlap"] >= .60 and signals["action_agreement"])) and signals["temporal_score"] > 0 and signals["confidence"] >= 35
 

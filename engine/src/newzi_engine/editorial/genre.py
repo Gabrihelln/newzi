@@ -7,8 +7,7 @@ EXCLUDED = {"EVENT_PROMOTION", "PROMOTION", "ROUNDUP", "BUYING_GUIDE", "HOW_TO",
 
 def classify_genre(article):
     title_text = normalize_title(article.title)
-    text = normalize_title(f"{article.title} {article.description} {article.url} {' '.join(article.source_tags)}")
-    if re.search(r"promo code|coupon|discount|save \d+|\bdeal\b|buy now|offers?", title_text): genre="DEAL_COUPON"
+    if re.search(r"promo code|coupon|discount|save \d+|\bdeal\b|\bdeals (under|on|for)\b|prime day deals|buy now|offers?", title_text): genre="DEAL_COUPON"
     elif re.search(r"book (your|a)|register now|tickets?|deadline to exhibit|exhibit table|\d+ days? left.*(exhibit|book|table)|sign up", title_text): genre="EVENT_PROMOTION"
     elif re.search(r"\b(roundup|weekly roundup|monthly roundup|this week in|top stories)\b", title_text): genre="ROUNDUP"
     elif re.search(r"\b(best|buying guide|our favorite|top \d+|top .* features?)\b", title_text): genre="BUYING_GUIDE"

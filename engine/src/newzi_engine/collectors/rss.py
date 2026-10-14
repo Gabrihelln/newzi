@@ -30,17 +30,18 @@ class RSSCollector:
             if time.perf_counter()-started>self.source_budget: raise TimeoutError(f"source exceeded {self.source_budget:.0f}s request budget")
             fetched=time.perf_counter(); parse_started=time.perf_counter(); parsed=feedparser.parse(body); parsed_at=time.perf_counter()
             if parsed.bozo and not parsed.entries: raise ValueError(str(parsed.bozo_exception))
-            out=[]; now=utc_now(); newest=None; discovered=0
+            out=[]; now=utc_now(); newest=None; discovered=0; feed_newest=None; too_old=0
             for e in parsed.entries:
                 title=clean_text(e.get("title")); url=canonicalize_url(e.get("link") or e.get("id") or "")
                 if not title or not url: continue
                 pub=parse_date(e.get("published") or e.get("updated") or e.get("created"))
-                if pub and pub < now-timedelta(days=self.max_age_days): continue
+                if pub and (feed_newest is None or pub>feed_newest): feed_newest=pub
+                if pub and pub < now-timedelta(days=self.max_age_days): too_old+=1; continue
                 if pub and (newest is None or pub>newest): newest=pub
                 cats=source.get("categories",[]); discovered+=1
                 image_url,image_source=extract_feed_image(e,url)
                 out.append(Article(article_id(source["id"],url,title),source["id"],source["name"],title,clean_text(e.get("summary") or e.get("description")),url,url,pub,now,source.get("language","en"),cats,[],source.get("source_type","JOURNALISM"),e.get("author"),source.get("publisher_id",source["id"]),image_url=image_url,image_source=image_source))
-            finished=time.perf_counter(); self.last_metrics={"status":"SUCCESS","http_status":response.status_code,"duration_ms":int((finished-started)*1000),"fetch_ms":int((fetched-request_started)*1000),"ttfb_ms":int((first_byte-request_started)*1000),"download_ms":int((fetched-first_byte)*1000),"parse_ms":int((parsed_at-parse_started)*1000),"discovery_ms":int((finished-parsed_at)*1000),"response_bytes":len(body),"articles_seen":discovered,"newest_article":newest.isoformat() if newest else None,"etag":self.validators.get("etag"),"last_modified":self.validators.get("last_modified")}
+            finished=time.perf_counter(); self.last_metrics={"status":"SUCCESS","http_status":response.status_code,"duration_ms":int((finished-started)*1000),"fetch_ms":int((fetched-request_started)*1000),"ttfb_ms":int((first_byte-request_started)*1000),"download_ms":int((fetched-first_byte)*1000),"parse_ms":int((parsed_at-parse_started)*1000),"discovery_ms":int((finished-parsed_at)*1000),"response_bytes":len(body),"articles_seen":discovered,"newest_article":newest.isoformat() if newest else None,"feed_items":len(parsed.entries),"items_too_old":too_old,"feed_newest_item":feed_newest.isoformat() if feed_newest else None,"etag":self.validators.get("etag"),"last_modified":self.validators.get("last_modified")}
             return out,None
         except Exception as exc:
             finished=time.perf_counter(); self.last_metrics={"status":"FAILED","http_status":getattr(getattr(exc,"response",None),"status_code",None),"duration_ms":int((finished-started)*1000),"fetch_ms":int((finished-started)*1000),"parse_ms":0,"discovery_ms":0,"response_bytes":0,"articles_seen":0,"newest_article":None}
