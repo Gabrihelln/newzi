@@ -82,6 +82,14 @@ async def news(request: Request, uid: str = Depends(current_user), q: str = "", 
     return {"items": items}
 
 
+@router.get("/news/{story_id}")
+async def story(story_id: str, request: Request, uid: str = Depends(current_user)):
+    item = await call(request, service_of(request).repo.story, uid, story_id)
+    if not item:
+        raise not_found("story not found")
+    return {"item": item}
+
+
 @router.get("/articles/{story_id}/feedback")
 async def article_feedback(story_id: str, request: Request, uid: str = Depends(current_user)):
     return await call(request, service_of(request).article_feedback, uid, story_id)
@@ -91,6 +99,26 @@ async def article_feedback(story_id: str, request: Request, uid: str = Depends(c
 async def rate_article(story_id: str, request: Request, uid: str = Depends(current_user)):
     body = await json_body(request)
     return await call(request, service_of(request).article_feedback, uid, story_id, body.get("rating"), True)
+
+
+@router.get("/football")
+async def football(request: Request, uid: str = Depends(current_user), scope: str = ""):
+    """Live and upcoming games worldwide; ``scope=explore`` is the Explore card, shown to everyone."""
+    from ...football import football_for
+    service = service_of(request)
+    return await call(request, lambda: football_for(service.repo.get_preferences(uid), require_follow=scope != "explore"))
+
+
+@router.get("/football/standings/{code}")
+async def football_standings(request: Request, code: str, uid: str = Depends(current_user)):
+    """One competition's table (BSA, CLI, PL...)."""
+    from ...football import football_standings as standings
+    return await call(request, lambda: standings(code))
+
+
+@router.get("/trending")
+async def trending(request: Request, uid: str = Depends(current_user)):
+    return {"items": await call(request, service_of(request).trending, uid)}
 
 
 @router.get("/home")
@@ -145,3 +173,11 @@ async def remove_saved_briefing(briefing_id: str, request: Request, uid: str = D
     if not await call(request, service_of(request).repo.remove_saved_briefing, uid, briefing_id):
         raise not_found("saved briefing not found")
     return {"status": "ok"}
+
+
+@router.get("/subscription")
+async def subscription(request: Request, uid: str = Depends(current_user)):
+    """The user's plan (Básico or Premium), its limits and the plans on offer."""
+    from ...subscriptions import subscription_for
+    service = service_of(request)
+    return await call(request, lambda: subscription_for(service.repo, uid))

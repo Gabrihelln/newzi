@@ -156,7 +156,7 @@ def test_migrations_upgrade_a_legacy_sqlite_database(tmp_path):
             country_scope TEXT NOT NULL, briefing_time TEXT NOT NULL, timezone TEXT NOT NULL, briefing_size INTEGER NOT NULL,
             audio_enabled INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL);
         CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-        INSERT INTO users VALUES('old','old@x','Old','pt-BR','UTC','t','t','ACTIVE');
+        INSERT INTO users VALUES('old','old@x','Old','pt-BR','UTC','2026-01-02T03:04:05Z','2026-01-02T03:04:05.250000+00:00','ACTIVE');
         INSERT INTO user_preferences VALUES('old','["TECHNOLOGY"]','pt-BR','BOTH','06:00','UTC',10,0,'t');
     """); connection.close()
     from newzi_backend.product_backend import ProductRepository
@@ -165,10 +165,13 @@ def test_migrations_upgrade_a_legacy_sqlite_database(tmp_path):
     assert user["onboarding_status"] == "NOT_STARTED" and "firebase_uid" in user
     assert repo.get_preferences("old")["content_scope"] == "selected"
     applied = [row[0] for row in repo.db.execute("SELECT id FROM schema_versions ORDER BY id")]
-    assert applied == ["0001_baseline", "0002_hot_path_indexes", "0003_article_search"]
+    from newzi_backend.migrations import MIGRATIONS
+    assert applied == [name for name, _ in MIGRATIONS]
+    # Mixed legacy timestamp formats are rewritten to the single canonical one.
+    assert (user["created_at"], user["updated_at"]) == ("2026-01-02T03:04:05.000Z", "2026-01-02T03:04:05.250Z")
     repo.close_thread_connection()
     again = ProductRepository(path=legacy)
-    assert again.db.execute("SELECT COUNT(*) FROM schema_versions").fetchone()[0] == 3
+    assert again.db.execute("SELECT COUNT(*) FROM schema_versions").fetchone()[0] == len(MIGRATIONS)
     again.close_thread_connection()
 
 

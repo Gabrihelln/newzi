@@ -1,6 +1,6 @@
 """Health, catalog and local-identity routes."""
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from ..deps import call, client_key, created, current_user, json_body, service_of
 
@@ -17,6 +17,15 @@ async def ready(request: Request):
     service = service_of(request)
     await call(request, lambda: service.repo.db.execute("SELECT 1").fetchone())
     return {"status": "ready", "database": "ok"}
+
+
+@router.get("/health/worker")
+async def worker_health(request: Request):
+    """Every worker role ran within WORKER_STALE_SECONDS (200) or some did not (503), plus queue backlog."""
+    from ...scheduling import worker_health as collect
+    service = service_of(request)
+    report = await call(request, lambda: collect(service.repo))
+    return JSONResponse(report, status_code=200 if report["status"] == "ok" else 503)
 
 
 @router.get("/api/v1/topics")

@@ -6,6 +6,7 @@ Os arquivos nesta pasta são templates. Eles não instalam pacotes, não criam c
 
 - `newzi-api.service` executa `backend/product_api.py` em `127.0.0.1:8090`.
 - `newzi-worker.service` executa `engine/main.py --delivery-worker`, que mantém a atualização de fontes e o processamento agendado.
+- O worker é dividido em papéis: `news` (coleta), `schedule`, `generation` (edições), `audio` (TTS), `notifications` (push), `breaking` (detecção de breaking news) e `retention`. Por padrão um processo roda todos. Para isolar filas, troque `newzi-worker` por instâncias de `newzi-worker@.service`, uma por grupo de papéis, separados por `:`. Exemplo: `newzi-worker@news`, `newzi-worker@audio` e `newzi-worker@schedule:generation:notifications:breaking:retention`. Cada papel precisa estar em pelo menos uma instância; dois processos com o mesmo papel não pegam o mesmo job.
 - Ambos reiniciam após falha e rodam como o usuário Unix `newzi`.
 - Banco do produto, índice do engine, MP3s e temporários persistem em `/var/lib/newzi/`.
 - `newzi-api.conf.example` publica a API pelo Nginx com HTTPS.
@@ -44,14 +45,17 @@ Com `PUSH_PROVIDER=fcm`, o backend envia pelo Firebase Admin SDK usando a conta 
 
 6. Ajuste `server_name` e os caminhos do certificado no Nginx. Emita o certificado TLS, instale o arquivo de configuração e valide com `nginx -t`.
 7. Copie os dois `.service` para `/etc/systemd/system/`, execute `systemctl daemon-reload`, habilite `newzi-api` e `newzi-worker` e verifique seus logs com `journalctl -u newzi-api -u newzi-worker`.
-8. Valide `https://api.seu-dominio/health` e `/ready`, autenticação Firebase, atualização de fontes, briefing, geração/playback de áudio e notificações antes de liberar o app.
+8. Valide `https://api.seu-dominio/health`, `/ready` e `/health/worker`, autenticação Firebase, atualização de fontes, briefing, geração/playback de áudio e notificações antes de liberar o app.
 
 ## Segurança e operação
 
 - Libere publicamente apenas SSH e HTTPS; a porta `8090` permanece acessível somente em loopback.
 - Mantenha `/etc/newzi/` e `/var/lib/newzi/` fora do checkout e restrinja permissões.
 - Faça backup consistente do SQLite e de `/var/lib/newzi/audio/`. Para SQLite em WAL, use a API de backup do SQLite ou pare os serviços durante cópia simples; copiar apenas o arquivo `.sqlite3` enquanto o processo grava pode perder transações do WAL.
-- Monitore `systemctl`, `/health`, `/ready`, espaço em disco, filas de áudio e logs. Teste a restauração do backup.
+- Monitore `systemctl`, `/health`, `/ready`, `/health/worker`, espaço em disco e logs. Teste a restauração do backup.
+- `/health/worker` responde 200 quando cada papel do worker concluiu um ciclo nos últimos `WORKER_STALE_SECONDS` (padrão 300) e 503 quando algum está parado. A resposta traz `missing_roles`, a idade do último ciclo de cada processo, o tamanho e a idade das filas (geração, áudio, push, atualização manual) e há quanto tempo foi a última coleta de notícias. Não expõe IDs, hosts nem mensagens de erro; as falhas ficam no log do worker.
+- Saúde das fontes: `python engine/main.py --source-health` lista cada feed com status e diagnóstico (`FEED_URL_NOT_FOUND`, `ACCESS_BLOCKED`, `FEED_ABANDONED`...). Feeds `BROKEN` ou abandonados precisam de URL nova em `engine/config/sources.yaml`.
+- TTS: a `edge-tts` usa um endpoint não oficial. Com `AZURE_SPEECH_KEY` e `AZURE_SPEECH_REGION`, o Azure AI Speech oficial, que tem as mesmas vozes, assume automaticamente quando a `edge-tts` falha (por `TTS_FALLBACK_COOLDOWN_SECONDS`, padrão 10 min). Também pode ser o provedor principal, com `TTS_PROVIDER=azure-tts`, mas a troca regenera os áudios existentes.
 - O worker aplica retenção uma vez por dia: remove variantes de áudio sem uso (7 dias), telemetria e jobs finalizados (30 dias) e matérias fora da janela (90 dias); briefings, entregas e itens salvos são preservados. Ajuste com `RETENTION_*` ou rode manualmente com `python -m newzi_backend.retention` (a partir de `backend/src`).
 - O SQLite atende um único host. Para PostgreSQL, defina `DATABASE_URL=postgresql://usuario:senha@host:5432/newzi` (dependência `psycopg`, já em `requirements.txt`); API e worker criam e atualizam o esquema sozinhos. O armazenamento local de áudio continua exigindo um único host ou um volume compartilhado.
 

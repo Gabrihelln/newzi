@@ -4,17 +4,17 @@
 
 ## Boundary
 
-The engine remains responsible for collection, deterministic filtering, clustering, ranking, evidence acquisition and semantic summarization. The product backend owns users, preferences, local dates, persisted briefings, sources, API contracts and generation orchestration.
+The engine remains responsible for collection, deterministic filtering, classification and event clustering. The product backend owns users, preferences, local dates, persisted briefings, sources, API contracts and generation orchestration.
 
 The adapter in `backend/src/newzi_backend/product_backend.py` consumes the structured Engine briefing fixture/output through the centralized path resolvers; it does not parse Markdown and does not reimplement editorial rules.
 
 ## Persistence
 
-Development uses `backend/data/product_backend.sqlite3`, physically separate from `engine/data/news_engine.sqlite3`, LLM caches and observability databases. Schema creation is versioned through `schema_migrations` and creates tables for topics, users, preferences, briefings, items, item sources and generation runs. The repository isolates SQL behind a small interface so a future PostgreSQL repository can replace it.
+Development uses `backend/data/product_backend.sqlite3`, physically separate from `engine/data/news_engine.sqlite3`. Schema creation is versioned through `schema_migrations` and creates tables for topics, users, preferences, briefings, items, item sources and generation runs. The repository isolates SQL behind a small interface so a future PostgreSQL repository can replace it.
 
 ## Orchestration
 
-`BriefingOrchestrator` resolves the user's IANA timezone and local date, applies preferences, enforces the unique `(user_id, briefing_date)` boundary, consumes the Phase 3.3 adapter, persists the result and records generation metrics. HTTP retrieval never calls Ollama. The current dev generation endpoint loads the already-produced structured briefing; a future worker can call the engine asynchronously.
+`BriefingOrchestrator` resolves the user's IANA timezone and local date, applies preferences, enforces the unique `(user_id, briefing_date)` boundary, composes from the shared content index, persists the result and records generation metrics. HTTP retrieval never generates content; the background worker does.
 
 ## Failure model
 

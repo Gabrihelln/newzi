@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
 
-def now_iso(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+from .timeutil import iso, now_iso, parse
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,14 @@ class DevelopmentPushProvider(PushProvider):
     def send(self, token, title, body, data):
         self.sent.append({"token_suffix": token[-6:], "title": title, "body": body, "data": data})
         return PushResult(True, "dev_message_" + uuid.uuid4().hex)
+
+
+# Android channels the app creates (MainApplication.kt); users can mute each kind separately.
+ANDROID_CHANNELS = {"BREAKING_NEWS": "breaking_news"}
+
+
+def android_channel(data):
+    return ANDROID_CHANNELS.get(str((data or {}).get("type")), "daily_briefing")
 
 
 class FCMPushProvider(PushProvider):
@@ -61,7 +69,7 @@ class FCMPushProvider(PushProvider):
             token=token,
             notification=messaging.Notification(title=title, body=body),
             data={str(k): str(v) for k, v in data.items()},
-            android=messaging.AndroidConfig(priority="high"),
+            android=messaging.AndroidConfig(priority="high", notification=messaging.AndroidNotification(channel_id=android_channel(data))),
             apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(sound="default"))))
         try:
             return PushResult(True, messaging.send(message))
@@ -84,6 +92,7 @@ class FCMPushProvider(PushProvider):
 class NotificationService:
     def __init__(self, repo, provider=None, late_tolerance_minutes=30):
         self.repo = repo; selected = getattr(getattr(repo, "config", None), "push_provider", os.getenv("PUSH_PROVIDER", "development")); self.provider = provider or (FCMPushProvider() if selected == "fcm" else DevelopmentPushProvider()); self.late_tolerance = timedelta(minutes=late_tolerance_minutes)
+        self.breaking_max_delay = timedelta(minutes=max(5, int(os.getenv("BREAKING_MAX_DELAY_MINUTES", "60"))))
 
     def _event(self, event_type, job_id=None, device_id=None, metadata=None):
         self.repo.db.execute("INSERT INTO notification_events(event_type,job_id,device_id,metadata_json,created_at) VALUES(?,?,?,?,?)", (event_type, job_id, device_id, json.dumps(metadata or {}, ensure_ascii=False), now_iso())); self.repo.db.commit()
@@ -135,35 +144,44 @@ class NotificationService:
             if late: continue
             devices=self.repo.db.execute("SELECT * FROM push_devices WHERE user_id=? AND enabled=1 AND invalidated_at IS NULL",(delivery["user_id"],)).fetchall()
             for device in devices:
-                cur=self.repo.db.execute("INSERT INTO notification_jobs(id,user_id,delivery_id,device_id,notification_type,scheduled_for,status,attempt_count,max_attempts,next_attempt_at,provider_message_id,last_error,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",("notification_"+uuid.uuid4().hex,delivery["user_id"],delivery["id"],device["id"],"DAILY_BRIEFING",target.isoformat(),"PENDING",0,3,None,None,None,now_iso(),now_iso())); created += cur.rowcount
+                cur=self.repo.db.execute("INSERT INTO notification_jobs(id,user_id,delivery_id,device_id,notification_type,scheduled_for,status,attempt_count,max_attempts,next_attempt_at,provider_message_id,last_error,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING",("notification_"+uuid.uuid4().hex,delivery["user_id"],delivery["id"],device["id"],"DAILY_BRIEFING",iso(target),"PENDING",0,3,None,None,None,now_iso(),now_iso())); created += cur.rowcount
         self.repo.db.commit(); return {"notification_jobs_created":created}
 
     def run_once(self, now=None):
-        now=now or datetime.now(timezone.utc); stale=(now-timedelta(minutes=30)).isoformat(); self.repo.db.execute("UPDATE notification_jobs SET status='PENDING',updated_at=?,last_error='stale notification recovered' WHERE status='RUNNING' AND updated_at<? AND attempt_count<max_attempts",(now_iso(),stale)); self.repo.db.commit(); job=self.repo.db.execute("SELECT j.*,d.push_token,d.enabled,d.invalidated_at FROM notification_jobs j JOIN push_devices d ON d.id=j.device_id WHERE j.status='PENDING' AND j.scheduled_for<=? AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) ORDER BY j.scheduled_for LIMIT 1",(now.isoformat(),now.isoformat())).fetchone()
+        now=now or datetime.now(timezone.utc); stale=iso(now-timedelta(minutes=30)); self.repo.db.execute("UPDATE notification_jobs SET status='PENDING',updated_at=?,last_error='stale notification recovered' WHERE status='RUNNING' AND updated_at<? AND attempt_count<max_attempts",(now_iso(),stale)); self.repo.db.commit(); job=self.repo.db.execute("SELECT j.*,d.push_token,d.enabled,d.invalidated_at FROM notification_jobs j JOIN push_devices d ON d.id=j.device_id WHERE j.status='PENDING' AND j.scheduled_for<=? AND (j.next_attempt_at IS NULL OR j.next_attempt_at<=?) ORDER BY j.scheduled_for LIMIT 1",(iso(now),iso(now))).fetchone()
         if not job: return {"jobs_claimed":0,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0}
         owner=self.repo.db.execute("SELECT user_id FROM push_devices WHERE id=?",(job["device_id"],)).fetchone()
         if not job["enabled"] or job["invalidated_at"] or not owner or owner["user_id"]!=job["user_id"]:
             # Logged-out, invalidated or reassigned device: never deliver this user's briefing to it.
             self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='device disabled or reassigned' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
             return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
-        ready=self.repo.db.execute("""SELECT 1 FROM user_briefing_deliveries d JOIN audio_artifacts a ON a.id=d.audio_artifact_id
-            JOIN audio_scripts s ON s.id=a.audio_script_id AND s.edition_id=d.edition_id
-            WHERE d.id=? AND d.user_id=? AND d.status='READY' AND d.audio_status='READY'
-            AND d.active_voice_id=d.selected_voice_id AND a.voice=d.active_voice_id AND a.status='READY' AND a.duration_ms>0 AND a.size_bytes>=128
-            AND a.storage_path IS NOT NULL""",(job["delivery_id"],job["user_id"])).fetchone()
-        artifact=self.repo.db.execute("SELECT a.storage_path FROM user_briefing_deliveries d JOIN audio_artifacts a ON a.id=d.audio_artifact_id WHERE d.id=?",(job["delivery_id"],)).fetchone() if ready else None
-        if not ready or not artifact or not os.path.isfile(artifact["storage_path"]):
-            self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='delivery audio is no longer READY' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
-            return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
+        if job["notification_type"]=="BREAKING_NEWS":
+            message=json.loads(job["payload_json"] or "null")
+            if not message or parse(job["scheduled_for"])<now-self.breaking_max_delay:
+                # A breaking alert delivered hours late is noise; drop it instead.
+                self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='breaking news is no longer fresh' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
+                return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
+            title,body,data=message["title"],message["body"],message["data"]
+        else:
+            ready=self.repo.db.execute("""SELECT 1 FROM user_briefing_deliveries d JOIN audio_artifacts a ON a.id=d.audio_artifact_id
+                JOIN audio_scripts s ON s.id=a.audio_script_id AND s.edition_id=d.edition_id
+                WHERE d.id=? AND d.user_id=? AND d.status='READY' AND d.audio_status='READY'
+                AND d.active_voice_id=d.selected_voice_id AND a.voice=d.active_voice_id AND a.status='READY' AND a.duration_ms>0 AND a.size_bytes>=128
+                AND a.storage_path IS NOT NULL""",(job["delivery_id"],job["user_id"])).fetchone()
+            artifact=self.repo.db.execute("SELECT a.storage_path FROM user_briefing_deliveries d JOIN audio_artifacts a ON a.id=d.audio_artifact_id WHERE d.id=?",(job["delivery_id"],)).fetchone() if ready else None
+            if not ready or not artifact or not os.path.isfile(artifact["storage_path"]):
+                self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='delivery audio is no longer READY' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
+                return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
+            title,body,data="Seu briefing está pronto","Seu briefing diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]}
         claimed=self.repo.db.execute("UPDATE notification_jobs SET status='RUNNING',attempt_count=attempt_count+1,updated_at=? WHERE id=? AND status='PENDING'",(now_iso(),job["id"])); self.repo.db.commit()
         if claimed.rowcount!=1:
             # Another worker claimed it between the read and this update.
             return {"jobs_claimed":0,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0}
-        result=self.provider.send(job["push_token"],"Seu briefing está pronto","Seu briefing diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]})
+        result=self.provider.send(job["push_token"],title,body,data)
         if result.success:
-            self.repo.db.execute("UPDATE notification_jobs SET status='SENT',provider_message_id=?,updated_at=? WHERE id=?",(result.provider_message_id,now_iso(),job["id"])); self.repo.db.commit(); self._event("notification_sent",job["id"],job["device_id"],{"provider":self.provider.name}); return {"jobs_claimed":1,"notifications_sent":1,"notifications_failed":0,"invalid_tokens":0}
+            self.repo.db.execute("UPDATE notification_jobs SET status='SENT',provider_message_id=?,updated_at=? WHERE id=?",(result.provider_message_id,now_iso(),job["id"])); self.repo.db.commit(); self._event("notification_sent",job["id"],job["device_id"],{"provider":self.provider.name,"type":job["notification_type"]}); return {"jobs_claimed":1,"notifications_sent":1,"notifications_failed":0,"invalid_tokens":0}
         if result.token_invalid: self.disable_device(job["user_id"],job["device_id"])
-        retry=bool(result.retryable and job["attempt_count"] < job["max_attempts"]); status="PENDING" if retry else "FAILED"; next_at=(now+timedelta(minutes=2 ** job["attempt_count"])).isoformat() if retry else None; self.repo.db.execute("UPDATE notification_jobs SET status=?,next_attempt_at=?,last_error=?,updated_at=? WHERE id=?",(status,next_at,result.failure_reason,now_iso(),job["id"])); self.repo.db.commit(); self._event("notification_failed",job["id"],job["device_id"],{"retry":retry,"token_invalid":result.token_invalid}); return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":1,"invalid_tokens":1 if result.token_invalid else 0,"retry_count":1 if retry else 0}
+        retry=bool(result.retryable and job["attempt_count"] < job["max_attempts"]); status="PENDING" if retry else "FAILED"; next_at=iso(now+timedelta(minutes=2 ** job["attempt_count"])) if retry else None; self.repo.db.execute("UPDATE notification_jobs SET status=?,next_attempt_at=?,last_error=?,updated_at=? WHERE id=?",(status,next_at,result.failure_reason,now_iso(),job["id"])); self.repo.db.commit(); self._event("notification_failed",job["id"],job["device_id"],{"retry":retry,"token_invalid":result.token_invalid}); return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":1,"invalid_tokens":1 if result.token_invalid else 0,"retry_count":1 if retry else 0}
 
     def run_batch(self, limit=200, max_seconds=None, now=None):
         """Deliver up to ``limit`` due notifications within a time budget (one used to go out per worker cycle)."""

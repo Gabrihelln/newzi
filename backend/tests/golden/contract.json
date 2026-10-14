@@ -514,7 +514,9 @@
       "CULTURA_DIGITAL",
       "PODCASTS",
       "TELEVISAO_BRASILEIRA",
-      "SERIES"
+      "SERIES",
+      "NOVELAS",
+      "REALITY_SHOWS"
      ],
      "type": "domain",
      "enabled": true,
@@ -3055,7 +3057,11 @@
       "SPORTS",
       "FUTEBOL"
      ],
-     "children": [],
+     "children": [
+      "BRASILEIRAO",
+      "LIBERTADORES",
+      "COPA_DO_BRASIL"
+     ],
      "type": "subject",
      "enabled": true,
      "order": 141,
@@ -5295,6 +5301,137 @@
      "type": "subject",
      "enabled": true,
      "order": 1005,
+     "content_count": 0
+    },
+    {
+     "id": "NOVELAS",
+     "code": "NOVELAS",
+     "slug": "novelas",
+     "label": "Novelas",
+     "name": "Novelas",
+     "description": "Capítulos, elenco e bastidores das novelas",
+     "aliases": [
+      "Telenovelas"
+     ],
+     "parent_id": "ENTERTAINMENT",
+     "depth": 1,
+     "path": [
+      "ENTERTAINMENT",
+      "NOVELAS"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1006,
+     "content_count": 0
+    },
+    {
+     "id": "REALITY_SHOWS",
+     "code": "REALITY_SHOWS",
+     "slug": "reality-shows",
+     "label": "Reality shows",
+     "name": "Reality shows",
+     "description": "BBB, A Fazenda e outros realities",
+     "aliases": [
+      "Realities",
+      "BBB"
+     ],
+     "parent_id": "ENTERTAINMENT",
+     "depth": 1,
+     "path": [
+      "ENTERTAINMENT",
+      "REALITY_SHOWS"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1007,
+     "content_count": 0
+    },
+    {
+     "id": "BRASILEIRAO",
+     "code": "BRASILEIRAO",
+     "slug": "brasileirao",
+     "label": "Brasileirão",
+     "name": "Brasileirão",
+     "description": "Campeonato Brasileiro de futebol",
+     "aliases": [
+      "Campeonato Brasileiro"
+     ],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "BRASILEIRAO"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1008,
+     "content_count": 0
+    },
+    {
+     "id": "LIBERTADORES",
+     "code": "LIBERTADORES",
+     "slug": "libertadores",
+     "label": "Libertadores",
+     "name": "Libertadores",
+     "description": "Copa Libertadores da América",
+     "aliases": [
+      "Copa Libertadores"
+     ],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "LIBERTADORES"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1009,
+     "content_count": 0
+    },
+    {
+     "id": "COPA_DO_BRASIL",
+     "code": "COPA_DO_BRASIL",
+     "slug": "copa-do-brasil",
+     "label": "Copa do Brasil",
+     "name": "Copa do Brasil",
+     "description": "Copa do Brasil de futebol",
+     "aliases": [],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "COPA_DO_BRASIL"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1010,
+     "content_count": 0
+    },
+    {
+     "id": "CURIOSIDADES",
+     "code": "CURIOSIDADES",
+     "slug": "curiosidades",
+     "label": "Curiosidades",
+     "name": "Curiosidades",
+     "description": "Fatos curiosos, descobertas e o porquê das coisas",
+     "aliases": [],
+     "parent_id": null,
+     "depth": 0,
+     "path": [
+      "CURIOSIDADES"
+     ],
+     "children": [],
+     "type": "domain",
+     "enabled": true,
+     "order": 1011,
      "content_count": 0
     }
    ]
@@ -5810,7 +5947,9 @@
       "CULTURA_DIGITAL",
       "PODCASTS",
       "TELEVISAO_BRASILEIRA",
-      "SERIES"
+      "SERIES",
+      "NOVELAS",
+      "REALITY_SHOWS"
      ],
      "type": "domain",
      "enabled": true,
@@ -8351,7 +8490,11 @@
       "SPORTS",
       "FUTEBOL"
      ],
-     "children": [],
+     "children": [
+      "BRASILEIRAO",
+      "LIBERTADORES",
+      "COPA_DO_BRASIL"
+     ],
      "type": "subject",
      "enabled": true,
      "order": 141,
@@ -10591,6 +10734,137 @@
      "type": "subject",
      "enabled": true,
      "order": 1005,
+     "content_count": 0
+    },
+    {
+     "id": "NOVELAS",
+     "code": "NOVELAS",
+     "slug": "novelas",
+     "label": "Novelas",
+     "name": "Novelas",
+     "description": "Capítulos, elenco e bastidores das novelas",
+     "aliases": [
+      "Telenovelas"
+     ],
+     "parent_id": "ENTERTAINMENT",
+     "depth": 1,
+     "path": [
+      "ENTERTAINMENT",
+      "NOVELAS"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1006,
+     "content_count": 0
+    },
+    {
+     "id": "REALITY_SHOWS",
+     "code": "REALITY_SHOWS",
+     "slug": "reality-shows",
+     "label": "Reality shows",
+     "name": "Reality shows",
+     "description": "BBB, A Fazenda e outros realities",
+     "aliases": [
+      "Realities",
+      "BBB"
+     ],
+     "parent_id": "ENTERTAINMENT",
+     "depth": 1,
+     "path": [
+      "ENTERTAINMENT",
+      "REALITY_SHOWS"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1007,
+     "content_count": 0
+    },
+    {
+     "id": "BRASILEIRAO",
+     "code": "BRASILEIRAO",
+     "slug": "brasileirao",
+     "label": "Brasileirão",
+     "name": "Brasileirão",
+     "description": "Campeonato Brasileiro de futebol",
+     "aliases": [
+      "Campeonato Brasileiro"
+     ],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "BRASILEIRAO"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1008,
+     "content_count": 0
+    },
+    {
+     "id": "LIBERTADORES",
+     "code": "LIBERTADORES",
+     "slug": "libertadores",
+     "label": "Libertadores",
+     "name": "Libertadores",
+     "description": "Copa Libertadores da América",
+     "aliases": [
+      "Copa Libertadores"
+     ],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "LIBERTADORES"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1009,
+     "content_count": 0
+    },
+    {
+     "id": "COPA_DO_BRASIL",
+     "code": "COPA_DO_BRASIL",
+     "slug": "copa-do-brasil",
+     "label": "Copa do Brasil",
+     "name": "Copa do Brasil",
+     "description": "Copa do Brasil de futebol",
+     "aliases": [],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "COPA_DO_BRASIL"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1010,
+     "content_count": 0
+    },
+    {
+     "id": "CURIOSIDADES",
+     "code": "CURIOSIDADES",
+     "slug": "curiosidades",
+     "label": "Curiosidades",
+     "name": "Curiosidades",
+     "description": "Fatos curiosos, descobertas e o porquê das coisas",
+     "aliases": [],
+     "parent_id": null,
+     "depth": 0,
+     "path": [
+      "CURIOSIDADES"
+     ],
+     "children": [],
+     "type": "domain",
+     "enabled": true,
+     "order": 1011,
      "content_count": 0
     }
    ]
@@ -11928,7 +12202,9 @@
       "CULTURA_DIGITAL",
       "PODCASTS",
       "TELEVISAO_BRASILEIRA",
-      "SERIES"
+      "SERIES",
+      "NOVELAS",
+      "REALITY_SHOWS"
      ],
      "type": "domain",
      "enabled": true,
@@ -14469,7 +14745,11 @@
       "SPORTS",
       "FUTEBOL"
      ],
-     "children": [],
+     "children": [
+      "BRASILEIRAO",
+      "LIBERTADORES",
+      "COPA_DO_BRASIL"
+     ],
      "type": "subject",
      "enabled": true,
      "order": 141,
@@ -16710,6 +16990,137 @@
      "enabled": true,
      "order": 1005,
      "content_count": 0
+    },
+    {
+     "id": "NOVELAS",
+     "code": "NOVELAS",
+     "slug": "novelas",
+     "label": "Novelas",
+     "name": "Novelas",
+     "description": "Capítulos, elenco e bastidores das novelas",
+     "aliases": [
+      "Telenovelas"
+     ],
+     "parent_id": "ENTERTAINMENT",
+     "depth": 1,
+     "path": [
+      "ENTERTAINMENT",
+      "NOVELAS"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1006,
+     "content_count": 0
+    },
+    {
+     "id": "REALITY_SHOWS",
+     "code": "REALITY_SHOWS",
+     "slug": "reality-shows",
+     "label": "Reality shows",
+     "name": "Reality shows",
+     "description": "BBB, A Fazenda e outros realities",
+     "aliases": [
+      "Realities",
+      "BBB"
+     ],
+     "parent_id": "ENTERTAINMENT",
+     "depth": 1,
+     "path": [
+      "ENTERTAINMENT",
+      "REALITY_SHOWS"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1007,
+     "content_count": 0
+    },
+    {
+     "id": "BRASILEIRAO",
+     "code": "BRASILEIRAO",
+     "slug": "brasileirao",
+     "label": "Brasileirão",
+     "name": "Brasileirão",
+     "description": "Campeonato Brasileiro de futebol",
+     "aliases": [
+      "Campeonato Brasileiro"
+     ],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "BRASILEIRAO"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1008,
+     "content_count": 0
+    },
+    {
+     "id": "LIBERTADORES",
+     "code": "LIBERTADORES",
+     "slug": "libertadores",
+     "label": "Libertadores",
+     "name": "Libertadores",
+     "description": "Copa Libertadores da América",
+     "aliases": [
+      "Copa Libertadores"
+     ],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "LIBERTADORES"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1009,
+     "content_count": 0
+    },
+    {
+     "id": "COPA_DO_BRASIL",
+     "code": "COPA_DO_BRASIL",
+     "slug": "copa-do-brasil",
+     "label": "Copa do Brasil",
+     "name": "Copa do Brasil",
+     "description": "Copa do Brasil de futebol",
+     "aliases": [],
+     "parent_id": "FUTEBOL",
+     "depth": 2,
+     "path": [
+      "SPORTS",
+      "FUTEBOL",
+      "COPA_DO_BRASIL"
+     ],
+     "children": [],
+     "type": "subject",
+     "enabled": true,
+     "order": 1010,
+     "content_count": 0
+    },
+    {
+     "id": "CURIOSIDADES",
+     "code": "CURIOSIDADES",
+     "slug": "curiosidades",
+     "label": "Curiosidades",
+     "name": "Curiosidades",
+     "description": "Fatos curiosos, descobertas e o porquê das coisas",
+     "aliases": [],
+     "parent_id": null,
+     "depth": 0,
+     "path": [
+      "CURIOSIDADES"
+     ],
+     "children": [],
+     "type": "domain",
+     "enabled": true,
+     "order": 1011,
+     "content_count": 0
     }
    ],
    "latest_news": [
@@ -16882,6 +17293,7 @@
      "key_points": []
     }
    ],
+   "trending": [],
    "saved_story_ids": []
   }
  },

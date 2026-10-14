@@ -12,6 +12,7 @@ added, existing data is kept.
 from datetime import datetime, timedelta, timezone
 
 from .db import POSTGRES, SQLITE
+from .timeutil import iso, now_iso
 
 # table -> (columns [(name, declaration)], table constraints)
 BASELINE_TABLES = {
@@ -204,8 +205,7 @@ def create_table_sql(name, dialect):
     return f"CREATE TABLE IF NOT EXISTS {name}({','.join(body)})"
 
 
-def _now():
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+_now = now_iso
 
 
 def _baseline(db):
@@ -227,7 +227,7 @@ def _baseline(db):
                "WHERE status='READY' AND audio_artifact_id IS NULL")
     if db.dialect == SQLITE:
         # Older SQLite importers substituted the collection time for a missing publication date.
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        cutoff = iso(datetime.now(timezone.utc) - timedelta(days=1))
         db.execute("UPDATE indexed_content SET published_at=NULL WHERE published_at IS NOT NULL AND indexed_at IS NOT NULL "
                    "AND datetime(indexed_at)<datetime(?) AND ABS((julianday(published_at)-julianday(indexed_at))*86400)<1", (cutoff,))
 
@@ -268,10 +268,60 @@ def _article_search(db):
     db.execute("INSERT INTO content_search(content_search) VALUES('rebuild')")
 
 
+def _timestamp_columns(table):
+    return [name for name, _ in BASELINE_TABLES[table][0] if name.endswith("_at") or name == "scheduled_for"]
+
+
+def _canonical_timestamps(db):
+    """Rewrite stored timestamps to the single format of timeutil.iso().
+
+    Rows written before it mixed ``...Z`` (seconds) and ``...+00:00`` (microseconds); SQL compares
+    these columns as text, which is only correct when every value has the same shape.
+    """
+    from .timeutil import normalize
+    db.execute("CREATE TEMPORARY TABLE timestamp_rewrites(old TEXT PRIMARY KEY, new TEXT NOT NULL)")
+    for table in BASELINE_TABLES:
+        for column in _timestamp_columns(table):
+            values = [row[0] for row in db.execute(f"SELECT DISTINCT {column} FROM {table} WHERE {column} IS NOT NULL")]
+            changes = [(value, normalize(value)) for value in values if normalize(value) != value]
+            if not changes:
+                continue
+            db.execute("DELETE FROM timestamp_rewrites")
+            db.executemany("INSERT INTO timestamp_rewrites(old,new) VALUES(?,?)", changes)
+            # One pass per column; the lookup table is indexed, the target column usually is not.
+            db.execute(f"UPDATE {table} SET {column}=(SELECT new FROM timestamp_rewrites WHERE old={table}.{column}) "
+                       f"WHERE {column} IN (SELECT old FROM timestamp_rewrites)")
+    db.execute("DROP TABLE timestamp_rewrites")
+    row = db.execute("SELECT value FROM content_index_state WHERE key='retention_last_run'").fetchone()
+    if row and normalize(row[0]) != row[0]:
+        db.execute("UPDATE content_index_state SET value=? WHERE key='retention_last_run'", (normalize(row[0]),))
+
+
+def _worker_heartbeats_and_push_payloads(db):
+    """Worker liveness for /health/worker, and per-job push content for breaking news."""
+    db.execute("CREATE TABLE IF NOT EXISTS worker_heartbeats(worker_id TEXT PRIMARY KEY, roles TEXT NOT NULL, started_at TEXT NOT NULL, "
+               f"last_cycle_at TEXT NOT NULL, last_success_at TEXT, last_error TEXT, cycle_ms {render_column('INTEGER', db.dialect)}, "
+               f"cycles {render_column('INTEGER NOT NULL DEFAULT 0', db.dialect)})")
+    if "payload_json" not in set(db.table_columns("notification_jobs")):
+        db.execute("ALTER TABLE notification_jobs ADD COLUMN payload_json TEXT")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_notification_jobs_user_type ON notification_jobs(user_id,notification_type,created_at)")
+
+
+def _subscriptions(db):
+    """Premium plans bought in the store; one row per user, written by the billing webhook."""
+    db.execute("CREATE TABLE IF NOT EXISTS subscriptions(user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, "
+               "period TEXT NOT NULL, status TEXT NOT NULL, store TEXT NOT NULL, product_id TEXT, purchase_token TEXT, "
+               f"started_at TEXT, expires_at TEXT NOT NULL, auto_renew {render_column('INTEGER NOT NULL DEFAULT 1', db.dialect)}, "
+               "updated_at TEXT NOT NULL)")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
     ("0003_article_search", _article_search),
+    ("0004_canonical_timestamps", _canonical_timestamps),
+    ("0005_worker_heartbeats_and_push_payloads", _worker_heartbeats_and_push_payloads),
+    ("0006_subscriptions", _subscriptions),
 ]
 
 

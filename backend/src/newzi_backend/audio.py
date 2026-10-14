@@ -12,14 +12,13 @@ import time
 import uuid
 import wave
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .paths import BACKEND_DATA
+from .timeutil import iso, now_iso, parse
 
 
-def now_iso():
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 class PermanentAudioError(RuntimeError):
@@ -261,6 +260,8 @@ VOICE_CATALOG = {
          "language": "en", "gender": "female", "provider_voice": "Zira"},
     ),
 }
+# The official Azure Speech service serves the same neural voices as edge-tts.
+VOICE_CATALOG["azure-tts"] = VOICE_CATALOG["edge-tts"]
 PREVIEW_TEXT = {
     "pt-BR": "Bom dia. Este é o seu briefing Newzi, com as histórias mais importantes selecionadas para você acompanhar o dia com clareza.",
     "en": "Good morning. This is your Newzi briefing, with the most important stories selected to help you follow the day clearly.",
@@ -314,23 +315,27 @@ class EdgeTTSProvider(TTSProvider):
             raise PermanentAudioError("VOICE_UNAVAILABLE", f"Edge voice unavailable: {voice}")
         if not text.strip():
             raise PermanentAudioError("EMPTY_SCRIPT", "cannot synthesize empty text")
-        import asyncio
-        import edge_tts
         directory = Path(os.environ.get("NEWS_AUDIO_TMP", str(BACKEND_DATA / "audio")))
         directory.mkdir(parents=True, exist_ok=True)
         output = directory / ("tts_" + uuid.uuid4().hex + ".mp3")
         try:
-            async def save_with_timeout():
-                await asyncio.wait_for(edge_tts.Communicate(text, voice=voice, rate="-2%").save(str(output)),
-                                       timeout=float(os.getenv("TTS_SEGMENT_TIMEOUT_SECONDS", "90")))
-            asyncio.run(save_with_timeout())
+            self._render(text, voice, language, output)
             if not output.is_file() or not output.stat().st_size:
-                raise RuntimeError("Edge TTS produced no audio")
+                raise RuntimeError(f"{self.name} produced no audio")
             return {"path": str(output), "mime_type": "audio/mpeg", "duration_ms": self._duration_ms(output),
                     "size_bytes": output.stat().st_size, "resolved_voice": voice}
         except Exception:
             output.unlink(missing_ok=True)
             raise
+
+    def _render(self, text, voice, language, output):
+        import asyncio
+        import edge_tts
+
+        async def save_with_timeout():
+            await asyncio.wait_for(edge_tts.Communicate(text, voice=voice, rate="-2%").save(str(output)),
+                                   timeout=float(os.getenv("TTS_SEGMENT_TIMEOUT_SECONDS", "90")))
+        asyncio.run(save_with_timeout())
 
     def synthesize_segments(self, segments, voice, language, options=None):
         parts = []
@@ -372,33 +377,127 @@ class EdgeTTSProvider(TTSProvider):
                 part.unlink(missing_ok=True)
 
 
+class AzureSpeechProvider(EdgeTTSProvider):
+    """Official Azure AI Speech REST API: the same neural voices as edge-tts, under a paid key.
+
+    Needs AZURE_SPEECH_KEY plus AZURE_SPEECH_REGION (or AZURE_SPEECH_ENDPOINT). Used as the primary
+    provider (TTS_PROVIDER=azure-tts) or as the standby behind edge-tts (TTS_FALLBACK_PROVIDER).
+    """
+    name = "azure-tts"
+    version = "rest-v1-rate-2"
+    OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3"
+
+    def __init__(self, key=None, region=None, endpoint=None):
+        self.key = key or os.getenv("AZURE_SPEECH_KEY")
+        region = region or os.getenv("AZURE_SPEECH_REGION")
+        self.endpoint = endpoint or os.getenv("AZURE_SPEECH_ENDPOINT") or (
+            f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1" if region else None)
+
+    def list_voices(self):
+        return [entry["provider_voice"] for entry in VOICE_CATALOG[self.name]]
+
+    def health_check(self):
+        return bool(self.key and self.endpoint)
+
+    def _render(self, text, voice, language, output):
+        import urllib.error
+        import urllib.request
+        from xml.sax.saxutils import escape, quoteattr
+        if not self.health_check():
+            raise PermanentAudioError("TTS_NOT_CONFIGURED", "azure-tts needs AZURE_SPEECH_KEY and AZURE_SPEECH_REGION")
+        locale = {"pt-BR": "pt-BR", "en": "en-US"}.get(language) or "-".join(voice.split("-")[:2])
+        ssml = (f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang={quoteattr(locale)}>"
+                f"<voice name={quoteattr(voice)}><prosody rate='-2%'>{escape(text)}</prosody></voice></speak>")
+        request = urllib.request.Request(self.endpoint, data=ssml.encode("utf-8"), method="POST", headers={
+            "Ocp-Apim-Subscription-Key": self.key, "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": self.OUTPUT_FORMAT, "User-Agent": "newzi-backend"})
+        try:
+            with urllib.request.urlopen(request, timeout=float(os.getenv("TTS_SEGMENT_TIMEOUT_SECONDS", "90"))) as response:
+                output.write_bytes(response.read())
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                raise PermanentAudioError("TTS_NOT_CONFIGURED", f"azure-tts rejected the key (HTTP {exc.code})") from exc
+            if exc.code == 400:
+                raise PermanentAudioError("TTS_REQUEST_REJECTED", "azure-tts rejected the request (HTTP 400)") from exc
+            raise RuntimeError(f"azure-tts unavailable (HTTP {exc.code})") from exc
+
+
+class FallbackTTSProvider(TTSProvider):
+    """A primary provider with a standby that renders the same voices when the primary fails.
+
+    It keeps the primary's name and version, so job keys, cached artifacts and the voice catalog
+    do not change; the provider that rendered the audio is returned as ``provider``. After a
+    primary failure the standby is used directly for TTS_FALLBACK_COOLDOWN_SECONDS.
+    """
+    # Errors the standby cannot fix either (empty script, ffmpeg missing) are raised at once.
+    FALLBACK_CODES = {"VOICE_UNAVAILABLE", "TTS_NOT_CONFIGURED", "TTS_REQUEST_REJECTED"}
+    _primary_down_until = {}
+
+    def __init__(self, primary, fallback, cooldown_seconds=None):
+        self.primary = primary
+        self.fallback = fallback
+        self.cooldown = float(cooldown_seconds if cooldown_seconds is not None else os.getenv("TTS_FALLBACK_COOLDOWN_SECONDS", "600"))
+        self.name, self.version, self.extension = primary.name, primary.version, primary.extension
+
+    def list_voices(self):
+        return self.primary.list_voices()
+
+    def health_check(self):
+        return self.primary.health_check() or self.fallback.health_check()
+
+    def capabilities(self):
+        return self.primary.capabilities()
+
+    def _call(self, method, *args):
+        import logging
+        down = FallbackTTSProvider._primary_down_until
+        reason = "PRIMARY_COOLING_DOWN"
+        if time.monotonic() >= down.get(self.primary.name, 0.0):
+            try:
+                return {**getattr(self.primary, method)(*args), "provider": self.primary.name}
+            except PermanentAudioError as exc:
+                if exc.code not in self.FALLBACK_CODES:
+                    raise
+                reason = exc.code
+            except Exception as exc:
+                reason = type(exc).__name__
+            down[self.primary.name] = time.monotonic() + self.cooldown
+            logging.getLogger(__name__).warning("TTS provider %s failed (%s); using %s for %ss",
+                                                self.primary.name, reason, self.fallback.name, int(self.cooldown))
+        return {**getattr(self.fallback, method)(*args), "provider": self.fallback.name, "fallback_reason": reason}
+
+    def synthesize(self, text, voice, language, options=None):
+        return self._call("synthesize", text, voice, language, options)
+
+    def synthesize_segments(self, segments, voice, language, options=None):
+        return self._call("synthesize_segments", segments, voice, language, options)
+
+
+def build_tts_provider(name, fallback_name=None):
+    """The provider for TTS_PROVIDER, wrapped with TTS_FALLBACK_PROVIDER when both share voices."""
+    import logging
+    providers = {"local-system": LocalTTSProvider, "windows-sapi": WindowsSAPIProvider,
+                 "edge-tts": EdgeTTSProvider, "azure-tts": AzureSpeechProvider}
+    primary = providers[name]() if name in providers else UnavailableTTSProvider(name)
+    if fallback_name is None:
+        fallback_name = os.getenv("TTS_FALLBACK_PROVIDER")
+        if fallback_name is None and name == "edge-tts" and os.getenv("AZURE_SPEECH_KEY"):
+            fallback_name = "azure-tts"
+    if not fallback_name or fallback_name in ("none", name):
+        return primary
+    if fallback_name not in providers or VOICE_CATALOG.get(fallback_name) is not VOICE_CATALOG.get(name):
+        logging.getLogger(__name__).warning("TTS_FALLBACK_PROVIDER=%s cannot stand in for %s (different voices); ignoring it",
+                                            fallback_name, name)
+        return primary
+    return FallbackTTSProvider(primary, providers[fallback_name]())
+
+
 class UnavailableTTSProvider(TTSProvider):
     def __init__(self, name):
         self.name = name
 
     def synthesize(self, text, voice, language, options=None):
         raise PermanentAudioError("TTS_PROVIDER_UNSUPPORTED", f"unsupported TTS_PROVIDER: {self.name}")
-
-
-class OllamaTranslator:
-    """Translate source-language fallback text locally for spoken output."""
-    def translate(self, fields, language):
-        import httpx
-        model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
-        prompt = ("Translate each JSON string into " + language + ". Preserve every fact, number, "
-                  "name and uncertainty. Do not add information. Return only a JSON object with "
-                  "the same keys. Input: " + json.dumps(fields, ensure_ascii=False))
-        response = httpx.post(os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/generate",
-                              json={"model": model, "prompt": prompt, "stream": False, "format": "json"}, timeout=60)
-        response.raise_for_status()
-        translated = json.loads(response.json()["response"])
-        if not isinstance(translated, dict) or any(not isinstance(translated.get(key), str) for key in fields):
-            raise PermanentAudioError("TRANSLATION_INVALID", "translation did not preserve the script fields")
-        for key, original in fields.items():
-            digits = lambda value: re.findall(r"\d+(?:[.,]\d+)*", value)
-            if digits(original) != digits(translated[key]):
-                raise PermanentAudioError("TRANSLATION_INVALID", "translation changed a numeric fact")
-        return translated
 
 
 def spoken_text(value):
@@ -651,10 +750,7 @@ class AudioService:
                 provider_name = "edge-tts"
             except ImportError:
                 provider_name = "windows-sapi" if os.name == "nt" else "local-system"
-        self.provider = provider or ({"local-system": LocalTTSProvider,
-                                     "windows-sapi": WindowsSAPIProvider,
-                                     "edge-tts": EdgeTTSProvider}.get(provider_name,
-                                     lambda: UnavailableTTSProvider(provider_name))())
+        self.provider = provider or build_tts_provider(provider_name)
         self.storage = storage or AudioStorage()
         self.voice = voice or os.getenv("TTS_VOICE", "auto")
         self.narration_version = script_version
@@ -898,7 +994,7 @@ class AudioService:
         return count
 
     def _claim(self):
-        stale = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        stale = iso(datetime.now(timezone.utc) - timedelta(minutes=30))
         self.repo.db.begin_immediate()
         try:
             stale_jobs=self.repo.db.execute("SELECT edition_id,voice,attempt_count,max_attempts FROM audio_generation_jobs WHERE status='GENERATING' AND started_at<?",(stale,)).fetchall()
@@ -935,8 +1031,8 @@ class AudioService:
             return {"jobs_claimed": 0, "jobs_completed": 0, "jobs_failed": 0, "jobs_retried": 0}
         started = time.monotonic()
         phase_started=started
-        queued=datetime.fromisoformat(job["created_at"])
-        claimed=datetime.fromisoformat(job["started_at"])
+        queued=parse(job["created_at"])
+        claimed=parse(job["started_at"])
         queue_ms=max(0,int((claimed-queued).total_seconds()*1000))
         self.repo.db.execute("INSERT INTO audio_job_phases(audio_job_id,phase,duration_ms,started_at,finished_at,status) VALUES(?,?,?,?,?,'READY') ON CONFLICT(audio_job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,started_at=excluded.started_at,finished_at=excluded.finished_at,status=excluded.status",
             (job["id"],"QUEUE_WAIT",queue_ms,job["created_at"],job["started_at"])); self.repo.db.commit()
@@ -991,7 +1087,7 @@ class AudioService:
             self._record_phase(job["id"],"TOTAL",started)
             self._event("audio_generation_completed", job["edition_id"], artifact_id,
                         {"duration_ms": duration_ms, "file_size": Path(stored).stat().st_size,
-                         "latency_ms": int((time.monotonic() - started) * 1000), "provider": self.provider.name,
+                         "latency_ms": int((time.monotonic() - started) * 1000), "provider": result.get("provider", self.provider.name),
                          "tts_voice_id": job["voice"], "script_version": self.script_version})
             try:
                 from .notifications import NotificationService
@@ -1004,7 +1100,7 @@ class AudioService:
             permanent = isinstance(exc, PermanentAudioError)
             retry = not permanent and job["attempt_count"] < job["max_attempts"]
             status = "PENDING" if retry else "FAILED"
-            delay = (datetime.now(timezone.utc) + timedelta(minutes=2 ** job["attempt_count"])).isoformat() if retry else None
+            delay = iso(datetime.now(timezone.utc) + timedelta(minutes=2 ** job["attempt_count"])) if retry else None
             code = exc.code if permanent else "TTS_TRANSIENT" if retry else "TTS_FAILED"
             self.repo.db.execute("""UPDATE audio_generation_jobs SET status=?,stage=?,updated_at=?,next_retry_at=?,finished_at=?,
                 error_code=?,error_message=? WHERE id=?""",
@@ -1172,7 +1268,7 @@ class AudioService:
         failures = [json.loads(row["metadata_json"]) for row in self.repo.db.execute(
             "SELECT metadata_json FROM audio_events WHERE event_type='audio_generation_failed'")]
         phases={row["phase"]:round(row["avg_ms"]) for row in self.repo.db.execute("SELECT phase,AVG(duration_ms) AS avg_ms FROM audio_job_phases GROUP BY phase")}
-        stale_cutoff=(datetime.now(timezone.utc)-timedelta(minutes=30)).isoformat()
+        stale_cutoff=iso(datetime.now(timezone.utc)-timedelta(minutes=30))
         stale=self.repo.db.execute("SELECT COUNT(*) FROM audio_generation_jobs WHERE status='GENERATING' AND COALESCE(updated_at,started_at)<?",(stale_cutoff,)).fetchone()[0]
         oldest=self.repo.db.execute("SELECT MIN(created_at) FROM audio_generation_jobs WHERE status IN ('PENDING','GENERATING')").fetchone()[0]
         return {"audio_jobs_created": events.get("audio_job_created", 0),

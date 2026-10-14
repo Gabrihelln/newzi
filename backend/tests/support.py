@@ -95,7 +95,7 @@ def seed_content(repo, topics=SEED_TOPICS):
     rows = []
     for index in range(8):
         topic = topics[index % len(topics)]
-        published = (now - timedelta(hours=index + 1)).isoformat()
+        published = (now - timedelta(hours=index + 1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
         rows.append({
             "id": f"article_{index:02d}", "content_hash": f"hash_{index:02d}",
             "title": f"Manchete {index} sobre {topic}", "description": f"Resumo da notícia {index} sobre {topic}.",

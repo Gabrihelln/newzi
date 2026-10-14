@@ -20,7 +20,7 @@ ALLOWED_ENVIRONMENTS = {"development", "staging", "production"}
 log = logging.getLogger("news_engine.product")
 
 
-def now_iso(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+from .timeutil import iso, now_iso, parse
 
 
 class ProductConfig:
@@ -217,7 +217,7 @@ class ProductRepository:
         where_params=[]
         # A real publication date older than this freshness horizon is not a
         # Home/Explore candidate; ingestion time never substitutes for it.
-        freshness_cutoff=(datetime.now(timezone.utc)-timedelta(days=30)).isoformat()
+        freshness_cutoff=iso(datetime.now(timezone.utc)-timedelta(days=30))
         clauses.append("c.published_at>=?");where_params.append(freshness_cutoff)
         if prefs.get("country_scope")=="LOCAL": clauses.append("c.source_country='BR'")
         elif prefs.get("country_scope")=="GLOBAL": clauses.append("(c.source_country IS NULL OR c.source_country<>'BR')")
@@ -248,7 +248,7 @@ class ProductRepository:
         now=datetime.now(timezone.utc)
         base_scores={}
         for row in rows:
-            published=datetime.fromisoformat(row["published_at"].replace("Z","+00:00"))
+            published=parse(row["published_at"])
             if published.tzinfo is None: published=published.replace(tzinfo=timezone.utc)
             age_days=max(0.0,(now-published).total_seconds()/86400)
             freshness=max(0.0,1.0-age_days/30.0)
@@ -279,7 +279,46 @@ class ProductRepository:
             output.append({"id":best["id"],"position":len(output)+1,"headline":best["title"],"summary":best["description"] or best["title"],
                 "category":label,"primary_taxonomy_id":taxonomy_id,"primary_taxonomy_label":label,"published_at":best["published_at"],
                 "image_url":best["image_url"],"sources":[{"publisher":best["source_name"],"url":best["url"],"article_id":best["id"],"published_at":best["published_at"],"image_url":best["image_url"]}],"key_points":[]})
-        return output
+        return self._attach_event_sources(output)
+
+    def story(self, uid, story_id):
+        """One indexed story in the news-item shape, e.g. for a breaking-news push the user tapped."""
+        row=self.db.execute("""SELECT c.*,(SELECT t.taxonomy_id FROM content_taxonomy t WHERE t.content_id=c.id ORDER BY t.score DESC,t.taxonomy_id LIMIT 1) AS primary_taxonomy_id
+            FROM indexed_content c WHERE c.id=?""",(story_id,)).fetchone()
+        if not row: return None
+        registry=taxonomy(); taxonomy_id=row["primary_taxonomy_id"]
+        selected=sorted((self.get_preferences(uid) or {}).get("topics") or [])
+        if selected:
+            from .content import primary_taxonomy
+            tags={tag["taxonomy_id"]:tag["score"] for tag in self.db.execute("SELECT taxonomy_id,score FROM content_taxonomy WHERE content_id=?",(story_id,))}
+            picked=primary_taxonomy(tags,selected,registry)
+            if picked: taxonomy_id=picked["id"]
+        label=registry.nodes.get(taxonomy_id,{}).get("name") if taxonomy_id else None
+        item={"id":row["id"],"position":1,"headline":row["title"],"summary":row["description"] or row["title"],
+            "category":label,"primary_taxonomy_id":taxonomy_id,"primary_taxonomy_label":label,"published_at":row["published_at"],
+            "image_url":row["image_url"],"sources":[{"publisher":row["source_name"],"url":row["url"],"article_id":row["id"],"published_at":row["published_at"],"image_url":row["image_url"]}],"key_points":[]}
+        return self._attach_event_sources([item])[0]
+
+    def _attach_event_sources(self, items, limit=5):
+        """Credit the other outlets that covered each story's event, best first, one per publisher."""
+        ids=[item["id"] for item in items]
+        if not ids: return items
+        own={row["id"]:row for row in self.db.execute("SELECT id,event_id,source_id FROM indexed_content WHERE id IN ("+",".join("?" for _ in ids)+")",ids)}
+        events=sorted({row["event_id"] for row in own.values() if row["event_id"]})
+        if not events: return items
+        members={}
+        for row in self.db.execute("SELECT id,event_id,source_id,source_name,url,published_at,image_url FROM indexed_content WHERE event_id IN ("+",".join("?" for _ in events)+") ORDER BY quality_score DESC,id",events):
+            members.setdefault(row["event_id"],[]).append(row)
+        for item in items:
+            mine=own.get(item["id"])
+            if not mine or not mine["event_id"]: continue
+            publishers={mine["source_id"]}
+            for row in members.get(mine["event_id"],[]):
+                if len(item["sources"])>=limit: break
+                if row["source_id"] in publishers: continue
+                publishers.add(row["source_id"])
+                item["sources"].append({"publisher":row["source_name"],"url":row["url"],"article_id":row["id"],"published_at":row["published_at"],"image_url":row["image_url"]})
+        return items
 
     def _canonical_article_image(self, story):
         """Hydrate saved legacy snapshots from the article's single indexed image."""
@@ -408,6 +447,22 @@ class ApiError(Exception):
 
 
 def not_found(message="not found"): return ApiError("RESOURCE_NOT_FOUND", message, 404)
+
+
+def with_trending(latest, trending):
+    """Latest news with what is trending now: matching stories get the "Em alta" flag, and trending
+    stories not in the list (even outside the user's topics) join it at the top."""
+    by_article = {}
+    for item in trending:
+        for article_id in [item["id"], *(source.get("article_id") for source in item.get("sources", []))]:
+            if article_id: by_article.setdefault(article_id, item)
+    matched = set()
+    for story in latest:
+        hit = next((by_article[article_id] for article_id in [story["id"], *(source.get("article_id") for source in story.get("sources", []))]
+                    if article_id in by_article), None)
+        if hit:
+            story["trending"] = hit["trending"]; matched.add(hit["id"])
+    return [item for item in trending if item["id"] not in matched] + latest
 
 
 class ProductService:
@@ -606,6 +661,10 @@ class ProductService:
         page,next_cursor=self.client_history(uid,limit,offset,include_audio=True)
         return {"items":page,"next_cursor":next_cursor}
 
+    def trending(self, uid, limit=5):
+        from .trending import trending_stories
+        return trending_stories(self.repo, uid, limit)
+
     def client_home(self, uid):
         preferences=self.repo.get_preferences(uid) or {}
         today=self.client_briefing(uid,self.local_date(preferences))
@@ -615,8 +674,10 @@ class ProductService:
         # as it exists. Never pair an older READY audio with newer visual items.
         if today.get("items"):
             latest=today
+        trending=self.trending(uid)
         return {"preferences":preferences,"today_briefing":today,"latest_briefing":latest,
-            "topics":self.repo.list_topics(),"latest_news":self.repo.latest_news(uid,12),
+            "topics":self.repo.list_topics(),"latest_news":with_trending(self.repo.latest_news(uid,12),trending),
+            "trending":trending,
             "saved_story_ids":[row["story_id"] for row in self.repo.db.execute("SELECT story_id FROM saved_stories WHERE user_id=?",(uid,))]}
 
     def briefing(self, uid, briefing_id):

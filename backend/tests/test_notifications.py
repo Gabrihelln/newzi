@@ -62,6 +62,8 @@ def fcm(monkeypatch):
         SenderIdMismatchError = type("SenderIdMismatchError", (exceptions.PermissionDeniedError,), {})
         QuotaExceededError = type("QuotaExceededError", (exceptions.ResourceExhaustedError,), {})
         Message = Notification = AndroidConfig = APNSConfig = APNSPayload = Aps = staticmethod(lambda *a, **k: None)
+        channels = []
+        AndroidNotification = staticmethod(lambda channel_id=None, **k: Messaging.channels.append(channel_id))
         error = None
 
         @classmethod
@@ -94,9 +96,11 @@ def test_fcm_errors_are_classified(fcm, make_error, expected):
 
 
 def test_fcm_success(fcm):
-    provider, _ = fcm
+    provider, messaging = fcm
     result = provider.send("token", "title", "body", {"x": 1})
     assert result.success and result.provider_message_id == "projects/p/messages/1"
+    provider.send("token", "title", "body", {"type": "BREAKING_NEWS"})
+    assert messaging.channels == ["daily_briefing", "breaking_news"]     # each kind on its own Android channel
 
 
 def test_rate_limiter_prunes_idle_keys(monkeypatch):

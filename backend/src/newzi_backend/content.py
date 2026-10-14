@@ -8,11 +8,13 @@ from newzi_engine.collectors.registry import load_sources
 from newzi_engine.processors.classify import classify_for_index, CLASSIFIER_VERSION
 from newzi_engine.storage import Store
 from newzi_engine.topic_registry import taxonomy
-from newzi_engine.paths import ENGINE_OUTPUT
+from .timeutil import iso, now_iso, parse
 
 INDEX_VERSION = "content-index-v1"
 # Users with many interests get a longer briefing (up to this size) instead of losing topics.
 MAX_EXPANDED_BRIEFING_SIZE = 20
+# Outlets listed for one story: the chosen article plus others covering the same event.
+MAX_SOURCES_PER_ITEM = 5
 
 
 def classification_registry_hash(registry=None):
@@ -42,8 +44,8 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
         # Collection time is provenance, not publication time. Keep unknown source
         # dates unknown so ingestion cannot make old stories look new.
         published = article.published_at
-        published_iso = published.astimezone(timezone.utc).isoformat() if published else None
-        seen_iso = (article.collected_at or datetime.now(timezone.utc)).astimezone(timezone.utc).isoformat()
+        published_iso = iso(published) if published else None
+        seen_iso = iso(article.collected_at or datetime.now(timezone.utc))
         country = countries.get(article.source_id, "")
         quality = min(10.0, float(sources.get(article.source_id, {}).get("priority", 5))) + min(5.0, len(article.description or "") / 80)
         digest = hashlib.sha256(json.dumps([INDEX_VERSION, article.title, article.description, article.url, article.language], ensure_ascii=False).encode()).hexdigest()
@@ -83,7 +85,7 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
     repo.db.commit()
     if metrics["public_content_changed"] and advance_revision:
         current_revision += 1
-        repo.db.execute("UPDATE content_index_state SET value=?,updated_at=? WHERE key='content_revision'",(str(current_revision),datetime.now(timezone.utc).isoformat()))
+        repo.db.execute("UPDATE content_index_state SET value=?,updated_at=? WHERE key='content_revision'",(str(current_revision),now_iso()))
         repo.db.commit()
     metrics["content_revision_before"] = current_revision - bool(metrics["public_content_changed"] and advance_revision)
     metrics["content_revision_after"] = current_revision
@@ -112,7 +114,7 @@ def sync_article_image_metadata(repo, articles, allow_clear=False):
     if public_changed:
         revision=repo.db.execute("SELECT value FROM content_index_state WHERE key='content_revision'").fetchone()
         next_revision=int(revision[0] if revision else 0)+1
-        repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('content_revision',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(str(next_revision),datetime.now(timezone.utc).isoformat()))
+        repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('content_revision',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(str(next_revision),now_iso()))
     repo.db.commit()
     return changed
 
@@ -123,18 +125,32 @@ def sync_content_incremental(repo, changed_articles, ingestion_run_id=None):
     taxonomy_hash=classification_registry_hash(registry)
     state={row['key']:row['value'] for row in repo.db.execute("SELECT key,value FROM content_index_state")}
     rebuild=state.get('taxonomy_hash')!=taxonomy_hash or state.get('index_version')!=INDEX_VERSION
+    missing=[] if rebuild else unindexed_recent_articles(repo)
+    if missing:
+        # Stories the engine stored outside this worker (a CLI run, a crash after collection) are not
+        # "changed" any more, so they would never reach the index without this reconciliation.
+        known={article.article_id for article in changed_articles}
+        changed_articles=list(changed_articles)+[article for article in missing if article.article_id not in known]
     articles=Store().all_articles() if rebuild else list(changed_articles)
     metrics=sync_content(repo,articles,ingestion_run_id=ingestion_run_id,advance_revision=False)
-    cluster_metrics = _cluster_incremental_content(repo, changed_articles)
+    metrics['reconciled_articles']=len(missing)
+    from newzi_engine.clustering.events import CLUSTER_VERSION
+    if state.get('cluster_version')!=CLUSTER_VERSION:
+        cluster_metrics = recluster_content(repo)
+        metrics["public_content_changed"] = metrics.get("public_content_changed",0) + cluster_metrics["article_assignments"]
+        repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('cluster_version',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(CLUSTER_VERSION,now_iso()))
+        repo.db.commit()
+    else:
+        cluster_metrics = _cluster_incremental_content(repo, changed_articles)
     revision_before=int(metrics.get("content_revision_before",0))
     if metrics.get("public_content_changed"):
         revision_after=revision_before+1
-        repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('content_revision',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(str(revision_after),datetime.now(timezone.utc).isoformat()))
+        repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('content_revision',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(str(revision_after),now_iso()))
         repo.db.commit()
     else:
         revision_after=revision_before
-    repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('taxonomy_hash',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(taxonomy_hash,datetime.now(timezone.utc).isoformat()))
-    repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('index_version',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(INDEX_VERSION,datetime.now(timezone.utc).isoformat()))
+    repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('taxonomy_hash',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(taxonomy_hash,now_iso()))
+    repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES('index_version',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",(INDEX_VERSION,now_iso()))
     repo.db.commit()
     metrics['full_rebuild']=rebuild
     metrics['clustering']=cluster_metrics
@@ -142,9 +158,60 @@ def sync_content_incremental(repo, changed_articles, ingestion_run_id=None):
     return metrics
 
 
+def unindexed_recent_articles(repo, days=30):
+    """Engine articles from the last ``days`` that the product index does not hold."""
+    candidates=[article for article in Store().articles_published_since(datetime.now(timezone.utc)-timedelta(days=days))
+                if article.title and article.url.startswith(("http://", "https://"))]
+    present=set()
+    for start in range(0,len(candidates),500):
+        ids=[article.article_id for article in candidates[start:start+500]]
+        present.update(row["id"] for row in repo.db.execute("SELECT id FROM indexed_content WHERE id IN ("+",".join("?" for _ in ids)+")",ids))
+    return [article for article in candidates if article.article_id not in present]
+
+
 def get_content_revision(repo):
     row=repo.db.execute("SELECT value,updated_at FROM content_index_state WHERE key='content_revision'").fetchone()
     return {"revision":int(row["value"] if row else 0),"updated_at":row["updated_at"] if row else None}
+
+
+def recluster_content(repo, days=30, chunk_days=3):
+    """Re-cluster recent stories from scratch, oldest first, after the merge rules change.
+
+    Event ids are cleared first so stale, over-merged groups cannot pass their id on; each chunk then
+    inherits ids from the already re-clustered chunk before it, keeping multi-day stories together.
+    """
+    from types import SimpleNamespace
+    cutoff=datetime.now(timezone.utc)-timedelta(days=days)
+    repo.db.execute("UPDATE indexed_content SET event_id=NULL WHERE published_at>=?",(iso(cutoff),))
+    repo.db.commit()
+    rows=repo.db.execute("SELECT id,published_at FROM indexed_content WHERE published_at>=? ORDER BY published_at,id",(iso(cutoff),)).fetchall()
+    stories=[SimpleNamespace(article_id=row["id"],published_at=parse(row["published_at"])) for row in rows]
+    totals={"articles_changed":len(stories),"events_touched":0,"events_created":0,"events_updated":0,"article_assignments":0,"full_recluster":True}
+    started=time.perf_counter(); index=0
+    while index<len(stories):
+        chunk_end=stories[index].published_at+timedelta(days=chunk_days)
+        chunk=[]
+        while index<len(stories) and stories[index].published_at<chunk_end:
+            chunk.append(stories[index]); index+=1
+        metrics=_cluster_incremental_content(repo,chunk)
+        for key in ("events_touched","events_created","events_updated","article_assignments"):
+            totals[key]+=metrics.get(key,0)
+    totals["clustering_ms"]=round((time.perf_counter()-started)*1000,2)
+    return totals
+
+
+NON_EVENT_GENRES = {"PROMOTION", "EVENT_PROMOTION", "ROUNDUP", "DEAL_COUPON"}
+
+
+def clustering_genre(article):
+    """Coupons, promotions and roundups never form events; everything else clusters as journalism.
+
+    The genre rules are English-only and loose ("best" means a buying guide), so finer genres would
+    split real coverage of one story.
+    """
+    from newzi_engine.editorial.genre import classify_genre
+    classify_genre(article)
+    return article.content_genre if article.content_genre in NON_EVENT_GENRES else "JOURNALISM"
 
 
 def _cluster_incremental_content(repo, changed_articles):
@@ -169,12 +236,12 @@ def _cluster_incremental_content(repo, changed_articles):
         if not current: group_start=article.published_at
         current.append(article)
     if current: groups.append(current)
-    priorities={source["id"]:source.get("priority",5) for source in load_sources()}
     considered=events_touched=events_created=events_updated=assignments=comparisons=possible_pairs=0
     cluster_phase_ms=0.0; feature_ms=candidate_ms=prune_ms=similarity_ms=0.0
+    claimed=set()  # an event split in two keeps its id on one side only
     for group in groups:
-        lower=(group[0].published_at-window).astimezone(timezone.utc).isoformat()
-        upper=(group[-1].published_at+window).astimezone(timezone.utc).isoformat()
+        lower=iso(group[0].published_at-window)
+        upper=iso(group[-1].published_at+window)
         rows=repo.db.execute("""SELECT c.id,c.title,c.description,c.url,c.source_name,c.source_id,
                 c.source_language,c.published_at,c.first_seen_at,c.indexed_at,c.event_id,
                 """+repo.db.string_agg("t.taxonomy_id")+""" AS taxonomy_ids
@@ -183,12 +250,12 @@ def _cluster_incremental_content(repo, changed_articles):
             GROUP BY c.id ORDER BY c.published_at,c.id""",(lower,upper)).fetchall()
         articles=[];event_ids={}
         for row in rows:
-            published=datetime.fromisoformat(row["published_at"].replace("Z","+00:00")) if row["published_at"] else None
-            collected=datetime.fromisoformat((row["first_seen_at"] or row["indexed_at"]).replace("Z","+00:00"))
+            published=parse(row["published_at"]) if row["published_at"] else None
+            collected=parse((row["first_seen_at"] or row["indexed_at"]))
             article=Article(row["id"],row["source_id"],row["source_name"],row["title"],row["description"] or "",
                 row["url"],row["url"],published,collected,row["source_language"] or "en",
                 categories=(row["taxonomy_ids"] or "").split(",") if row["taxonomy_ids"] else [],publisher_id=row["source_id"])
-            article.content_genre="JOURNALISM"
+            article.content_genre=clustering_genre(article)
             articles.append(article);event_ids[article.article_id]=row["event_id"]
         if not articles: continue
         considered+=len(articles)
@@ -201,8 +268,9 @@ def _cluster_incremental_content(repo, changed_articles):
         for event in events:
             members=set(event.article_ids)
             if not members & changed_ids: continue
-            prior_ids=sorted({event_ids[item_id] for item_id in members if item_id not in changed_ids and event_ids.get(item_id)})
+            prior_ids=sorted({event_ids[item_id] for item_id in members if item_id not in changed_ids and event_ids.get(item_id)} - claimed)
             stable_event_id=prior_ids[0] if prior_ids else event.event_id
+            claimed.add(stable_event_id)
             if prior_ids:
                 events_updated+=1
             else:
@@ -218,32 +286,6 @@ def _cluster_incremental_content(repo, changed_articles):
                 "cheap_pruning":round(prune_ms,2),"full_similarity":round(similarity_ms,2),
                 "cluster_total":round(cluster_phase_ms,2)},"clustering_ms":round((time.perf_counter()-started)*1000,2),
             "window_hours":window_hours}
-
-
-def sync_semantic_output(repo, path=None):
-    """Import already validated global phase 3.3 output; never invoke Ollama here."""
-    path = path or ENGINE_OUTPUT / "daily_briefing_v2.json"
-    try:
-        output = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return 0
-    count = 0
-    for item in output.get("items", []):
-        if not item.get("headline") or not item.get("summary") or item.get("language_gate") == "FAIL":
-            continue
-        language = item.get("output_language") or "pt-BR"
-        for article_id in item.get("provenance", {}).get("articles", []):
-            content = repo.db.execute("SELECT content_hash FROM indexed_content WHERE id=?", (article_id,)).fetchone()
-            if not content: continue
-            cursor=repo.db.execute("""INSERT INTO content_enrichment(content_id,content_hash,prompt_version,schema_version,generator_version,output_language,event_id,headline,summary,key_points_json,why_it_matters,confidence)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING""", (
-                article_id, content["content_hash"], "phase33", "daily_briefing_v2",
-                item.get("summary_provider", "ollama"), language, item.get("event_id") or article_id,
-                item["headline"], item["summary"], json.dumps(item.get("key_points") or []),
-                item.get("why_it_matters"), item.get("confidence")))
-            count += cursor.rowcount
-    repo.db.commit()
-    return count
 
 
 def _scope_allowed(country, scope):
@@ -304,7 +346,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
                          for node_id in registry.nodes}
     rows = repo.db.execute("""SELECT c.*, t.taxonomy_id, t.score FROM indexed_content c
         LEFT JOIN content_taxonomy t ON t.content_id=c.id
-        WHERE c.published_at>=? ORDER BY c.published_at DESC""", ((now-timedelta(days=30)).isoformat(),)).fetchall()
+        WHERE c.published_at>=? ORDER BY c.published_at DESC""", (iso(now-timedelta(days=30)),)).fetchall()
     by_id = {}
     for row in rows:
         if not _scope_allowed(row["source_country"], country_scope):
@@ -312,6 +354,10 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         item = by_id.setdefault(row["id"], {"content": dict(row), "tags": {}})
         if row["taxonomy_id"]:
             item["tags"][row["taxonomy_id"]] = row["score"]
+    # Clustering stores one event_id per story covered by several outlets; a briefing tells each story once.
+    event_members = {}
+    for item in by_id.values():
+        event_members.setdefault(item["content"]["event_id"] or item["content"]["id"], []).append(item["content"])
     ranked = []
     previous_events = set()
     # Editions are shared by profile, so repetition is measured at profile level.
@@ -325,7 +371,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         previous_events.update(source.get("article_id") for source in json.loads(row["sources_json"] or "[]") if source.get("article_id"))
     for item in by_id.values():
         content, tags = item["content"], item["tags"]
-        published = datetime.fromisoformat(content["published_at"].replace("Z", "+00:00"))
+        published = parse(content["published_at"])
         age_hours = max(0, (now-published).total_seconds()/3600)
         if tags.keys() & exact:
             level = "EXACT"
@@ -344,13 +390,18 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         # Stories already in the briefing language read naturally; others need translation, so they
         # win only within a relevance tier when no same-language story is comparable.
         same_language = str(content["source_language"] or "").split("-")[0].lower() == language.split("-")[0].lower()
+        # A story several outlets cover matters more; the bonus stays far below one relevance tier.
+        event_id = content["event_id"] or content["id"]
+        publishers = len({member["source_id"] for member in event_members[event_id]})
         score = ({"EXACT": 400, "HIERARCHICAL": 300, "BROADER": 200, "GLOBAL": 100}.get(level.removeprefix("EXTENDED_"), 0)
-                 + freshness_bonus + match + content["quality_score"] - age_hours/24 + (30 if same_language else 0))
+                 + freshness_bonus + match + content["quality_score"] - age_hours/24 + (30 if same_language else 0)
+                 + 6 * min(4, publishers - 1))
         primary = primary_taxonomy(tags, interests, registry, proximity)
         interest_matches = sorted({interest for node_id in tags for interest in covered_interests.get(node_id, ())})
         primary_matches = covered_interests.get(primary["id"], ()) if primary else ()
         coverage_interest = max(primary_matches, key=lambda node: (len(registry.ancestors(node)), node), default=None)
-        ranked.append({"score": score, "level": level, "content": content, "tags": tags,
+        ranked.append({"score": score, "level": level, "content": content, "tags": tags, "event_id": event_id,
+                       "reused": content["id"] in previous_events or event_id in previous_events,
                        "primary": primary, "interest_matches": interest_matches,
                        "coverage_interest": coverage_interest})
     ranked.sort(key=lambda candidate: (-candidate["score"], candidate["content"]["id"]))
@@ -366,7 +417,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
             return (candidate["score"] + (16 if new_interests else 0)
                     - 7 * min(4, topics_seen.get(topic_id, 0))
                     - 5 * min(4, sources_seen.get(source_id, 0))
-                    - (60 if candidate["content"]["id"] in previous_events else 0))
+                    - (60 if candidate["reused"] else 0))
         # Coverage first: every chosen interest with a matching story gets a slot before
         # high-volume topics fill the rest; `remaining` is score-ordered, so this is that interest's best story.
         uncovered = [value for value in remaining if value["coverage_interest"] and value["coverage_interest"] not in interests_seen
@@ -382,9 +433,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
             candidate = max(comparable, key=lambda value: (editorial_score(value), value["score"], value["content"]["id"]))
         remaining.remove(candidate)
         level, content = candidate["level"], candidate["content"]
-        enriched = repo.db.execute("""SELECT * FROM content_enrichment WHERE content_id=? AND content_hash=? AND output_language=?
-            ORDER BY generator_version DESC LIMIT 1""", (content["id"], content["content_hash"], language)).fetchone()
-        event_id = enriched["event_id"] if enriched else content["id"]
+        event_id = candidate["event_id"]
         if event_id in events_seen:
             continue
         source_id = content["source_id"]
@@ -395,22 +444,25 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         if candidate["coverage_interest"]:
             interests_seen.add(candidate["coverage_interest"])
         events_seen.add(event_id)
-        title = (enriched["headline"] if enriched else content["title"]).strip()
-        summary = ((enriched["summary"] if enriched else content["description"]) or title).strip()
-        provider = enriched["generator_version"] if enriched else "deterministic_fallback"
+        title = content["title"].strip()
+        summary = (content["description"] or title).strip()
+        provider = "deterministic_fallback"
         warnings = ["FALLBACK_" + level, "__summary_provider__:" + provider]
         # The level carries this candidate's own age (EXTENDED_ = older than 24h).
         if level.startswith("EXTENDED_"):
             warnings.append("FALLBACK_NO_FRESH_CONTENT_FOR_TOPIC")
-        if content["id"] in previous_events:
+        if candidate["reused"]:
             warnings.append("FALLBACK_RECENT_EVENT_REUSE")
-        if not enriched and language.split("-")[0].lower() != str(content["source_language"] or "").split("-")[0].lower():
+        # The chosen story leads; other outlets covering the same event follow, best first.
+        others, publishers_listed = [], {content["source_id"]}
+        for member in sorted(event_members[event_id], key=lambda value: (-value["quality_score"], value["id"])):
+            if member["source_id"] not in publishers_listed and len(others) < MAX_SOURCES_PER_ITEM - 1:
+                publishers_listed.add(member["source_id"]); others.append(member)
+        if language.split("-")[0].lower() != str(content["source_language"] or "").split("-")[0].lower():
             warnings.append("SOURCE_LANGUAGE_FALLBACK")
         selected.append({"event_id": event_id, "headline": title, "summary": summary,
-                         "why_it_matters": enriched["why_it_matters"] if enriched else None,
-                         "key_points": json.loads(enriched["key_points_json"]) if enriched else [title],
-                         "confidence": enriched["confidence"] if enriched else 0.55,
-                         "evidence_quality": "SEMANTIC_CACHE" if enriched else "SOURCE_METADATA", "warnings": warnings,
+                         "why_it_matters": None, "key_points": [title], "confidence": 0.55,
+                         "evidence_quality": "SOURCE_METADATA", "warnings": warnings,
                          "summary_provider": provider,
                          "primary_taxonomy_id": primary["id"] if primary else None,
                          "primary_taxonomy_label": primary["label"] if primary else None,
@@ -418,10 +470,10 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
                          "matched_taxonomy_ids": sorted(candidate["tags"]),
                          "user_interest_matches": candidate["interest_matches"],
                          "image_url": content.get("image_url"),
-                         "sources": [{"publisher": content["source_name"], "url": content["url"],
-                                      "article_id": content["id"], "published_at": content["published_at"],
-                                      "image_url": content.get("image_url")}]})
-    return {"status": "READY" if selected else "FAILED", "generated_at": now.isoformat(),
+                         "sources": [{"publisher": source["source_name"], "url": source["url"],
+                                      "article_id": source["id"], "published_at": source["published_at"],
+                                      "image_url": source.get("image_url")} for source in (content, *others)]})
+    return {"status": "READY" if selected else "FAILED", "generated_at": iso(now),
             "engine_version": INDEX_VERSION, "items": selected,
             "fallback_distribution": {level: sum("FALLBACK_" + level in x["warnings"] for x in selected) for level in {r["level"] for r in ranked}},
             "unknown_taxonomy_ids": unknown}
@@ -441,8 +493,8 @@ def taxonomy_health(repo, now=None):
             continue
         match = repo.db.execute("""SELECT c.source_id,c.published_at,t.score FROM content_taxonomy t
             JOIN indexed_content c ON c.id=t.content_id WHERE t.taxonomy_id=?""", (node["id"],)).fetchall()
-        recent = [r for r in match if r["published_at"] and r["published_at"] >= (now-timedelta(hours=24)).isoformat()]
-        extended = [r for r in match if r["published_at"] and r["published_at"] >= (now-timedelta(days=30)).isoformat()]
+        recent = [r for r in match if r["published_at"] and r["published_at"] >= iso(now-timedelta(hours=24))]
+        extended = [r for r in match if r["published_at"] and r["published_at"] >= iso(now-timedelta(days=30))]
         rows.append({"id": node["id"], "parent_id": node["parent_id"], "current_valid_content_count": len(match),
                      "content_last_24h": len(recent), "content_extended_window": len(extended),
                      "top_sources": sorted({r["source_id"] for r in extended})[:5],

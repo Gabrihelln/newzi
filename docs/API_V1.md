@@ -7,8 +7,10 @@ The former `/api/v1/users/{user_id}/...` compatibility routes and the legacy per
 Endpoints outside `/api/v1/me`:
 
 - `GET /health`, `GET /ready`
+- `GET /health/worker`: 200 when every worker role completed a cycle within `WORKER_STALE_SECONDS`, 503 otherwise; reports missing roles, per-process cycle age and queue backlog, without ids, hosts or error text
 - `GET /api/v1/topics`, `GET /api/v1/client/config`
 - `GET /api/v1/dev/jobs` (development only)
+- `GET /api/v1/dev/sources/health` (development only): per-source status (`BROKEN`, `FAILING`, `DEGRADED`, `SILENT`, `OK`, `DISABLED`), an actionable `diagnosis` (`FEED_URL_NOT_FOUND`, `ACCESS_BLOCKED`, `FEED_ABANDONED`, ...) and indexed volume over 24 h / 7 days. Also `python engine/main.py --source-health`.
 - `POST /api/v1/dev/scheduler/run` (development only)
 - `POST /api/v1/dev/worker/run` (development only)
 

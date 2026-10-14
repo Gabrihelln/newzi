@@ -3,9 +3,8 @@
 ```text
 Sources
   -> collection and normalization
-  -> deterministic filtering/dedup/ranking
-  -> semantic classification and conservative routing
-  -> factual summarization and evidence validation
+  -> deterministic filtering, taxonomy classification and event clustering
+  -> profile composition (one item per event, outlets credited)
   -> BriefingEdition
   -> UserBriefingDelivery
   -> optional AudioScript/AudioArtifact

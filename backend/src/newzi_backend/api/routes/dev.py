@@ -28,6 +28,12 @@ async def briefing_diagnostic(user_id: str, request: Request):
     return await call(request, service.briefing_diagnostic, user_id)
 
 
+@router.get("/sources/health")
+async def sources_health(request: Request):
+    from ...source_health import source_health_report
+    return await call(request, source_health_report, _service(request).repo)
+
+
 @router.api_route("/scheduler/run", methods=["GET", "POST"])
 async def scheduler_run(request: Request):
     return await call(request, _service(request).scheduler.run_once)

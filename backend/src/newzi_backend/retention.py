@@ -14,6 +14,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .timeutil import iso, parse
+
 log = logging.getLogger(__name__)
 STATE_KEY = "retention_last_run"
 
@@ -23,7 +25,7 @@ def _days(name, default):
 
 
 def _iso(moment):
-    return moment.isoformat()
+    return iso(moment)
 
 
 def _stale_audio_variants(repo, storage, cutoff):
@@ -123,7 +125,7 @@ def run_retention_if_due(repo, interval_seconds=86400, storage=None, now=None):
     now = now or datetime.now(timezone.utc)
     row = repo.db.execute("SELECT value FROM content_index_state WHERE key=?", (STATE_KEY,)).fetchone()
     if row:
-        last = datetime.fromisoformat(row["value"])
+        last = parse(row["value"])
         if (now - last).total_seconds() < interval_seconds:
             return {"status": "NOT_DUE"}
     return {"status": "COMPLETED", **run_retention(repo, storage, now)}

@@ -13,6 +13,7 @@
 | `NOTIFICATIONS_ENABLED` | backend | `true` | explicit | explicit | no | no |
 | `PUSH_PROVIDER` | backend | `development` | `fcm` | `fcm` | no | no |
 | `FCM_PROJECT_ID` | FCM server | optional | secret-managed config | secret-managed config | yes | no |
+| `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` | backend TTS fallback (or `TTS_PROVIDER=azure-tts`) | optional | secret-managed config | secret-managed config | yes (key) | no |
 | `CORS_ALLOW_ORIGINS` | future web boundary | empty | allowlist | allowlist | no | no |
 | `__NEWS_ENGINE_API_URL__` | mobile build config | emulator/local | staging URL | production URL | no | yes |
 | `google-services.json` | Android Firebase client | environment file | environment file | environment file | public client config, never server credentials | packaged client only |
