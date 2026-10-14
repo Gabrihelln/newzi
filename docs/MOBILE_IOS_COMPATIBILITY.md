@@ -1,5 +1,8 @@
 # Mobile iOS Compatibility Checklist
 
+> Historical notes. For the current iOS setup and status, follow [IOS_SETUP.md](IOS_SETUP.md). Audio now uses
+> `react-native-video` 6.19.3 (not `react-native-sound`).
+
 ## Dependencies added in Phase 4.5
 
 | Package | Version | Android | iOS | Native setup | Pod/manual patch |

@@ -75,9 +75,9 @@ Em outro terminal dentro de `mobile/`:
 npm run android
 ```
 
-No macOS, execute `pod install` em `mobile/ios/`, depois rode `npm run ios` a partir de `mobile/`. Abra o `.xcworkspace` gerado pelo CocoaPods para configurar o signing e as capabilities. Use `npm run typecheck` para validar os tipos TypeScript.
+Para o iOS, siga o passo a passo de [docs/IOS_SETUP.md](docs/IOS_SETUP.md). Em resumo: no macOS, execute `pod install` em `mobile/ios/`, depois rode `npm run ios` a partir de `mobile/`. Abra o `.xcworkspace` gerado pelo CocoaPods para configurar o signing e as capabilities. Use `npm run typecheck` para validar os tipos TypeScript.
 
-No Android Emulator, a API local usa `http://10.0.2.2:8090`; no iOS Simulator, `http://localhost:8090`. `mobile/src/config/devApi.ts` mantém o IP local usado pelo dispositivo físico atual; ajuste-o ao clonar em outra rede. Builds de produção precisam receber `__NEWS_ENGINE_ENV__` e `__NEWS_ENGINE_API_URL__` com um endpoint HTTPS real; o host de produção atual é apenas um placeholder.
+No Android Emulator, a API local usa `http://10.0.2.2:8090`; no iOS Simulator, `http://localhost:8090`. Em aparelho físico, o build de desenvolvimento usa automaticamente o IP do computador que serve o Metro (porta 8090); `mobile/src/config/devApi.ts` só é preciso para apontar outro computador. Builds de produção precisam receber `__NEWS_ENGINE_ENV__` e `__NEWS_ENGINE_API_URL__` com um endpoint HTTPS real; o host de produção atual é apenas um placeholder.
 
 ## Produção em VPS
 
