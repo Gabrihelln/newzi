@@ -88,7 +88,7 @@ function PressAudio({ onPress, active }: { onPress: () => void; active: boolean 
   </View>;
 }
 
-function MainTabs({ onAuthExpired, user }: { onAuthExpired: () => void; user: User | null }) {
+function MainTabs({ onAuthExpired, onLogout, user }: { onAuthExpired: () => void; onLogout: () => void; user: User | null }) {
   const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>();
   const [latestBriefing, setLatestBriefing] = React.useState<Briefing | null>(null);
   const showAudio = () => { const loaded = getAudioContext()?.briefing; const current = loaded && latestBriefing && loaded.id === latestBriefing.id && !sameBriefing(loaded, latestBriefing) ? latestBriefing : loaded; const briefing = current || latestBriefing; briefing ? navigation.navigate('AudioExpanded', { briefing }) : navigation.navigate('History'); };
@@ -97,7 +97,7 @@ function MainTabs({ onAuthExpired, user }: { onAuthExpired: () => void; user: Us
     <Tabs.Screen name="Inicio" options={{ title: 'Início', tabBarAccessibilityLabel: 'Início' }}>{() => <TodayTab user={user} onAuthExpired={onAuthExpired} onLatestBriefing={setLatestBriefing} />}</Tabs.Screen>
     <Tabs.Screen name="Explorar" options={{ title: 'Explorar', tabBarAccessibilityLabel: 'Explorar' }}>{() => <ExploreTab user={user} />}</Tabs.Screen>
     <Tabs.Screen name="Salvos" options={{ title: 'Salvos', tabBarAccessibilityLabel: 'Salvos' }}>{() => <SavedTab />}</Tabs.Screen>
-    <Tabs.Screen name="Perfil" options={{ title: 'Perfil', tabBarAccessibilityLabel: 'Perfil' }}>{() => <ProfileTab user={user} onSearch={() => navigation.navigate('Search')} />}</Tabs.Screen>
+    <Tabs.Screen name="Perfil" options={{ title: 'Perfil', tabBarAccessibilityLabel: 'Perfil' }}>{() => <ProfileTab user={user} onSearch={() => navigation.navigate('Search')} onLogout={onLogout} />}</Tabs.Screen>
   </Tabs.Navigator>;
 }
 function TodayTab({ onAuthExpired, user, onLatestBriefing }: { onAuthExpired: () => void; user: User | null; onLatestBriefing: (briefing: Briefing | null) => void }) {
@@ -112,7 +112,7 @@ function TodayTab({ onAuthExpired, user, onLatestBriefing }: { onAuthExpired: ()
 }
 function ExploreTab({ user }: { user: User | null }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ExploreScreen user={user} onTopic={topic => parent?.navigate('TopicFeed', { topic })} onDetail={item => parent?.navigate('Detail', { item })} onProfile={() => parent?.navigate('Account')} onFootball={() => parent?.navigate('Football')} />; }
 function SavedTab() { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); const focused = useIsFocused(); return <SavedScreen refreshOnFocus={focused} onDetail={(item, progress) => parent?.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => parent?.navigate('AudioExpanded', { briefing })} onSearch={() => parent?.navigate('Search')} onProfile={() => parent?.navigate('Account')} onSeeAll={() => parent?.navigate('SavedContent', {})} onSeeTopics={() => parent?.navigate('SavedTopics')} onTopic={topic => parent?.navigate('SavedContent', { topic })} />; }
-function ProfileTab({ user, onSearch }: { user: User | null; onSearch: () => void }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ProfileScreen user={user} onNavigate={route => parent?.navigate(route as never)} onSearch={onSearch} />; }
+function ProfileTab({ user, onSearch, onLogout }: { user: User | null; onSearch: () => void; onLogout: () => void }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ProfileScreen user={user} onNavigate={route => parent?.navigate(route as never)} onSearch={onSearch} onLogout={onLogout} />; }
 function DetailScreenRoute({ route, navigation }: any) {
   const [item, setItem] = React.useState<BriefingItem | null>(route.params?.item || null);
   const [loading, setLoading] = React.useState(!route.params?.item);
@@ -158,7 +158,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
   React.useEffect(() => startContentRevisionMonitor(), []);
   React.useEffect(() => { setMainFlowReady(true); return () => setMainFlowReady(false); }, []);
   return <><MainStack.Navigator screenOptions={{ headerShown: false }}>
-    <MainStack.Screen name="Tabs">{() => <MainTabs user={user} onAuthExpired={onAuthExpired} />}</MainStack.Screen>
+    <MainStack.Screen name="Tabs">{() => <MainTabs user={user} onAuthExpired={onAuthExpired} onLogout={onLogout} />}</MainStack.Screen>
     <MainStack.Screen name="Search">{({ navigation }) => <SearchScreen onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} />}</MainStack.Screen>
     <MainStack.Screen name="TopicFeed">{({ route, navigation }) => <TopicFeedScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} />}</MainStack.Screen>
     <MainStack.Screen name="EditProfile">{({ navigation }) => <EditProfileScreen user={user} onBack={() => navigation.goBack()} onSaved={updated => { onUserUpdated(updated); navigation.goBack(); }} />}</MainStack.Screen>
@@ -194,7 +194,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
       {({ navigation }) => <VoiceSettingsScreen onBack={() => navigation.goBack()} />}
     </MainStack.Screen>
     <MainStack.Screen name="Account">
-      {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onLogout={onLogout} onEditProfile={() => navigation.navigate('EditProfile')} />}
+      {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onEditProfile={() => navigation.navigate('EditProfile')} />}
     </MainStack.Screen>
   </MainStack.Navigator><AppNotices /></>;
 }

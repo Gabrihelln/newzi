@@ -12,6 +12,7 @@ import {typography, useStyles, useTheme, type Palette } from '../theme';
 import type { ClientConfig, Preferences, Topic, User } from '../types/api';
 import { Icon } from './Icon';
 import { useLogo } from './brand';
+import { TimeWheel } from './TimeWheel';
 import type { IconName } from './Icon';
 
 const art = {
@@ -140,8 +141,6 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
   const [busy, setBusy] = useState(false);
   const [topicSheet, setTopicSheet] = useState(false);
   const [choiceSheet, setChoiceSheet] = useState<'language' | 'scope' | null>(null);
-  const [timeSheet, setTimeSheet] = useState(false);
-  const [draftTime, setDraftTime] = useState(initialPreferences.briefing_time);
   const [completedUser, setCompletedUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -244,8 +243,11 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
               <Pressable accessibilityRole="button" accessibilityLabel={`Cobertura: ${scopeLabel[prefs.country_scope]}`} onPress={() => setChoiceSheet('scope')} style={s.choice}><Icon name="globe" color={colors.tone('#1978FA', colors.primary)} size={20} /><Text numberOfLines={1} style={s.choiceText}>{scopeLabel[prefs.country_scope]}</Text><Icon name="chevronDown" color={colors.tone('#1978FA', colors.primary)} size={17} /></Pressable>
             </View><Mascot source={art.globe} width={mascotWidth} style={s.centerMascot} />
           </View>}
-          {step === 4 && <View style={s.clockArea}><Mascot source={art.clock} width={Math.min(width * .87, 340)} style={s.centerMascot} />
-            <Pressable accessibilityRole="button" accessibilityLabel={`Horário selecionado: ${prefs.briefing_time}. Alterar horário`} onPress={() => { setDraftTime(prefs.briefing_time); setTimeSheet(true); }} style={s.timePill}><Text style={s.timeText}>{prefs.briefing_time}</Text><Icon name="chevronDown" color={colors.tone('#2878F4', colors.primary)} size={18} /></Pressable>
+          {step === 4 && <View style={s.clockArea}><Mascot source={art.clock} width={Math.min(width * .6, compact ? 190 : 240)} style={s.centerMascot} />
+            <View style={s.timeCard}><View style={s.timeCardHead}><Icon name="clock" color={colors.tone('#2878F4', colors.primary)} size={17} /><Text style={s.timeCardTitle}>Briefing diário às {prefs.briefing_time}</Text></View>
+              <TimeWheel value={prefs.briefing_time} onChange={briefing_time => { update({ briefing_time }); setError(''); }} />
+              <Text style={s.timeCardHint}>Deslize para escolher a hora e os minutos.</Text>
+            </View>
           </View>}
           {step === 5 && <View style={s.splitArea}>
             <Mascot source={art.tablet} width={Math.min(width * .53, 245)} style={s.splitMascot} />
@@ -271,12 +273,6 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
     <Sheet visible={choiceSheet !== null} title={choiceSheet === 'language' ? 'Escolha o idioma' : 'Escolha a cobertura'} onClose={() => setChoiceSheet(null)}>
       <View style={s.choiceList}>{choiceSheet === 'language' ? config.supported_languages.map(language => <Option key={language} label={language === 'pt-BR' ? 'Português (Brasil)' : language === 'en' ? 'English' : language} selected={prefs.language === language} onPress={() => { update({ language }); setChoiceSheet(null); }} />)
         : config.country_scopes.map(scope => <Option key={scope} label={scopeLabel[scope as Preferences['country_scope']]} selected={prefs.country_scope === scope} onPress={() => { update({ country_scope: scope as Preferences['country_scope'] }); setChoiceSheet(null); }} />)}</View>
-    </Sheet>
-    <Sheet visible={timeSheet} title="Horário do briefing" onClose={() => setTimeSheet(false)}>
-      <Text style={s.sheetHint}>Digite o horário no formato HH:MM.</Text>
-      <TextInput value={draftTime} onChangeText={setDraftTime} maxLength={5} keyboardType="numbers-and-punctuation" autoFocus selectTextOnFocus accessibilityLabel="Horário do briefing" style={s.timeInput} />
-      <Action label="Salvar horário" full onPress={() => { if (timePattern.test(draftTime)) { update({ briefing_time: draftTime }); setError(''); setTimeSheet(false); } else setError('Escolha um horário válido no formato HH:MM.'); }} />
-      {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
     </Sheet>
   </SafeAreaView>;
 }
@@ -307,7 +303,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   moreTopics: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 13, backgroundColor: colors.overlay }, moreDots: { color: colors.tone('#668BBF', colors.secondary), fontWeight: '800', fontSize: 14 }, moreText: { fontFamily: typography.fontFamily.ui, fontSize: 11, color: colors.tone('#5B729F', colors.secondary) },
   globeArea: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'space-evenly', minHeight: 320 }, inlineChoices: { flexDirection: 'row', gap: 8, width: '100%', marginTop: 12 },
   choice: { flex: 1, minHeight: 58, borderRadius: 14, borderWidth: 1, borderColor: colors.tone('#7CABFC', colors.primary), backgroundColor: colors.surfaceTint, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }, choiceIcon: { fontSize: 21, color: colors.tone('#1978FA', colors.primary) }, choiceText: { fontFamily: typography.fontFamily.ui, fontSize: 12, color: colors.tone('#175ABE', colors.primary), fontWeight: '700', flexShrink: 1 }, choiceCheck: { color: colors.tone('#1978FA', colors.primary), fontWeight: '800' }, choiceChevron: { color: colors.tone('#1978FA', colors.primary), fontSize: 17 },
-  clockArea: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', minHeight: 315 }, timePill: { backgroundColor: colors.surface, borderRadius: 28, borderWidth: 1, borderColor: colors.tone('#E0ECF8', colors.border), minWidth: 170, minHeight: 54, marginTop: -7, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 }, timeText: { fontSize: 18, fontWeight: '800', color: colors.tone('#10264E', colors.ink) }, timeChevron: { fontSize: 21, color: colors.tone('#2878F4', colors.primary) },
+  clockArea: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', minHeight: 315 },
+  timeCard: { width: '100%', maxWidth: 340, backgroundColor: colors.surface, borderRadius: 24, borderWidth: 1, borderColor: colors.tone('#E0ECF8', colors.border), marginTop: -7, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 },
+  timeCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginBottom: 6 }, timeCardTitle: { fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700', color: colors.tone('#10264E', colors.ink) },
+  timeCardHint: { fontFamily: typography.fontFamily.ui, fontSize: 11.5, color: colors.tone('#617AA5', colors.secondary), textAlign: 'center', marginTop: 6 },
   readyArea: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', minHeight: 370 },
   summary: { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.divider, width: '100%', paddingHorizontal: 14, paddingVertical: 5, marginTop: -10 }, summaryRow: { minHeight: 42, flexDirection: 'row', alignItems: 'center' }, summaryBorder: { borderBottomWidth: 1, borderColor: colors.divider }, summaryIcon: { width: 25, color: colors.tone('#2677ED', colors.primary), fontSize: 17 }, summaryLabel: { width: 65, fontFamily: typography.fontFamily.ui, fontSize: 11, color: colors.tone('#6E83A6', colors.secondary) }, summaryValue: { flex: 1, fontFamily: typography.fontFamily.ui, fontSize: 11, lineHeight: 15, fontWeight: '700', color: colors.tone('#19305A', colors.ink), textAlign: 'right' },
   bottom: { flexDirection: 'row', gap: 10, paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, backgroundColor: 'transparent' }, action: { flex: 1, minHeight: 54, borderRadius: 28, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' }, actionFull: { flex: 1 }, actionPrimary: { backgroundColor: colors.tone('#2778F5', colors.primary) }, actionSecondary: { backgroundColor: colors.surface, borderColor: colors.tone('#E2ECF6', colors.border), borderWidth: 1 }, actionText: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '700', color: colors.onPrimary }, actionSecondaryText: { color: colors.tone('#647DAA', colors.secondary), fontWeight: '500' }, actionArrow: { color: colors.onPrimary, fontSize: 27, fontWeight: '300', position: 'absolute', right: 17, top: 10 },
@@ -315,5 +314,5 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   finalHead: { alignItems: 'center', paddingTop: 48, zIndex: 1 }, finalTitle: { fontFamily: typography.fontFamily.ui, fontSize: 20, color: colors.tone('#405D93', colors.secondary), lineHeight: 23, textAlign: 'center', marginTop: 11 }, finalDash: { width: 36, height: 4, borderRadius: 2, backgroundColor: colors.tone('#2578FA', colors.primary), marginTop: 12 }, sunrise: { position: 'absolute', width: '100%', height: '48%', bottom: '18%' }, finalFoot: { position: 'absolute', bottom: 105, alignSelf: 'center', textAlign: 'center', color: colors.tone('#54709D', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 14, lineHeight: 20 }, finalAction: { position: 'absolute', bottom: 16, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: 18 },
   error: { fontFamily: typography.fontFamily.ui, fontSize: 13, lineHeight: 19, color: colors.tone('#BC3D4E', colors.topicRed.icon), textAlign: 'center', marginTop: 10, marginBottom: 8 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' }, modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim }, sheet: { backgroundColor: colors.background, borderTopLeftRadius: 25, borderTopRightRadius: 25, paddingHorizontal: 20, paddingBottom: 25, maxHeight: '80%' }, sheetHandle: { width: 43, height: 5, borderRadius: 5, backgroundColor: colors.tone('#CCD7E5', colors.placeholder), alignSelf: 'center', marginTop: 9, marginBottom: 13 }, sheetHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }, sheetTitle: { fontFamily: typography.fontFamily.ui, fontSize: 20, fontWeight: '800', color: colors.tone('#10234B', colors.ink) }, close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }, closeText: { fontSize: 27, color: colors.tone('#6E82A3', colors.secondary) },
-  search: { height: 48, borderRadius: 14, borderWidth: 1, borderColor: colors.tone('#D8E6F7', colors.border), backgroundColor: colors.surface, paddingHorizontal: 14, marginBottom: 12, color: colors.tone('#142953', colors.ink), fontFamily: typography.fontFamily.ui }, topicList: { maxHeight: 350 }, empty: { textAlign: 'center', color: colors.tone('#6D83A7', colors.secondary), padding: 20 }, choiceList: { gap: 9, marginBottom: 10 }, sheetHint: { color: colors.tone('#617AA5', colors.secondary), marginBottom: 10, fontFamily: typography.fontFamily.ui }, timeInput: { borderWidth: 1, borderColor: colors.tone('#8EB8FF', colors.primary), backgroundColor: colors.surface, borderRadius: 16, textAlign: 'center', fontSize: 30, color: colors.tone('#132B55', colors.ink), height: 66, marginBottom: 10 },
+  search: { height: 48, borderRadius: 14, borderWidth: 1, borderColor: colors.tone('#D8E6F7', colors.border), backgroundColor: colors.surface, paddingHorizontal: 14, marginBottom: 12, color: colors.tone('#142953', colors.ink), fontFamily: typography.fontFamily.ui }, topicList: { maxHeight: 350 }, empty: { textAlign: 'center', color: colors.tone('#6D83A7', colors.secondary), padding: 20 }, choiceList: { gap: 9, marginBottom: 10 },
 });

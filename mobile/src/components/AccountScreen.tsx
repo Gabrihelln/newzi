@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api/client';
 import { firebaseAuth } from '../services/firebaseAuth';
 import type { User } from '../types/api';
-import {radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
+import {spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import { BrandPage, BrandPageHeader, ScreenState, SettingsCard, SettingsSection } from './ScreenPrimitives';
 import { Icon } from './Icon';
 
-export function AccountScreen({ onBack, onLogout, onEditProfile }: { onBack: () => void; onLogout: () => void; onEditProfile: () => void }) {
+export function AccountScreen({ onBack, onEditProfile }: { onBack: () => void; onEditProfile: () => void }) {
   const s = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
@@ -51,7 +51,6 @@ export function AccountScreen({ onBack, onLogout, onEditProfile }: { onBack: () 
       <SettingsSection title="Sessão">
         <SettingsCard><Info label="Conta conectada" value={user.email || firebaseAuth.currentUser?.email || 'E-mail não informado'} /></SettingsCard>
       </SettingsSection>
-      <Pressable accessibilityRole="button" onPress={onLogout} style={s.logout}><Text style={s.logoutText}>Sair da conta</Text></Pressable>
     </>}
   </BrandPage>;
 }
@@ -69,6 +68,4 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   value: { color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontSize: typography.body, lineHeight: 23, fontWeight: '600', marginTop: spacing.xs },
   action: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   actionText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontWeight: '700', fontSize: typography.bodySmall },
-  logout: { minHeight: 50, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm },
-  logoutText: { color: colors.danger, fontFamily: typography.fontFamily.ui, fontSize: typography.bodySmall, fontWeight: '700' },
 });
