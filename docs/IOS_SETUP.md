@@ -129,7 +129,7 @@ libere a porta 8090 no firewall do Windows. **Não commite esse IP.**
 Faça na ordem. Depois de cada bloco, rode `cd mobile/ios && pod install` quando indicado e compile no
 simulador (seção 6) para pegar erros cedo.
 
-### 5.1 [ ] Fontes Inter e Newsreader
+### 5.1 [x] Fontes Inter e Newsreader
 O app usa as fontes `Inter` (interface) e `Newsreader` (títulos editoriais). No Android elas estão em
 `mobile/android/app/src/main/assets/fonts/` (`Inter.ttf`, `Newsreader.ttf`); **no iOS não estão no target**,
 então o iPhone mostraria a fonte do sistema.
@@ -148,7 +148,7 @@ então o iPhone mostraria a fonte do sistema.
 
 Observação: existe uma pasta antiga `mobile/ios/ios/` ignorada pelo Git; não use.
 
-### 5.2 [ ] Firebase (login e push)
+### 5.2 [x] Firebase (login e push)
 **[Gabriel]** No console do Firebase (projeto `newziapp`): *Configurações do projeto › Seus apps ›
 Adicionar app › iOS*, bundle ID `com.newzi.app`, apelido "Newzi iOS". Baixe o **`GoogleService-Info.plist`**
 e entregue ao Claude.
@@ -161,7 +161,10 @@ e entregue ao Claude.
    ```ruby
    use_frameworks! :linkage => :static
    $RNFirebaseAsStaticFramework = true
+   $RNFirebaseDisableSPM = true
    ```
+   (A versão 26 do RNFirebase usa Swift Package Manager por padrão, o que gera símbolos duplicados com
+   frameworks estáticos; `$RNFirebaseDisableSPM` faz o Firebase vir pelo CocoaPods.)
    (remova o bloco `linkage = ENV['USE_FRAMEWORKS']` ou deixe-o coerente com isso). Confira na documentação do
    `@react-native-firebase` versão **26.4.0** se ainda é essa a recomendação para React Native 0.86.
 4. `cd mobile/ios && pod install` e compile.
@@ -187,7 +190,7 @@ e entregue ao Claude.
    app), em segundo plano e fechado; tocar na notificação deve abrir a tela certa
    (`mobile/src/navigation/notificationRouting.ts`).
 
-### 5.4 [ ] Rede local no iPhone (modo desenvolvimento)
+### 5.4 [x] Rede local no iPhone (modo desenvolvimento)
 - iPhone e Mac na **mesma rede Wi-Fi**. O app em debug baixa o código do Metro pelo IP do Mac e usa o mesmo
   IP na porta 8090 para a API (automático, `mobile/src/config/env.ts`).
 - O iOS pede permissão de **Rede Local** na primeira vez; aceite. Adicione ao `Info.plist` uma explicação:
@@ -217,7 +220,7 @@ Hoje o botão do Google está desligado. Quando for ligar:
   a Apple"**. Isso exige a capability *Sign in with Apple*, o provedor Apple ativado no Firebase Auth e o botão
   no app. Sem isso a App Store recusa.
 
-### 5.7 [ ] Privacidade (PrivacyInfo.xcprivacy)
+### 5.7 [x] Privacidade (PrivacyInfo.xcprivacy)
 O arquivo `mobile/ios/NewsEngineNative/PrivacyInfo.xcprivacy` já existe. Depois do `pod install`, confira se
 os motivos de uso de APIs sensíveis (UserDefaults, data de arquivos, espaço em disco, tempo de boot) estão
 declarados para o app e para as bibliotecas (MMKV, Firebase, device-info). A App Store recusa o envio sem isso.
@@ -240,7 +243,7 @@ npm run ios            # terminal 2: compila e abre no simulador
 Ou abra **`mobile/ios/NewsEngineNative.xcworkspace`** (o `.xcworkspace`, nunca o `.xcodeproj`) no Xcode e
 rode o esquema `NewsEngineNative`. No simulador, `localhost:8090` já é o Mac. Push não funciona no simulador.
 
-### 6.2 [ ] iPhone real
+### 6.2 [x] iPhone real
 1. Conecte o iPhone por cabo, desbloqueie e confie no Mac. Em iOS 16+, ative
    *Ajustes › Privacidade e Segurança › Modo de Desenvolvedor*.
 2. Xcode › target › *Signing & Capabilities*: marque *Automatically manage signing* e escolha o **Team**
@@ -326,3 +329,33 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 
 ## 11. Registro de andamento no Mac
 (Claude: anote aqui, com data, o que foi feito, o que falhou e o que ficou para depois.)
+
+### 2026-10-14 — primeira compilação no iMac (Intel, macOS, Xcode 26.1)
+**Feito**
+- Ferramentas: Xcode 26.1, CocoaPods 1.16.2 e Node 25.2.1 já estavam instalados. O Homebrew não tem
+  pacotes prontos para Mac Intel e compila tudo do código-fonte (horas), então: Python 3.11 via `uv`
+  (`uv python install 3.11`, venv em `.venv/`) e `ffmpeg`/`ffprobe` 9.0.2 prontos de https://evermeet.cx/ffmpeg/
+  em `/usr/local/bin`. Watchman não foi instalado (o Metro funciona sem ele).
+- 5.1 Fontes no target e em `UIAppFonts`; o iOS reconhece `Inter` e `Newsreader` sem ajuste no tema.
+- 5.2 `GoogleService-Info.plist` no target, `FirebaseApp.configure()` no `AppDelegate`, Podfile com
+  frameworks estáticos e `$RNFirebaseDisableSPM = true`. Cadastro e login por e-mail funcionando no iPhone.
+- `react-native-svg` 15.15.3 → 15.15.4: a 15.15.3 não compila com RN 0.86 (`RNSVGImage.mm`); a 15.15.4 só
+  muda esse arquivo iOS, o Android não é afetado.
+- Ícone: o `AppIcon.appiconset/Contents.json` tinha a chave `"platform": "ios"`, que o Xcode não reconhece,
+  e o app saía sem ícone. Tela de abertura nova: ícone centralizado sobre `#F7FBFF` (claro) / `#0B1426`
+  (escuro), como a do Android 12+.
+- 5.4 `NSLocalNetworkUsageDescription`. Sem a permissão de Rede Local o app usa o bundle embutido e procura a
+  API em `localhost` ("Sem conexão com o Newzi"): conferir *Ajustes › Privacidade e Segurança › Rede Local*.
+- 5.7 `pod install` agregou ao `PrivacyInfo.xcprivacy` os motivos das bibliotecas (UserDefaults, data de
+  arquivos, tempo de boot, espaço em disco) e colocou o arquivo no target.
+- 6.2 Assinatura automática com o Personal Team gratuito (`YY79UQMX9Q`): app no iPhone 14 Pro Max (iOS 26.6),
+  mas expira em 7 dias e não recebe push. Ao entrar no Apple Developer Program, trocar o Team no Xcode.
+- App: horário do briefing escolhido numa roda dentro do card (onboarding e Perfil › Briefing diário), sem
+  teclado; botão "Sair da conta" no fim da tela Perfil (saiu de Dados pessoais).
+- Backend no Mac: 51 de 53 testes passam. `test_contract` falha porque o golden guarda o caminho de áudio do
+  Windows; `test_delivery_worker_batches_audio_and_push…` depende do horário (falha perto da meia-noite UTC).
+
+**Pendente**
+- Algo fica escondido pelo Dynamic Island (falta identificar a tela).
+- 5.3 Push (precisa do Apple Developer Program), 5.5 áudio em segundo plano, 6.1 simulador, seção 7.
+- O Firebase deixa de publicar versões novas no CocoaPods depois de outubro de 2026: planejar a migração para SPM.
