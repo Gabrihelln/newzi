@@ -14,8 +14,7 @@ Este guia substitui `docs/IOS_BRINGUP_CHECKLIST.md` e a parte de "Mac execution"
 
 ## 1. Onde o projeto está
 
-**Repositório:** `https://github.com/Gabrihelln/newzi` — o trabalho atual está na branch
-`fix/critical-security-and-reliability` (ainda não foi para `main`).
+**Repositório:** `https://github.com/Gabrihelln/newzi` — todo o trabalho está na branch **`main`**.
 
 | Parte | Pasta | Estado |
 |---|---|---|
@@ -90,8 +89,7 @@ Confira: `xcodebuild -version`, `node -v`, `pod --version`, `python3.11 --versio
 ### 3.3 Código **[Claude]**
 ```sh
 git clone https://github.com/Gabrihelln/newzi.git
-cd newzi
-git checkout fix/critical-security-and-reliability
+cd newzi                 # a branch main já vem selecionada
 cd mobile && npm ci
 ```
 
