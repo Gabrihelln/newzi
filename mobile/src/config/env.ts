@@ -1,4 +1,3 @@
-import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
 import { DEV_API_URL } from './devApi';
 
 export type AppEnvironment = 'development' | 'staging' | 'production';
@@ -9,32 +8,14 @@ const runtimeConfig = globalThis as typeof globalThis & {
 };
 const configuredEnvironment = runtimeConfig.__NEWS_ENGINE_ENV__;
 const environment: AppEnvironment = configuredEnvironment || (__DEV__ ? 'development' : 'production');
-const DEV_API_PORT = 8090;
+const PRODUCTION_API_URL = 'https://api.newzi.app';
 
-/** Host of the Metro server this development bundle came from: the developer's computer as the device sees it. */
-function metroHost(): string | null {
-  try {
-    const sourceCode = TurboModuleRegistry.get<any>('SourceCode') || NativeModules.SourceCode;
-    const scriptUrl: string = sourceCode?.getConstants?.().scriptURL || sourceCode?.scriptURL || '';
-    return /^https?:\/\/([^/:]+)/i.exec(scriptUrl)?.[1] || null;
-  } catch {
-    return null;
-  }
-}
-
-function developmentApiUrl() {
-  const override = DEV_API_URL.trim();
-  if (override) return override;
-  const host = metroHost();
-  // 'localhost' on a USB device works with `adb reverse tcp:8090 tcp:8090`, like Metro's own port.
-  return host ? `http://${host}:${DEV_API_PORT}` : '';
-}
-
-const configuredApiUrl = runtimeConfig.__NEWS_ENGINE_API_URL__?.trim() || (environment === 'development' ? developmentApiUrl() : '');
+// Development builds use the online backend too; devApi.ts can point them at a local one.
+const configuredApiUrl = runtimeConfig.__NEWS_ENGINE_API_URL__?.trim() || (environment === 'development' ? DEV_API_URL.trim() : '');
 const hosts: Record<AppEnvironment, string> = {
-  development: Platform.OS === 'android' ? 'http://10.0.2.2:8090' : 'http://localhost:8090',
-  staging: 'https://staging-api.news-engine.example.com',
-  production: 'https://api.news-engine.example.com',
+  development: PRODUCTION_API_URL,
+  staging: PRODUCTION_API_URL,
+  production: PRODUCTION_API_URL,
 };
 
 // One native-RN boundary. Physical devices can override this at build time

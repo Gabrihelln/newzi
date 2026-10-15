@@ -77,7 +77,7 @@ npm run android
 
 Para o iOS, siga o passo a passo de [docs/IOS_SETUP.md](docs/IOS_SETUP.md). Em resumo: no macOS, execute `pod install` em `mobile/ios/`, depois rode `npm run ios` a partir de `mobile/`. Abra o `.xcworkspace` gerado pelo CocoaPods para configurar o signing e as capabilities. Use `npm run typecheck` para validar os tipos TypeScript.
 
-No Android Emulator, a API local usa `http://10.0.2.2:8090`; no iOS Simulator, `http://localhost:8090`. Em aparelho físico, o build de desenvolvimento usa automaticamente o IP do computador que serve o Metro (porta 8090); `mobile/src/config/devApi.ts` só é preciso para apontar outro computador. Builds de produção precisam receber `__NEWS_ENGINE_ENV__` e `__NEWS_ENGINE_API_URL__` com um endpoint HTTPS real; o host de produção atual é apenas um placeholder.
+O app, em desenvolvimento e em produção, usa o backend online `https://api.newzi.app` (`mobile/src/config/env.ts`); não é preciso rodar API nem worker no computador para desenvolver o mobile. Para testar um backend local, preencha `DEV_API_URL` em `mobile/src/config/devApi.ts` (ex.: `http://10.0.2.2:8090` no Android Emulator, `http://localhost:8090` no iOS Simulator) e não commite essa alteração.
 
 ## Produção em VPS
 

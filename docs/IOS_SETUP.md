@@ -97,10 +97,13 @@ cd mobile && npm ci
 
 ## 4. Backend para os testes
 
-O app em modo desenvolvimento procura a API **no mesmo computador que serve o Metro**, na porta **8090**
-(`mobile/src/config/env.ts`). Há duas opções:
+O app, também em modo desenvolvimento, usa o **backend online `https://api.newzi.app`**, que roda 24h na VPS
+(`mobile/src/config/env.ts`). Não é preciso rodar backend no Mac: confira `https://api.newzi.app/health` no
+Safari do iPhone e pule para a seção 5.
 
-### Opção A (recomendada): rodar o backend no Mac **[Claude]**
+Só se for testar uma mudança de backend antes de subir para a VPS:
+
+### Opcional: rodar o backend no Mac **[Claude]**
 ```sh
 cd newzi
 cp .env.example .env            # o Gabriel preenche os valores (ver abaixo)
@@ -116,11 +119,9 @@ conta de serviço, que também precisa ser copiado para fora do repositório), `
 Os bancos SQLite (`backend/data/`, `engine/data/`) também não vão para o Git: ou o Mac começa com bancos
 novos (o worker coleta notícias em alguns minutos), ou copie as pastas do Windows.
 
-Verifique: `curl http://localhost:8090/health`.
-
-### Opção B: usar o backend que roda no Windows
-Em `mobile/src/config/devApi.ts`, preencha `DEV_API_URL = 'http://IP-DO-WINDOWS:8090'` (IP da rede local) e
-libere a porta 8090 no firewall do Windows. **Não commite esse IP.**
+Verifique: `curl http://localhost:8090/health`. Para o app usar esse backend, preencha em
+`mobile/src/config/devApi.ts` `DEV_API_URL = 'http://localhost:8090'` (simulador) ou `'http://IP-DO-MAC:8090'`
+(iPhone na mesma Wi-Fi). **Não commite essa alteração.**
 
 ---
 
@@ -191,8 +192,8 @@ e entregue ao Claude.
    (`mobile/src/navigation/notificationRouting.ts`).
 
 ### 5.4 [x] Rede local no iPhone (modo desenvolvimento)
-- iPhone e Mac na **mesma rede Wi-Fi**. O app em debug baixa o código do Metro pelo IP do Mac e usa o mesmo
-  IP na porta 8090 para a API (automático, `mobile/src/config/env.ts`).
+- iPhone e Mac na **mesma rede Wi-Fi**. O app em debug baixa o código do Metro pelo IP do Mac; a API é a
+  online (`https://api.newzi.app`), salvo se `DEV_API_URL` apontar para um backend local.
 - O iOS pede permissão de **Rede Local** na primeira vez; aceite. Adicione ao `Info.plist` uma explicação:
   ```xml
   <key>NSLocalNetworkUsageDescription</key>
@@ -200,7 +201,7 @@ e entregue ao Claude.
   ```
 - O `Info.plist` já permite HTTP local (`NSAllowsLocalNetworking`) e bloqueia o resto (`NSAllowsArbitraryLoads`
   = false). **Não ligue `NSAllowsArbitraryLoads`.**
-- Se o Mac tiver firewall ativo, libere as portas 8081 (Metro) e 8090 (API).
+- Se o Mac tiver firewall ativo, libere a porta 8081 (Metro) e, só com backend local, a 8090 (API).
 
 ### 5.5 [ ] Áudio em segundo plano e tela de bloqueio
 O player (`mobile/src/audio/AudioEngine.tsx`) usa `playInBackground`, `playWhenInactive`,
@@ -241,7 +242,7 @@ npm run start          # terminal 1: Metro
 npm run ios            # terminal 2: compila e abre no simulador
 ```
 Ou abra **`mobile/ios/NewsEngineNative.xcworkspace`** (o `.xcworkspace`, nunca o `.xcodeproj`) no Xcode e
-rode o esquema `NewsEngineNative`. No simulador, `localhost:8090` já é o Mac. Push não funciona no simulador.
+rode o esquema `NewsEngineNative`. O simulador usa a API online. Push não funciona no simulador.
 
 ### 6.2 [x] iPhone real
 1. Conecte o iPhone por cabo, desbloqueie e confie no Mac. Em iOS 16+, ative
@@ -250,14 +251,14 @@ rode o esquema `NewsEngineNative`. No simulador, `localhost:8090` já é o Mac. 
    do Gabriel. O bundle ID continua `com.newzi.app`.
 3. Escolha o iPhone como destino e rode. Na primeira vez, no iPhone:
    *Ajustes › Geral › VPN e Gerenciamento de Dispositivos* › confiar no desenvolvedor.
-4. Com o Metro rodando no Mac e os dois na mesma Wi-Fi, o app carrega o código e acessa a API sozinho.
+4. Com o Metro rodando no Mac e os dois na mesma Wi-Fi, o app carrega o código e acessa a API online sozinho.
 
 ### Problemas comuns
 | Sintoma | Causa provável |
 |---|---|
 | `pod install` falha | Node fora do PATH do Xcode: confira `mobile/ios/.xcode.env` (`NODE_BINARY=$(command -v node)`); rode de novo |
 | "No bundle URL present" | Metro não está rodando ou o iPhone não alcança o Mac (Wi-Fi, firewall, permissão de Rede Local) |
-| App abre mas diz que não conecta ao servidor | Backend parado ou fora de `0.0.0.0:8090`; teste `http://IP-DO-MAC:8090/health` no Safari do iPhone |
+| App abre mas diz que não conecta ao servidor | Teste `https://api.newzi.app/health` no Safari do iPhone; se falhar, veja `systemctl status newzi-api` na VPS. Com `DEV_API_URL` local: backend parado ou fora de `0.0.0.0:8090` |
 | Erro de assinatura | Team não selecionado ou bundle ID já usado em outra conta |
 | Fonte diferente do Android | Etapa 5.1 incompleta |
 
