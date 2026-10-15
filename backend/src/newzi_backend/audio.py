@@ -263,7 +263,7 @@ VOICE_CATALOG = {
 # The official Azure Speech service serves the same neural voices as edge-tts.
 VOICE_CATALOG["azure-tts"] = VOICE_CATALOG["edge-tts"]
 PREVIEW_TEXT = {
-    "pt-BR": "Bom dia. Este é o seu briefing Newzi, com as histórias mais importantes selecionadas para você acompanhar o dia com clareza.",
+    "pt-BR": "Bom dia. Este é o seu resumo Newzi, com as histórias mais importantes selecionadas para você acompanhar o dia com clareza.",
     "en": "Good morning. This is your Newzi briefing, with the most important stories selected to help you follow the day clearly.",
 }
 
@@ -600,7 +600,7 @@ class AudioScriptComposer:
             raise PermanentAudioError("LANGUAGE_MISMATCH", "audio language must match edition language")
         self.translation_warnings=[]
         portuguese = language.lower().startswith("pt")
-        intro = ("Olá. Este é o seu briefing Newzi. Vamos aos destaques."
+        intro = ("Olá. Este é o seu resumo Newzi. Vamos aos destaques."
                  if portuguese else "Hello. This is your Newzi briefing. Here are the highlights.")
         segments = [("INTRO", None, intro)]
         previous = None
@@ -642,7 +642,7 @@ class AudioScriptComposer:
             narrative = narrative.rstrip(" .")
             segments.append(("ITEM", item["id"], narrative if narrative.endswith(("?", "!")) else narrative + "."))
             previous = item
-        segments.append(("OUTRO", None, "Esse foi o briefing Newzi. Até a próxima."
+        segments.append(("OUTRO", None, "Esse foi o resumo Newzi. Até a próxima."
                          if portuguese else "That was your Newzi briefing. See you next time."))
         return segments
 

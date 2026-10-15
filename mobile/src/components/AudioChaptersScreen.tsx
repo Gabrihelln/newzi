@@ -24,7 +24,7 @@ export function AudioChaptersScreen({ briefing, segments, position, playing, onC
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
     <View style={s.topBar}>
       <Pressable accessibilityRole="button" accessibilityLabel="Voltar ao player" onPress={onClose} style={s.back}><View style={{ transform: [{ rotate: '180deg' }] }}><Icon name="chevron" color={colors.textPrimary} size={20} /></View></Pressable>
-      <View style={s.topCopy}><Text style={s.topTitle}>Briefing diário</Text><Text style={s.topDate}>{dateLabel(briefing.date)}</Text></View>
+      <View style={s.topCopy}><Text style={s.topTitle}>Resumo diário</Text><Text style={s.topDate}>{dateLabel(briefing.date)}</Text></View>
       <View style={s.back} />
     </View>
     <View style={s.tabs}>

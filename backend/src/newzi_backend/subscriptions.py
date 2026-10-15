@@ -19,7 +19,7 @@ LIMITS = {"basic": {"briefing_times": 1}, "premium": {"briefing_times": 4}}
 # A cancelled plan keeps Premium until it expires; "grace" is a failed renewal the store is still retrying.
 WITH_ACCESS = {"active", "grace", "canceled"}
 PREMIUM_BENEFITS = [
-    {"title": "Até 4 briefings por dia", "detail": "Você escolhe os horários de cada um"},
+    {"title": "Até 4 resumos por dia", "detail": "Você escolhe os horários de cada um"},
     {"title": "Assuntos sem limite", "detail": "Siga todos os temas e subtemas que quiser"},
     {"title": "Salvos ilimitados e offline", "detail": "Leia e ouça mesmo sem internet"},
     {"title": "Alertas personalizados", "detail": "Palavras-chave, assuntos e gols do seu time"},

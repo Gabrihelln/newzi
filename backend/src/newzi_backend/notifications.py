@@ -172,7 +172,7 @@ class NotificationService:
             if not ready or not artifact or not os.path.isfile(artifact["storage_path"]):
                 self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='delivery audio is no longer READY' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
                 return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
-            title,body,data="Seu briefing está pronto","Seu briefing diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]}
+            title,body,data="Seu resumo está pronto","Seu resumo diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]}
         claimed=self.repo.db.execute("UPDATE notification_jobs SET status='RUNNING',attempt_count=attempt_count+1,updated_at=? WHERE id=? AND status='PENDING'",(now_iso(),job["id"])); self.repo.db.commit()
         if claimed.rowcount!=1:
             # Another worker claimed it between the read and this update.

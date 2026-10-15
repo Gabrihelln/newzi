@@ -49,7 +49,7 @@ function BasicPlan({ data }: { data: Subscription }) {
         <View><Text style={styles.label}>Seu plano</Text><Text style={styles.planName}>Básico</Text></View>
         <View style={styles.statusPill}><Text style={styles.statusText}>Ativo</Text></View>
       </View>
-      <View style={styles.usageLine}><Text style={styles.usageLabel}>Horários de briefing</Text><Text style={[styles.usageCount, full && { color: colors.warning }]}>{used} de {limit}</Text></View>
+      <View style={styles.usageLine}><Text style={styles.usageLabel}>Horários de resumo</Text><Text style={[styles.usageCount, full && { color: colors.warning }]}>{used} de {limit}</Text></View>
       <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, used / Math.max(limit, 1) * 100)}%`, backgroundColor: full ? colors.warning : colors.primary }]} /></View>
     </View>
 

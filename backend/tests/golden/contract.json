@@ -17581,7 +17581,7 @@
      "position": 1,
      "type": "INTRO",
      "briefing_item_id": null,
-     "script_text": "Olá. Este é o seu briefing Newzi. Vamos aos destaques.",
+     "script_text": "Olá. Este é o seu resumo Newzi. Vamos aos destaques.",
      "segment_start_ms": 0,
      "segment_end_ms": 1000
     },
@@ -17590,7 +17590,7 @@
      "position": 2,
      "type": "OUTRO",
      "briefing_item_id": null,
-     "script_text": "Esse foi o briefing Newzi. Até a próxima.",
+     "script_text": "Esse foi o resumo Newzi. Até a próxima.",
      "segment_start_ms": 1000,
      "segment_end_ms": 2000
     }

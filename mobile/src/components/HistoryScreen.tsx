@@ -59,7 +59,7 @@ export function HistoryScreen({ onBack, onAudio }: {
     const imageStory = item.items?.find((story: BriefingItem) => story.image_url);
     const imageUrl = imageStory?.image_url;
     return <Pressable accessibilityRole="button" accessibilityLabel={`${dateLabel}, ${duration}, ${status}`} onPress={() => onAudio(item)} style={[s.row, active && s.activeRow]}>
-      <ArticleImage uri={imageUrl} articleId={imageStory?.sources?.find(source => source.article_id)?.article_id || imageStory?.id} accessibilityLabel={`Briefing de ${dateLabel}`} style={s.thumb} />
+      <ArticleImage uri={imageUrl} articleId={imageStory?.sources?.find(source => source.article_id)?.article_id || imageStory?.id} accessibilityLabel={`Resumo de ${dateLabel}`} style={s.thumb} />
       <View style={s.rowCopy}>
         <Text numberOfLines={2} style={s.date}>{dateLabel}</Text>
         <Text style={s.meta}>{duration} · {status}</Text>
@@ -74,7 +74,7 @@ export function HistoryScreen({ onBack, onAudio }: {
     data={items}
     keyExtractor={item => item.id || item.date}
     renderItem={renderItem}
-    ListHeaderComponent={<BrandPageHeader title="Outros briefings" subtitle="Acesse suas edições anteriores." onBack={onBack} />}
+    ListHeaderComponent={<BrandPageHeader title="Outros resumos" subtitle="Acesse suas edições anteriores." onBack={onBack} />}
     ListEmptyComponent={initialLoading
       ? <ScreenState kind="loading" title="Carregando seu histórico" />
       : error

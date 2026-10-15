@@ -106,7 +106,7 @@ export function ProfileScreen({ user, onNavigate, onSearch, onLogout }: ProfileS
         <ProfileMenuRow title="Preferências de conteúdo" subtitle="Escolha os assuntos que mais te interessam" icon="settings" tint={colors.primary} background={colors.tone('#E4F1FF', colors.surfaceTint)} onPress={() => onNavigate('ContentPreferences')} />
         <ProfileMenuRow title="Notificações" subtitle="Gerencie seus alertas e lembretes" icon="bell" tint={colors.tone('#8548E6', colors.topicPurple.icon)} background={colors.topicPurple.background} onPress={() => onNavigate('NotificationSettings')} />
         <ProfileMenuRow title="Aparência" subtitle="Tema claro, escuro ou igual ao do celular" icon="moon" tint={colors.tone('#3D5A8C', colors.secondary)} background={colors.surfaceTint} onPress={() => onNavigate('Appearance')} />
-        <ProfileMenuRow title="Briefing diário" subtitle="Configure horário, voz e formato do seu briefing" icon="sun" tint={colors.tone('#F39711', colors.topicOrange.icon)} background={colors.tone('#FFF1D9', colors.topicOrange.background)} onPress={() => onNavigate('DailyBriefing')} last />
+        <ProfileMenuRow title="Resumo diário" subtitle="Configure horário, voz e formato do seu resumo" icon="sun" tint={colors.tone('#F39711', colors.topicOrange.icon)} background={colors.tone('#FFF1D9', colors.topicOrange.background)} onPress={() => onNavigate('DailyBriefing')} last />
       </ProfileSection>
       <ProfileSection title="Minha conta" subtitle="Segurança, privacidade e dados da sua conta.">
         <ProfileMenuRow title="Segurança e privacidade" subtitle="Senha, autenticação e dados" icon="lock" tint={colors.tone('#10A867', colors.topicGreen.icon)} background={colors.topicGreen.background} onPress={() => onNavigate('SecurityPrivacy')} />
@@ -259,8 +259,8 @@ export function ContentPreferencesScreen({ onBack, onDone }: { onBack: () => voi
     {!allContent && selectedTopics.length > 0 && <View style={{ marginBottom: 14 }}>
       <Text style={[st.helper, { marginBottom: 8 }]}>Selecionados ({selectedTopics.length}) · toque para remover</Text>
       {selectedTopics.length > (prefs.briefing_size || 10) && <Text style={[st.helper, { marginBottom: 8 }]}>{selectedTopics.length > 20
-        ? 'Com muitos assuntos, seu briefing pode chegar a 20 notícias; nos dias com mais novidades, alguns assuntos podem ficar de fora.'
-        : `Para incluir todos os seus assuntos, o briefing pode ter mais de ${prefs.briefing_size || 10} notícias (até 20).`}</Text>}
+        ? 'Com muitos assuntos, seu resumo pode chegar a 20 notícias; nos dias com mais novidades, alguns assuntos podem ficar de fora.'
+        : `Para incluir todos os seus assuntos, o resumo pode ter mais de ${prefs.briefing_size || 10} notícias (até 20).`}</Text>}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{selectedTopics.map(code => {
         const topic = topicsByCode.get(code);
         const parent = topic?.parent_id ? topicsByCode.get(topic.parent_id)?.name : null;
@@ -297,7 +297,7 @@ export function ContentPreferencesScreen({ onBack, onDone }: { onBack: () => voi
           <View style={st.dialogIcon}><Icon name="checkCircle" color={colors.primary} size={30} /></View>
           <Text style={st.dialogTitle}>Preferências salvas</Text>
           <Text style={st.dialogBody}>{savedDialog?.regenerating
-            ? 'Estamos preparando um novo briefing em áudio com as suas novas preferências. Normalmente leva menos de um minuto — você será notificado quando ele estiver pronto para ouvir.'
+            ? 'Estamos preparando um novo resumo em áudio com as suas novas preferências. Normalmente leva menos de um minuto — você será notificado quando ele estiver pronto para ouvir.'
             : 'Sua tela inicial e o Explorar já foram atualizados com as suas preferências.'}</Text>
           <ActionButton title="Ir para o início" onPress={() => { setSavedDialog(null); onDone(); }} />
           <Pressable accessibilityRole="button" onPress={() => setSavedDialog(null)} style={st.dialogSecondary}><Text style={st.dialogSecondaryText}>Continuar editando</Text></Pressable>
@@ -321,16 +321,16 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
   useEffect(() => { void load(); }, []);
   const save = async () => { if (!prefs) return; if (!isValidBriefingTime(prefs.briefing_time)) { setTimeError('Use um horário válido entre 00:00 e 23:59.'); return; } setBusy(true); setMessage(''); setTimeError(''); const updated = { ...prefs, timezone }; try { await api.savePreferences(updated); setPrefs(updated); setMessage('Configurações salvas.'); } catch { setMessage('Não foi possível salvar as configurações.'); } finally { setBusy(false); } };
   const selectedVoice = voices.find(voice => voice.id === prefs?.audio_voice_id)?.name || 'Voz padrão';
-  return <SecondaryPage title="Briefing diário" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando configurações" /> : loadError ? <ScreenState kind="error" title="Configurações indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs ? null : <>
-    <Text style={st.pageIntro}>Ajuste quando o briefing chega e como prefere ouvi-lo.</Text>
+  return <SecondaryPage title="Resumo diário" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando configurações" /> : loadError ? <ScreenState kind="error" title="Configurações indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs ? null : <>
+    <Text style={st.pageIntro}>Ajuste quando o resumo chega e como prefere ouvi-lo.</Text>
     <Text style={st.formLabel}>Horário de entrega</Text><View style={st.timeCard}><TimeWheel value={prefs.briefing_time} onChange={briefing_time => { setPrefs({ ...prefs, briefing_time }); setTimeError(''); }} /></View>
     {!!timeError && <Text accessibilityRole="alert" style={st.helper}>{timeError}</Text>}
-    <Pressable accessibilityRole="button" accessibilityLabel="Adicionar outro horário de briefing. Recurso Premium" onPress={addTime} style={st.addTimeRow}><Icon name="clock" color={colors.primary} size={19} /><Text style={st.addTimeText}>Adicionar outro horário</Text><View style={st.premiumTag}><Text style={st.premiumTagText}>PREMIUM</Text></View></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Adicionar outro horário de resumo. Recurso Premium" onPress={addTime} style={st.addTimeRow}><Icon name="clock" color={colors.primary} size={19} /><Text style={st.addTimeText}>Adicionar outro horário</Text><View style={st.premiumTag}><Text style={st.premiumTagText}>PREMIUM</Text></View></Pressable>
     <Text style={st.formLabel}>Fuso horário</Text><InfoCard label="Automático pelo aparelho" value={timezone} />
     <Text style={st.formLabel}>Tamanho</Text><View style={st.choiceLine}>{[5, 10, 15].map(size => <Pressable key={size} accessibilityRole="radio" accessibilityState={{ selected: prefs.briefing_size === size }} onPress={() => setPrefs({ ...prefs, briefing_size: size as Preferences['briefing_size'] })} style={[st.sizeChoice, prefs.briefing_size === size && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.briefing_size === size && { color: colors.primary }]}>{size} notícias</Text></Pressable>)}</View>
     <Text style={st.formLabel}>Idioma e cobertura</Text><View style={st.choiceLine}>{['pt-BR', 'en'].map(language => <Pressable key={language} accessibilityRole="radio" accessibilityState={{ selected: prefs.language === language }} onPress={() => setPrefs({ ...prefs, language })} style={[st.sizeChoice, prefs.language === language && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.language === language && { color: colors.primary }]}>{language === 'pt-BR' ? 'Português' : 'English'}</Text></Pressable>)}</View><View style={st.choiceLine}>{(['LOCAL', 'GLOBAL', 'BOTH'] as const).map(scope => <Pressable key={scope} accessibilityRole="radio" accessibilityState={{ selected: prefs.country_scope === scope }} onPress={() => setPrefs({ ...prefs, country_scope: scope })} style={[st.sizeChoice, prefs.country_scope === scope && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.country_scope === scope && { color: colors.primary }]}>{scope === 'BOTH' ? 'Brasil e global' : scope === 'LOCAL' ? 'Brasil' : 'Global'}</Text></Pressable>)}</View>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Voz do briefing: ${selectedVoice}`} onPress={onVoice} style={st.voiceRow}><View style={{ flex: 1 }}><Text style={st.menuTitle}>Voz do briefing</Text><Text style={st.menuSubtitle}>{selectedVoice} · Alterar voz</Text></View><Icon name="chevron" color={colors.tone('#64789C', colors.secondary)} /></Pressable>
-    <View style={st.audioToggle}><Text style={st.menuTitle}>Áudio do briefing</Text><Switch value={prefs.audio_enabled} onValueChange={audio_enabled => setPrefs({ ...prefs, audio_enabled })} trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} thumbColor={prefs.audio_enabled ? colors.primary : colors.surface} /></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Voz do resumo: ${selectedVoice}`} onPress={onVoice} style={st.voiceRow}><View style={{ flex: 1 }}><Text style={st.menuTitle}>Voz do resumo</Text><Text style={st.menuSubtitle}>{selectedVoice} · Alterar voz</Text></View><Icon name="chevron" color={colors.tone('#64789C', colors.secondary)} /></Pressable>
+    <View style={st.audioToggle}><Text style={st.menuTitle}>Áudio do resumo</Text><Switch value={prefs.audio_enabled} onValueChange={audio_enabled => setPrefs({ ...prefs, audio_enabled })} trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} thumbColor={prefs.audio_enabled ? colors.primary : colors.surface} /></View>
     {!!message && <Text accessibilityRole="alert" style={st.formMessage}>{message}</Text>}<ActionButton title={busy ? 'Salvando…' : 'Salvar configurações'} disabled={busy || !isValidBriefingTime(prefs.briefing_time)} onPress={() => void save()} />
     <PremiumSheet feature="briefing_times" visible={upsell} onClose={() => setUpsell(false)} onSeePlans={onSubscription} />
   </>}</SecondaryPage>;

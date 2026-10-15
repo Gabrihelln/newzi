@@ -88,8 +88,8 @@ function NextBriefingCard({ timeLabel, onPress }: { timeLabel: string; onPress?:
   const a = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Seu próximo briefing: ${timeLabel}`} onPress={onPress} style={a.nextCard}>
-    <Icon name="sun" color={colors.sun} size={25} /><View style={{ flex: 1 }}><Text style={a.nextLabel}>Seu próximo briefing</Text><Text style={a.nextTime}>{timeLabel}</Text></View><Icon name="chevron" color={colors.secondary} size={18} />
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Seu próximo resumo: ${timeLabel}`} onPress={onPress} style={a.nextCard}>
+    <Icon name="sun" color={colors.sun} size={25} /><View style={{ flex: 1 }}><Text style={a.nextLabel}>Seu próximo resumo</Text><Text style={a.nextTime}>{timeLabel}</Text></View><Icon name="chevron" color={colors.secondary} size={18} />
   </Pressable>;
 }
 
@@ -99,7 +99,7 @@ function BriefingCover({ briefing, size, timezone }: { briefing: Briefing; size:
   const { colors } = theme;
   return <ImageBackground source={coverArt} resizeMode="cover" imageStyle={a.coverImage} style={[a.cover, { width: size, height: size }]}>
     <View style={a.coverTint} /><Image source={logo} resizeMode="contain" accessibilityLabel="NEWZI" style={a.coverLogo} />
-    <View style={a.coverTitle}><Text style={a.coverLabel}>BRIEFING</Text><Text style={a.coverHeading}>Diário</Text></View>
+    <View style={a.coverTitle}><Text style={a.coverLabel}>RESUMO</Text><Text style={a.coverHeading}>Diário</Text></View>
     <Image source={readingMascot} resizeMode="contain" accessibilityLabel="Mascote NEWZI lendo notícias" style={a.coverMascot} />
     <View style={a.coverDate}><Text style={a.coverDateText}>{formatEditionDate(briefing, timezone)}</Text></View>
   </ImageBackground>;
@@ -109,14 +109,14 @@ function CompletionView({ briefing, timeLabel, onHome, onReplay, onSchedule }: {
   const a = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  const share = () => Share.share({ message: 'Conheça o NEWZI e comece seu dia com um briefing claro e personalizado.' }).catch(() => undefined);
+  const share = () => Share.share({ message: 'Conheça o NEWZI e comece seu dia com um resumo claro e personalizado.' }).catch(() => undefined);
   return <ScrollView contentContainerStyle={a.completionPage}>
     <View style={a.completionHero}><View style={a.completionCheck}><Icon name="check" color={colors.primary} size={32} /></View><Image source={celebrationMascot} resizeMode="contain" accessibilityLabel="Mascote NEWZI comemorando" style={a.celebration} /></View>
-    <Text style={a.completionTitle}>Briefing concluído!</Text><Text style={a.completionSubtitle}>Você chegou ao fim do seu resumo do dia.</Text>
+    <Text style={a.completionTitle}>Resumo concluído!</Text><Text style={a.completionSubtitle}>Você chegou ao fim das notícias de hoje.</Text>
     <Pressable accessibilityRole="button" onPress={onHome} style={a.primaryAction}><Text style={a.primaryActionText}>Ver principais notícias</Text><Icon name="chevron" color={colors.onPrimary} size={18} /></Pressable>
     <Pressable accessibilityRole="button" onPress={onReplay} style={a.secondaryAction}><Icon name="headphones" color={colors.textPrimary} size={19} /><Text style={a.secondaryActionText}>Ouvir novamente</Text></Pressable>
     <NextBriefingCard timeLabel={timeLabel} onPress={onSchedule} />
-    <Pressable accessibilityRole="button" accessibilityLabel="Compartilhar NEWZI" onPress={() => void share()} style={a.shareCard}><View style={a.shareIcon}><Icon name="arrowUpRight" color={colors.primary} size={20} /></View><View style={{ flex: 1 }}><Text style={a.shareTitle}>Gostou do briefing de hoje?</Text><Text style={a.shareSubtitle}>Compartilhe o Newzi com outras pessoas.</Text></View><Icon name="share" color={colors.textPrimary} size={19} /></Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="Compartilhar NEWZI" onPress={() => void share()} style={a.shareCard}><View style={a.shareIcon}><Icon name="arrowUpRight" color={colors.primary} size={20} /></View><View style={{ flex: 1 }}><Text style={a.shareTitle}>Gostou do resumo de hoje?</Text><Text style={a.shareSubtitle}>Compartilhe o Newzi com outras pessoas.</Text></View><Icon name="share" color={colors.textPrimary} size={19} /></Pressable>
   </ScrollView>;
 }
 
@@ -229,34 +229,34 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
     } catch { setSaveError('Não foi possível atualizar os salvos.'); }
     finally { setSaving(false); }
   };
-  const share = () => Share.share({ message: 'Conheça o NEWZI e comece seu dia com um briefing claro e personalizado.' }).catch(() => undefined);
+  const share = () => Share.share({ message: 'Conheça o NEWZI e comece seu dia com um resumo claro e personalizado.' }).catch(() => undefined);
   const isCompleted = Boolean(sessionMatches && playback.ended);
-  const statusMessage = loading || playback.buffering ? 'Carregando áudio…' : !audio || ['PENDING', 'GENERATING', 'VALIDATING', 'NOT_AVAILABLE'].includes(audio.status) ? 'Preparando seu áudio…' : audio.status === 'FAILED' ? 'Não foi possível preparar o áudio deste briefing.' : audio.status === 'OFFLINE' ? 'Não foi possível carregar o áudio.' : '';
+  const statusMessage = loading || playback.buffering ? 'Carregando áudio…' : !audio || ['PENDING', 'GENERATING', 'VALIDATING', 'NOT_AVAILABLE'].includes(audio.status) ? 'Preparando seu áudio…' : audio.status === 'FAILED' ? 'Não foi possível preparar o áudio deste resumo.' : audio.status === 'OFFLINE' ? 'Não foi possível carregar o áudio.' : '';
 
   return <SafeAreaView style={a.safe}>
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
     <View style={a.topBar}>
       <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={onBack} style={a.back}><View style={{ transform: [{ rotate: '180deg' }] }}><Icon name="chevron" color={colors.secondary} size={20} /></View></Pressable>
-      <Text style={a.topTitle}>Briefing diário</Text><View style={a.back} />
+      <Text style={a.topTitle}>Resumo diário</Text><View style={a.back} />
     </View>
     {isCompleted ? <CompletionView briefing={briefing} timeLabel={nextTime} onHome={onHome} onReplay={() => void replay()} onSchedule={onSchedule} /> : <ScrollView contentContainerStyle={a.playerContent} showsVerticalScrollIndicator={false}>
       <BriefingCover briefing={briefing} size={coverSize} timezone={timezone} />
       <Text style={a.title}>Seu resumo do dia</Text>
-      <Text style={a.description}>As principais notícias do mundo, em um briefing claro e objetivo.</Text>
+      <Text style={a.description}>As principais notícias do mundo, em um resumo claro e objetivo.</Text>
       {!!currentItem && <Text numberOfLines={1} style={a.currentChapter}>Agora: {currentItem.primary_taxonomy_label || currentItem.category || currentItem.headline}</Text>}
       <View style={a.metadata}>
-        <View style={a.metadataItem}><Icon name="calendar" color={colors.ink} size={21} /><View><Text style={a.metadataLabel}>Último briefing</Text><Text style={a.metadataValue}>{formatEditionDate(briefing, timezone)}</Text></View></View>
+        <View style={a.metadataItem}><Icon name="calendar" color={colors.ink} size={21} /><View><Text style={a.metadataLabel}>Último resumo</Text><Text style={a.metadataValue}>{formatEditionDate(briefing, timezone)}</Text></View></View>
         <View style={a.metadataItem}><Icon name="clock" color={colors.ink} size={21} /><View><Text style={a.metadataLabel}>Duração</Text><Text style={a.metadataValue}>{realDuration}</Text></View></View>
       </View>
       <View style={a.progressBlock}>
         {canControl ? <Waveform progress={duration ? position / duration : 0} duration={duration} position={position} disabled={!canControl} onSeek={fraction => { if (duration) seekTo(duration * fraction); }} /> : <View style={a.wavePlaceholder}><Text style={a.statusLine}>{statusMessage}</Text></View>}
         {!!error && audio?.status === 'READY' && <Pressable accessibilityRole="button" onPress={retry} style={a.inlineRetry}><Text style={a.errorText}>{error}</Text><Text style={a.retryText}>Tentar novamente</Text></Pressable>}
-        {audio?.status === 'FAILED' && <Text accessibilityRole="alert" style={a.errorText}>Não foi possível preparar o áudio deste briefing.</Text>}
+        {audio?.status === 'FAILED' && <Text accessibilityRole="alert" style={a.errorText}>Não foi possível preparar o áudio deste resumo.</Text>}
       </View>
       <View style={a.controls}>
         <RoundControl label="Voltar 15 segundos" icon="rewind" onPress={() => void seekAudio(-15)} disabled={!canControl} />
         <RoundControl label="Capítulo anterior" icon="previous" onPress={previousChapter} disabled={!canControl || !segments.length} />
-        <RoundControl label={playback.playing ? 'Pausar briefing' : 'Reproduzir briefing'} icon={playback.playing ? 'pause' : 'play'} onPress={() => void toggle()} primary disabled={!canControl || loading} />
+        <RoundControl label={playback.playing ? 'Pausar resumo' : 'Reproduzir resumo'} icon={playback.playing ? 'pause' : 'play'} onPress={() => void toggle()} primary disabled={!canControl || loading} />
         <RoundControl label="Próximo capítulo" icon="next" onPress={nextChapter} disabled={!canControl || currentIndex < 0 || currentIndex >= segments.length - 1} />
         <RoundControl label="Avançar 15 segundos" icon="forward" onPress={() => void seekAudio(15)} disabled={!canControl} />
       </View>
@@ -265,10 +265,10 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
       <View style={a.actions}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Velocidade ${String(playback.speed || 1).replace('.', ',')} vezes`} onPress={() => setSheet('speed')} style={a.actionButton}><Text style={a.actionValue}>{String(playback.speed || 1).replace('.', ',')}x</Text><Text style={a.actionLabel}>Velocidade</Text></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Abrir capítulos e transcrição" onPress={() => setSheet('chapters')} style={a.actionButton}><Icon name="article" color={colors.tone('#0A1E44', colors.ink)} size={21} /><Text style={a.actionLabel}>Capítulos</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover briefing dos salvos' : 'Salvar briefing'} accessibilityState={{ selected: saved, disabled: saving || !briefing.items.length }} disabled={saving || !briefing.items.length} onPress={() => void saveBriefing()} style={a.actionButton}><Icon name="bookmark" color={saved ? colors.primary : colors.tone('#0A1E44', colors.ink)} size={21} /><Text style={a.actionLabel}>{saved ? 'Salvo' : 'Salvar'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover resumo dos salvos' : 'Salvar resumo'} accessibilityState={{ selected: saved, disabled: saving || !briefing.items.length }} disabled={saving || !briefing.items.length} onPress={() => void saveBriefing()} style={a.actionButton}><Icon name="bookmark" color={saved ? colors.primary : colors.tone('#0A1E44', colors.ink)} size={21} /><Text style={a.actionLabel}>{saved ? 'Salvo' : 'Salvar'}</Text></Pressable>
       </View>
       {!!saveError && <Text accessibilityRole="alert" style={a.saveError}>{saveError}</Text>}
-      {briefing.items[0] && !canControl && <Pressable accessibilityRole="button" onPress={() => onDetail(briefing.items[0])} style={a.readFallback}><Text style={a.readFallbackText}>Ler as notícias deste briefing</Text><Icon name="chevron" color={colors.primary} size={17} /></Pressable>}
+      {briefing.items[0] && !canControl && <Pressable accessibilityRole="button" onPress={() => onDetail(briefing.items[0])} style={a.readFallback}><Text style={a.readFallbackText}>Ler as notícias deste resumo</Text><Icon name="chevron" color={colors.primary} size={17} /></Pressable>}
       <NextBriefingCard timeLabel={nextTime} onPress={onSchedule} />
     </ScrollView>}
     <Modal visible={sheet === 'chapters'} animationType="slide" onRequestClose={() => setSheet(null)}>

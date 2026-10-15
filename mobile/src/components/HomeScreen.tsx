@@ -182,12 +182,12 @@ function AudioControls({ briefing, audio, loading, regenerating }: { briefing: B
   const seekFraction = (fraction: number) => { if (matching && playback.loaded) seekTo(duration * fraction); };
   const failed = audio?.status === 'FAILED';
   const pending = !briefing || !audio || ['PENDING', 'GENERATING', 'VALIDATING', 'NOT_AVAILABLE'].includes(audio?.status);
-  const stateMessage = regenerating ? 'Preparando seu novo briefing com as novas preferências. Você será notificado quando estiver pronto.' : loading ? 'Carregando seu briefing...' : !briefing ? 'Preparando seu briefing…' : failed ? 'Não foi possível preparar o áudio deste briefing.' : 'Preparando seu áudio…';
+  const stateMessage = regenerating ? 'Preparando seu novo resumo com as novas preferências. Você será notificado quando estiver pronto.' : loading ? 'Carregando seu resumo...' : !briefing ? 'Preparando seu resumo…' : failed ? 'Não foi possível preparar o áudio deste resumo.' : 'Preparando seu áudio…';
   return <View style={h.audioCard}>
     <View style={h.audioCardTop}>
       <View style={h.audioCardIcon}><Icon name="audio" color={colors.primary} size={31} /></View>
-      <View style={h.audioCardCopy}><Text style={h.audioCardTitle}>Seu briefing diário</Text><Text style={h.audioCardSubtitle}>As principais notícias do mundo,{`\n`}em um briefing claro e objetivo.</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel={playback.playing && matching ? 'Pausar briefing' : matching && playback.loaded ? 'Retomar briefing' : 'Reproduzir briefing'} accessibilityState={{ disabled: !briefing || busy || (!ready && !(matching && playback.loaded)) }} onPress={() => void toggle()} disabled={!briefing || busy || (!ready && !(matching && playback.loaded))} style={h.audioPlay}>
+      <View style={h.audioCardCopy}><Text style={h.audioCardTitle}>Seu resumo diário</Text><Text style={h.audioCardSubtitle}>As principais notícias do mundo,{`\n`}em um resumo claro e objetivo.</Text></View>
+      <Pressable accessibilityRole="button" accessibilityLabel={playback.playing && matching ? 'Pausar resumo' : matching && playback.loaded ? 'Retomar resumo' : 'Reproduzir resumo'} accessibilityState={{ disabled: !briefing || busy || (!ready && !(matching && playback.loaded)) }} onPress={() => void toggle()} disabled={!briefing || busy || (!ready && !(matching && playback.loaded))} style={h.audioPlay}>
         {busy || playback.buffering && matching ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Icon name={matching && playback.playing ? 'pause' : 'play'} color={colors.onPrimary} size={28} />}
       </Pressable>
     </View>
@@ -370,8 +370,8 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
           <View style={h.nameLine}><Text numberOfLines={1} style={h.name}>{name}</Text></View>
           <Text style={h.date}>{formatHomeDate(clockNow, deviceTimezone)}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Próximo briefing ${nextLabel}`} onPress={onSchedule} style={h.nextCard}>
-          <Icon name="sun" size={20} color={colors.sun} /><View style={h.nextCopy}><Text numberOfLines={1} style={h.nextTitle}>Seu próximo briefing</Text><Text numberOfLines={1} style={h.nextTime}>{nextLabel}</Text></View><Icon name="chevron" size={14} color={colors.text} />
+        <Pressable accessibilityRole="button" accessibilityLabel={`Próximo resumo ${nextLabel}`} onPress={onSchedule} style={h.nextCard}>
+          <Icon name="sun" size={20} color={colors.sun} /><View style={h.nextCopy}><Text numberOfLines={1} style={h.nextTitle}>Seu próximo resumo</Text><Text numberOfLines={1} style={h.nextTime}>{nextLabel}</Text></View><Icon name="chevron" size={14} color={colors.text} />
         </Pressable>
       </View>
 

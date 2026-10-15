@@ -8,9 +8,9 @@ export type PremiumFeature = 'briefing_times';
 const COPY: Record<PremiumFeature, { icon: IconName; title: string; body: string; perks: string[] }> = {
   briefing_times: {
     icon: 'headphones',
-    title: 'Mais horários de briefing é Premium',
-    body: 'No plano Básico você tem 1 horário de briefing por dia. Com o Premium, escolha até 4 horários, do jeito que for melhor para você.',
-    perks: ['Até 4 briefings por dia', 'Você escolhe cada horário', 'Todas as vozes e velocidades'],
+    title: 'Mais horários de resumo é Premium',
+    body: 'No plano Básico você tem 1 horário de resumo por dia. Com o Premium, escolha até 4 horários, do jeito que for melhor para você.',
+    perks: ['Até 4 resumos por dia', 'Você escolhe cada horário', 'Todas as vozes e velocidades'],
   },
 };
 

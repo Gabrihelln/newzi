@@ -77,7 +77,7 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
       const saved = await api.savePreferences({ audio_voice_id: selected });
       if (!mounted.current) return;
       setPrefs(saved);
-      setMessage('Voz salva. Atualizando o áudio do seu briefing…');
+      setMessage('Voz salva. Atualizando o áudio do seu resumo…');
       void api.home().then(home => {
         const current: Briefing | null = home.today_briefing?.items?.length ? home.today_briefing : home.latest_briefing;
         if (current) syncSelectedBriefingVoice(current, selected);
@@ -97,10 +97,10 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
         <Pressable accessibilityRole="button" accessibilityLabel="Fechar seleção de voz" onPress={onBack}
           style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.secondary, fontSize: 28 }}>×</Text></Pressable>
       </View>
-      <Text style={[styles.editorial, { fontSize: 34, lineHeight: 40, marginTop: spacing.sm }]}>Escolha a voz do seu briefing</Text>
+      <Text style={[styles.editorial, { fontSize: 34, lineHeight: 40, marginTop: spacing.sm }]}>Escolha a voz do seu resumo</Text>
       <Text style={[styles.subtitle, { marginTop: spacing.sm, marginBottom: spacing.xl }]}>Ouça um exemplo e escolha como prefere acompanhar as notícias.</Text>
       {loading && <ActivityIndicator color={colors.primary} />}
-      {!loading && catalog?.voices.length === 0 && <Text style={styles.muted}>As vozes não estão disponíveis agora. Seu briefing em texto continua acessível.</Text>}
+      {!loading && catalog?.voices.length === 0 && <Text style={styles.muted}>As vozes não estão disponíveis agora. Seu resumo em texto continua acessível.</Text>}
       {catalog?.voices.map(voice => {
         const active = selected === voice.id;
         return <View key={voice.id} style={{ backgroundColor: active ? colors.surfaceBlue : colors.surface,

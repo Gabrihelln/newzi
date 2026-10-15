@@ -199,8 +199,8 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
     finally { setBusy(false); }
   };
 
-  const titles = ['', 'Bem-vindo\nao Newzi', 'Escolha o que\nimporta para você', 'Defina seu idioma\ne escopo', 'Escolha o melhor\nhorário', 'Escolha o tamanho\ndo seu briefing', 'Ative as notificações', 'Pronto!'];
-  const subtitles = ['', 'Notícias importantes, todos\nos dias, de forma clara, rápida\ne no seu ritmo.', 'Selecione os temas que mais\ninteressam e receba um briefing\npersonalizado.', 'Receba notícias em português,\nno cenário global ou nos dois.', 'Receba seu briefing diário\nno momento ideal.', 'Você decide quanto tempo\ntem hoje. A gente se adapta.', 'Receba um aviso quando seu\nbriefing do dia estiver pronto.', 'Seu Newzi está configurado\ne pronto para te acompanhar.'];
+  const titles = ['', 'Bem-vindo\nao Newzi', 'Escolha o que\nimporta para você', 'Defina seu idioma\ne escopo', 'Escolha o melhor\nhorário', 'Escolha o tamanho\ndo seu resumo', 'Ative as notificações', 'Pronto!'];
+  const subtitles = ['', 'Notícias importantes, todos\nos dias, de forma clara, rápida\ne no seu ritmo.', 'Selecione os temas que mais\ninteressam e receba um resumo\npersonalizado.', 'Receba notícias em português,\nno cenário global ou nos dois.', 'Receba seu resumo diário\nno momento ideal.', 'Você decide quanto tempo\ntem hoje. A gente se adapta.', 'Receba um aviso quando seu\nresumo do dia estiver pronto.', 'Seu Newzi está configurado\ne pronto para te acompanhar.'];
   const mascotWidth = Math.min(width * (compact ? .53 : .64), compact ? 235 : 290);
 
   if (!config) return <SafeAreaView style={s.root} edges={['top', 'bottom']}><StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
@@ -216,7 +216,7 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
     <View pointerEvents="none" style={s.atmosphereTop} /><View pointerEvents="none" style={s.atmosphereBottom} />
     {step === 0 ? <>
-      <View style={s.startHead}><Brand large /><Text style={s.startTagline}>Seu briefing diário,{'\n'}sem complicação.</Text></View>
+      <View style={s.startHead}><Brand large /><Text style={s.startTagline}>Seu resumo diário,{'\n'}sem complicação.</Text></View>
       <View style={s.startArt}><Mascot source={art.reading} width={Math.min(width * .95, compact ? 350 : 420)} /></View>
       <View style={s.bottom}><Action label="Começar" onPress={() => setStep(1)} full /></View>
     </> : step === 8 ? <>
@@ -244,7 +244,7 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
             </View><Mascot source={art.globe} width={mascotWidth} style={s.centerMascot} />
           </View>}
           {step === 4 && <View style={s.clockArea}><Mascot source={art.clock} width={Math.min(width * .6, compact ? 190 : 240)} style={s.centerMascot} />
-            <View style={s.timeCard}><View style={s.timeCardHead}><Icon name="clock" color={colors.tone('#2878F4', colors.primary)} size={17} /><Text style={s.timeCardTitle}>Briefing diário às {prefs.briefing_time}</Text></View>
+            <View style={s.timeCard}><View style={s.timeCardHead}><Icon name="clock" color={colors.tone('#2878F4', colors.primary)} size={17} /><Text style={s.timeCardTitle}>Resumo diário às {prefs.briefing_time}</Text></View>
               <TimeWheel value={prefs.briefing_time} onChange={briefing_time => { update({ briefing_time }); setError(''); }} />
               <Text style={s.timeCardHint}>Deslize para escolher a hora e os minutos.</Text>
             </View>

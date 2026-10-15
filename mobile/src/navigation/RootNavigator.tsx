@@ -148,9 +148,9 @@ function AudioExpandedRoute({ briefing, briefingId, ...actions }: { briefing?: B
     return () => { active = false; };
   }, [briefing, briefingId, retry]);
   if (loaded) return <AudioExpandedScreen briefing={loaded} {...actions} />;
-  return <BrandPage><BrandPageHeader title="Seu briefing" onBack={actions.onBack} />
-    {error ? <ScreenState kind="error" title="Briefing indisponível" message="Verifique sua conexão e tente novamente." onRetry={() => setRetry(value => value + 1)} />
-      : <ScreenState kind="loading" title="Carregando seu briefing" />}
+  return <BrandPage><BrandPageHeader title="Seu resumo" onBack={actions.onBack} />
+    {error ? <ScreenState kind="error" title="Resumo indisponível" message="Verifique sua conexão e tente novamente." onRetry={() => setRetry(value => value + 1)} />
+      : <ScreenState kind="loading" title="Carregando seu resumo" />}
   </BrandPage>;
 }
 

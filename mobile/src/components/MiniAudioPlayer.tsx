@@ -59,11 +59,11 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
   // container's bounds: Android does not deliver touches to children drawn outside their parent.
   return <Animated.View {...panResponder.panHandlers} style={{ width: '92%', maxWidth: 520, alignSelf: 'center', paddingTop: CLOSE_OFFSET, paddingHorizontal: CLOSE_OFFSET, marginBottom: spacing.xs, overflow: 'visible', zIndex: 20, elevation: 20, transform: [{ translateY }] }}>
     <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, minHeight: 94, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, shadowColor: colors.shadow.color, shadowOpacity: .14, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Expandir player do briefing" onPress={() => onExpand(session.briefing)}
+      <Pressable accessibilityRole="button" accessibilityLabel="Expandir player do resumo" onPress={() => onExpand(session.briefing)}
         style={{ flex: 1, minHeight: 66, flexDirection: 'row', alignItems: 'center' }}>
         <Image source={cover} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 58, height: 58, borderRadius: radius.md, marginRight: spacing.md }} />
         <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Text numberOfLines={1} style={{ color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontWeight: '800', fontSize: 15 }}>Seu briefing diário</Text>
+        <Text numberOfLines={1} style={{ color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontWeight: '800', fontSize: 15 }}>Seu resumo diário</Text>
         <Text numberOfLines={1} style={{ color: colors.secondary, fontSize: 12, marginTop: 4 }}>{date} · {clock(playback.position)} / {clock(playback.duration)}</Text>
         <View style={{ height: 4, backgroundColor: colors.track, borderRadius: 3, marginTop: 8, overflow: 'hidden' }}><View style={{ width: `${progress * 100}%`, height: 4, backgroundColor: colors.primary, borderRadius: 3 }} /></View>
         </View>

@@ -64,7 +64,7 @@ function briefingKey(briefing: Briefing) { return briefing.delivery_id || briefi
 
 export function briefingAudioTitle(briefing: Briefing | null | undefined) {
   const [year, month, day] = String(briefing?.date || '').split('-');
-  return day && month && year ? `Briefing de ${day}/${month}` : 'Briefing do dia';
+  return day && month && year ? `Resumo de ${day}/${month}` : 'Resumo do dia';
 }
 
 function update(patch: Partial<PlaybackState>) {
@@ -224,7 +224,7 @@ function openSource(url: string, resolved: { uri: string; headers?: Record<strin
   return loaded;
 }
 
-export async function loadAudio(url: string, title = 'Briefing do dia') {
+export async function loadAudio(url: string, title = 'Resumo do dia') {
   if (!/^https?:\/\//i.test(url)) throw new Error('invalid audio URL');
   if (currentUrl === url && snapshot.source && state.loaded) return;
   if (loadingUrl === url && loadingPromise) return loadingPromise;

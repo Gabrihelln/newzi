@@ -75,7 +75,7 @@ export function AuthEntryScreen({ navigation, bootstrapError, onRetrySession }: 
   const theme = useTheme();
   const { colors } = theme;
   const { width, height } = useWindowDimensions();
-  return <Screen entry><View style={s.entryTop}><Brand wide /><Text style={s.entryTitle}>Notícias que{'\n'}fazem parte{'\n'}do seu dia.</Text><Text style={s.entrySubtitle}>Um briefing diário, claro e{'\n'}personalizado, do seu jeito.</Text></View>
+  return <Screen entry><View style={s.entryTop}><Brand wide /><Text style={s.entryTitle}>Notícias que{'\n'}fazem parte{'\n'}do seu dia.</Text><Text style={s.entrySubtitle}>Um resumo diário, claro e{'\n'}personalizado, do seu jeito.</Text></View>
     <View style={[s.entryArt, { height: Math.min(width * .82, height * .37) }]}><View style={s.artHalo} /><Image source={readingMascot} resizeMode="contain" style={s.entryMascot} /></View>
     <View style={s.dots}><View style={s.dotActive} /><View style={s.dot} /><View style={s.dot} /></View>
     <View style={s.entryActions}>{!!bootstrapError && <View style={s.retryCard}><Text accessibilityRole="alert" style={s.retryText}>{bootstrapError}</Text><Pressable accessibilityRole="button" onPress={onRetrySession}><Text style={s.retryAction}>Tentar novamente</Text></Pressable></View>}<MainButton title="Entrar" onPress={() => navigation.navigate('Login')} /><SecondaryButton title="Criar conta" onPress={() => navigation.navigate('CreateAccount')} /></View>
@@ -98,7 +98,7 @@ export function LoginScreen({ navigation, onAuthenticated }: AuthRoute<'Login'> 
   const { colors } = theme;
   const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const auth = useAuthForm(onAuthenticated);
   const submit = () => { if (!emailLooksValid(email)) return auth.setError('Digite um e-mail válido.'); if (!password) return auth.setError('Digite sua senha.'); void auth.run(() => loginWithFirebase(email, password), email); };
-  return <Screen><Header back={() => navigation.goBack()} title="Entre na sua conta" subtitle={'Acesse seu briefing personalizado\ne continue de onde parou.'} />
+  return <Screen><Header back={() => navigation.goBack()} title="Entre na sua conta" subtitle={'Acesse seu resumo personalizado\ne continue de onde parou.'} />
     <View style={s.form}><Field icon="mail" placeholder="E-mail" value={email} onChangeText={text => { setEmail(text); auth.setError(''); }} autoComplete="email" keyboardType="email-address" testID="login-email" /><Field icon="lock" placeholder="Senha" value={password} onChangeText={text => { setPassword(text); auth.setError(''); }} autoComplete="password" secure testID="login-password" />
       <Pressable accessibilityRole="button" onPress={() => navigation.navigate('ForgotPassword')} style={s.forgotLink}><Text style={s.linkText}>Esqueci minha senha</Text></Pressable><ErrorMessage error={auth.error} /><MainButton title="Entrar" busy={auth.busy} onPress={submit} />
       <SocialButtons busy={auth.busy} onGoogle={() => void auth.run(loginWithGoogle)} onApple={() => void auth.run(loginWithApple)} />
@@ -114,7 +114,7 @@ export function CreateAccountScreen({ navigation, onAuthenticated }: AuthRoute<'
   const [name, setName] = useState(''); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const auth = useAuthForm(onAuthenticated);
   const longEnough = password.length >= 8; const letterAndNumber = /[A-Za-zÀ-ÿ]/.test(password) && /\d/.test(password); const special = /[^A-Za-zÀ-ÿ0-9]/.test(password);
   const submit = () => { if (!name.trim()) return auth.setError('Digite seu nome completo.'); if (!emailLooksValid(email)) return auth.setError('Digite um e-mail válido.'); if (!longEnough || !letterAndNumber) return auth.setError('Crie uma senha com 8 caracteres, uma letra e um número.'); void auth.run(() => registerWithFirebase(email, password, name), email, name); };
-  return <Screen><Header back={() => navigation.goBack()} title="Crie sua conta" subtitle={'É rápido e grátis. Configure seu\nbriefing em poucos passos.'} compact />
+  return <Screen><Header back={() => navigation.goBack()} title="Crie sua conta" subtitle={'É rápido e grátis. Configure seu\nresumo em poucos passos.'} compact />
     <View style={[s.form, s.registerForm]}><Field icon="person" placeholder="Nome completo" value={name} onChangeText={text => { setName(text); auth.setError(''); }} autoComplete="name" testID="register-name" /><Field icon="mail" placeholder="E-mail" value={email} onChangeText={text => { setEmail(text); auth.setError(''); }} autoComplete="email" keyboardType="email-address" testID="register-email" /><Field icon="lock" placeholder="Senha" value={password} onChangeText={text => { setPassword(text); auth.setError(''); }} autoComplete="new-password" secure testID="register-password" />
       <View style={s.rules}><PasswordRule label="Pelo menos 8 caracteres" passed={longEnough} /><PasswordRule label="Uma letra e um número" passed={letterAndNumber} /><PasswordRule label="Use um caractere especial (opcional)" passed={special} optional /></View><ErrorMessage error={auth.error} /><MainButton title="Criar conta" busy={auth.busy} onPress={submit} />
       <SocialButtons busy={auth.busy} onGoogle={() => void auth.run(loginWithGoogle)} onApple={() => void auth.run(loginWithApple)} />

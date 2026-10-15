@@ -157,8 +157,8 @@ export function ArticleDetailScreen({ item, onBack, onRelated, onTopic, onBriefi
         {!!sourceError && <Text accessibilityRole="alert" style={s.error}>{sourceError}</Text>}
         {related.length > 0 && <RelatedStories items={related} onMore={() => onTopic(topic)} onOpen={onRelated} />}
         {relatedError && <View accessibilityRole="alert" style={s.resourceNotice}><Text style={s.resourceNoticeText}>Não foi possível carregar notícias relacionadas.</Text><Pressable accessibilityRole="button" onPress={() => setResourceRetryKey(value => value + 1)}><Text style={s.resourceRetry}>Tentar novamente</Text></Pressable></View>}
-        {!!briefing && <Pressable accessibilityRole="button" accessibilityLabel={currentInBriefing ? 'Ouça este tema no briefing de hoje. Esta notícia faz parte do seu resumo diário.' : 'Ouça o briefing de hoje'} onPress={() => onBriefing(briefing)} style={s.briefingCard}>
-          <Icon name="sun" color={colors.sun} size={25} /><View style={{ flex: 1 }}><Text style={s.briefingTitle}>{currentInBriefing ? 'Ouça este tema no briefing de hoje' : 'Ouça o briefing de hoje'}</Text><Text style={s.briefingSub}>{currentInBriefing ? 'Esta notícia faz parte do seu resumo diário' : 'Acesse seu resumo diário personalizado'}</Text></View><Icon name="chevron" color={colors.primary} size={18} />
+        {!!briefing && <Pressable accessibilityRole="button" accessibilityLabel={currentInBriefing ? 'Ouça este tema no resumo de hoje. Esta notícia está entre as escolhidas para você hoje.' : 'Ouça o resumo de hoje'} onPress={() => onBriefing(briefing)} style={s.briefingCard}>
+          <Icon name="sun" color={colors.sun} size={25} /><View style={{ flex: 1 }}><Text style={s.briefingTitle}>{currentInBriefing ? 'Ouça este tema no resumo de hoje' : 'Ouça o resumo de hoje'}</Text><Text style={s.briefingSub}>{currentInBriefing ? 'Esta notícia está entre as escolhidas para você hoje' : 'Acesse seu resumo diário personalizado'}</Text></View><Icon name="chevron" color={colors.primary} size={18} />
         </Pressable>}
         <ArticleFeedback rating={rating} status={feedbackStatus} onChoose={sendFeedback} />
       </View>

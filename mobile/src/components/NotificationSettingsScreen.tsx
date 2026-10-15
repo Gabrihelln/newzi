@@ -67,8 +67,8 @@ export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
         {status === 'loaded' && settings && <>
           <SettingRow title="Receber notificações" description="Desligue para pausar todos os avisos do Newzi." label="Todas as notificações"
             value={settings.notifications_enabled} disabled={saving} onChange={enabled => void setEnabled('notifications_enabled', enabled)} />
-          <SettingRow title="Briefing diário" description={settings.briefing_time ? `Aviso quando o briefing estiver pronto, por volta das ${settings.briefing_time}.` : 'Aviso quando o seu briefing estiver pronto.'}
-            label="Notificação do briefing diário" value={settings.daily_briefing_enabled} inactive={!settings.notifications_enabled} disabled={saving}
+          <SettingRow title="Resumo diário" description={settings.briefing_time ? `Aviso quando o resumo estiver pronto, por volta das ${settings.briefing_time}.` : 'Aviso quando o seu resumo estiver pronto.'}
+            label="Notificação do resumo diário" value={settings.daily_briefing_enabled} inactive={!settings.notifications_enabled} disabled={saving}
             onChange={enabled => void setEnabled('daily_briefing_enabled', enabled)} />
           <SettingRow title="Notícias urgentes" description="Quando vários veículos noticiam algo importante dos seus temas. No máximo 2 por dia, nunca entre 22h e 7h."
             label="Notificação de notícias urgentes" value={settings.breaking_news_enabled} inactive={!settings.notifications_enabled} disabled={saving}
