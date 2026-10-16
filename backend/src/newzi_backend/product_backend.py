@@ -542,9 +542,14 @@ class ProductService:
         except PermissionError: raise ApiError("INVALID_CREDENTIALS","invalid credentials",401) from None
         return {"user":self.repo.public_user(self.repo.get_user(identity.user_id)),"session":{"token":token,"expires_at":expires}}
 
-    def logout(self, uid, token):
+    def logout(self, uid, token, push_token=None):
         self.identity.revoke(token)
-        t=now_iso(); self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE user_id=?",(t,t,uid)); self.repo.db.commit()
+        # Signing out on one phone must not silence the account's other phones: with the push token,
+        # only this install stops receiving. Clients that do not send it still disable every device.
+        t=now_iso(); push_token=str(push_token or "").strip()
+        if push_token: self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE user_id=? AND push_token=?",(t,t,uid,push_token))
+        else: self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE user_id=?",(t,t,uid))
+        self.repo.db.commit()
         return {"status":"ok"}
 
     def delete_account(self, uid):

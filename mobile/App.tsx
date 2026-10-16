@@ -9,7 +9,7 @@ import { useBaseStyles, useTheme } from './src/theme';
 import { applySavedThemePreference } from './src/theme/appearance';
 import { RootNavigator, type RootAuthState } from './src/navigation/RootNavigator';
 import type { User } from './src/types/api';
-import { listenForPushEvents, registerDeviceIfPermitted } from './src/push/push';
+import { currentPushToken, listenForPushEvents, registerDeviceIfPermitted } from './src/push/push';
 import { openFromNotification } from './src/navigation/notificationRouting';
 import { showPushNotice } from './src/services/appNotices';
 import { devLog } from './src/config/env';
@@ -100,7 +100,7 @@ export default function App() {
   const logout = useCallback(async () => {
     clearCachedAudio();
     clearOfflineCache();
-    try { await api.logout(); } catch { /* local logout must always complete */ }
+    try { await api.logout(await currentPushToken()); } catch { /* local logout must always complete */ }
     await logoutFromFirebase().catch(() => undefined);
     bootstrappingUid.current = null;
     setUser(null);

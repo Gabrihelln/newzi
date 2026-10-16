@@ -31,6 +31,11 @@ export async function registerDeviceIfPermitted() {
   if (status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL) await registerCurrentDevice();
 }
 
+/** This install's push token, sent on logout so only this phone stops receiving the account's pushes. */
+export async function currentPushToken() {
+  try { return await getToken(getMessaging()); } catch { return undefined; }
+}
+
 export async function requestAndRegisterDevice() {
   const permission = await requestPushPermission();
   if (permission !== 'AUTHORIZED' && permission !== 'PROVISIONAL') return { permission };

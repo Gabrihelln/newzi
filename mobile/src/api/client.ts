@@ -71,7 +71,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 const cached = <T,>(key: unknown[], fetcher: () => Promise<T>) => cachedRead<T>([firebaseAuth.currentUser?.uid || 'anonymous', ...key], fetcher);
 
 export const api = {
-  logout: () => apiRequest('/api/v1/auth/logout', { method: 'POST' }),
+  logout: (pushToken?: string) => apiRequest('/api/v1/auth/logout', { method: 'POST', ...(pushToken ? { body: JSON.stringify({ push_token: pushToken }) } : {}) }),
   me: () => apiRequest<any>('/api/v1/me'),
   deleteAccount: () => apiRequest<void>('/api/v1/me', { method: 'DELETE' }),
   config: () => apiRequest<any>('/api/v1/client/config'),

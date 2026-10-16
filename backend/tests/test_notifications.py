@@ -38,6 +38,18 @@ def test_disabled_device_never_receives_push(repo):
     assert job_status(repo, "j1") == "CANCELLED" and not provider.sent
 
 
+def test_logout_disables_only_the_signed_out_phone(repo):
+    from newzi_backend.notifications import NotificationService
+    from newzi_backend.product_backend import ProductService
+    service = NotificationService(repo, provider=RecordingProvider())
+    phone = service.register_device("u1", {"platform": "IOS", "push_token": "token-iphone-123"})
+    other = service.register_device("u1", {"platform": "ANDROID", "push_token": "token-android-123"})
+    backend = types.SimpleNamespace(repo=repo, identity=types.SimpleNamespace(revoke=lambda token: None))
+    ProductService.logout(backend, "u1", "session", "token-iphone-123")
+    enabled = dict(repo.db.execute("SELECT id,enabled FROM push_devices").fetchall())
+    assert enabled == {phone["id"]: 0, other["id"]: 1}
+
+
 def test_reassigned_device_drops_previous_owner_pushes(repo):
     from newzi_backend.notifications import NotificationService
     provider = RecordingProvider(); service = NotificationService(repo, provider=provider)

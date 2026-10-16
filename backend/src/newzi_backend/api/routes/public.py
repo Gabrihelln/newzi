@@ -52,7 +52,8 @@ async def login(request: Request):
 @router.post("/api/v1/auth/logout")
 async def logout(request: Request, uid: str = Depends(current_user)):
     service = service_of(request)
-    return await call(request, service.logout, uid, service.bearer_token(request.headers.get("authorization")))
+    body = await json_body(request)
+    return await call(request, service.logout, uid, service.bearer_token(request.headers.get("authorization")), body.get("push_token"))
 
 
 @router.get("/api/v1/articles/{article_id}/image")
