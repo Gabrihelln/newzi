@@ -319,7 +319,7 @@ class EdgeTTSProvider(TTSProvider):
         directory.mkdir(parents=True, exist_ok=True)
         output = directory / ("tts_" + uuid.uuid4().hex + ".mp3")
         try:
-            self._render(text, voice, language, output)
+            self._render_with_standby(text, voice, language, output)
             if not output.is_file() or not output.stat().st_size:
                 raise RuntimeError(f"{self.name} produced no audio")
             return {"path": str(output), "mime_type": "audio/mpeg", "duration_ms": self._duration_ms(output),
@@ -336,6 +336,36 @@ class EdgeTTSProvider(TTSProvider):
             await asyncio.wait_for(edge_tts.Communicate(text, voice=voice, rate="-2%").save(str(output)),
                                    timeout=float(os.getenv("TTS_SEGMENT_TIMEOUT_SECONDS", "90")))
         asyncio.run(save_with_timeout())
+
+    @staticmethod
+    def _standby_voice(voice, language):
+        """A single-language catalog voice of the same gender for the briefing language, other than ``voice``."""
+        entries = VOICE_CATALOG["edge-tts"]
+        gender = next((entry["gender"] for entry in entries if entry["provider_voice"] == voice), None)
+        candidates = [entry["provider_voice"] for entry in entries
+                      if entry["language"] == language and "languages" not in entry and entry["provider_voice"] != voice]
+        same_gender = [item for item in candidates
+                       if next(entry["gender"] for entry in entries if entry["provider_voice"] == item) == gender]
+        return (same_gender or candidates or [None])[0]
+
+    def _render_with_standby(self, text, voice, language, output):
+        """Edge sometimes returns no audio for one passage with a given voice (seen with Thalita Multilingual).
+
+        Retry once, then read only that passage with a standby voice, so one passage never leaves the
+        whole briefing without audio.
+        """
+        import logging
+        from edge_tts.exceptions import NoAudioReceived
+        for attempt in range(2):
+            try:
+                self._render(text, voice, language, output); return
+            except NoAudioReceived:
+                if attempt == 0: time.sleep(1)
+        standby = self._standby_voice(voice, language)
+        if not standby: raise NoAudioReceived("No audio was received for this passage")
+        logging.getLogger(__name__).warning("edge-tts returned no audio with %s; reading this passage with %s: %r",
+                                            voice, standby, text[:200])
+        self._render(text, standby, language, output)
 
     def synthesize_segments(self, segments, voice, language, options=None):
         parts = []

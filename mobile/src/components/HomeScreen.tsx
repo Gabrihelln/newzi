@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
-import { ActivityIndicator, AppState, Image, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, AppState, Image, Platform, Pressable, RefreshControl, ScrollView, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { api, ClientError, CONNECTION_ERROR_MESSAGE } from '../api/client';
@@ -18,6 +18,10 @@ import { formatHomeDate, greetingForLocalTime, nextBriefingLabel } from '../conf
 const fallbackMascot = require('../../assets/onboarding/new-waving.png');
 const FEATURED_LIMIT = 3;
 const FEATURED_AUTO_SCROLL_MS = 5000;
+// While the Home is on screen it refreshes on its own, so new stories appear without reopening the app.
+const HOME_REFRESH_MS = 120_000;
+// Coming back to the Home tab reloads it unless it was loaded this recently.
+const HOME_FOCUS_RELOAD_AFTER_MS = 15_000;
 const FEATURED_RESUME_AFTER_TOUCH_MS = 8000;
 const hasFeaturedImage = (item: BriefingItem) => isCanonicalArticleImageUrl(item.image_url);
 /** Merge candidate lists into unique featured stories that have a linked image, preserving priority order. */
@@ -35,7 +39,7 @@ function pickFeatured(...sources: (BriefingItem[] | undefined)[]) {
 const initialPlayback: PlaybackState = { position: 0, duration: 0, playing: false, paused: false, ended: false, buffering: false, loaded: false, started: false, speed: 1 };
 const topicTints = (colors: Palette) => [colors.topicBlue, colors.topicPurple, colors.topicGreen, colors.topicOrange, colors.topicRed, colors.topicTeal];
 const clock = (seconds: number) => `${Math.floor(Math.max(0, seconds) / 60)}:${String(Math.floor(Math.max(0, seconds) % 60)).padStart(2, '0')}`;
-const firstNameOf = (name?: string) => name?.trim().split(/\s+/)[0] || 'você';
+const fullNameOf = (...names: (string | null | undefined)[]) => names.map(name => name?.trim().replace(/\s+/g, ' ')).find(Boolean) || 'você';
 
 export { Icon };
 export type { IconName } from './Icon';
@@ -243,21 +247,37 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
   const featuredIndexRef = useRef(0);
   const featuredTouching = useRef(false);
   const featuredTouchedAt = useRef(0);
-  const name = firstNameOf(user?.display_name);
+  const name = fullNameOf(user?.display_name, firebaseAuth.currentUser?.displayName);
   const avatarUrl = firebaseAuth.currentUser?.photoURL;
   const featureCardWidth = Math.max(280, width - 34);
+  const [refreshing, setRefreshing] = useState(false);
+  // Bumped on every successful load so the audio status is fetched again too (e.g. after a voice change).
+  const [loadTick, setLoadTick] = useState(0);
+  const lastLoadAt = useRef(0);
   const load = useCallback(async () => {
+    lastLoadAt.current = Date.now();
     setLoadError('');
     try {
       const value = await api.home();
       setData(value);
       setSavedIds(new Set(value.saved_story_ids || []));
+      setLoadTick(tick => tick + 1);
     } catch (error) {
       if (error instanceof ClientError && error.code === 'AUTH_REQUIRED') onAuthExpired();
       else setLoadError(error instanceof ClientError && error.code === 'BACKEND_UNREACHABLE' ? CONNECTION_ERROR_MESSAGE : 'Não foi possível carregar a Home.');
     } finally { setLoading(false); }
   }, [onAuthExpired]);
   useEffect(() => { void load(); }, [load,contentRevisionTick]);
+  useEffect(() => {
+    if (!focused) return;
+    if (Date.now() - lastLoadAt.current > HOME_FOCUS_RELOAD_AFTER_MS) void load();
+    const timer = setInterval(() => { if (AppState.currentState === 'active') void load(); }, HOME_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [focused, load]);
+  const pullToRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
   useEffect(() => {
     if (!data || pickFeatured(briefing?.items, data.latest_news).length >= FEATURED_LIMIT) { setExtraFeatured([]); return; }
     let active = true;
@@ -317,8 +337,10 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
     });
     return ()=>{active=false;if(timer)clearTimeout(timer);listener.remove();};
   },[data?.today_briefing?.status,data?.today_briefing?.profile_stale,load]);
+  const audioBriefingId = useRef<string | undefined>(undefined);
   useEffect(() => {
-    setAudio(null);
+    // A reload of the same briefing keeps the current status on screen until the new one arrives.
+    if (audioBriefingId.current !== briefing?.id) { audioBriefingId.current = briefing?.id; setAudio(null); }
     if (!briefing?.id) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -340,7 +362,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
       else if (timer) { clearTimeout(timer); timer=undefined; }
     });
     return () => { active = false; if (timer) clearTimeout(timer); listener.remove(); };
-  }, [briefing?.id, briefing?.generation_updated_at, briefing?.generation_stage]);
+  }, [briefing?.id, briefing?.generation_updated_at, briefing?.generation_stage, loadTick]);
   const toggleSaved = async (story: BriefingItem) => {
     const wasSaved = savedIds.has(story.id);
     setSavingIds(current => new Set(current).add(story.id));
@@ -353,7 +375,8 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
 
   return <SafeAreaView style={h.safe} edges={Platform.OS === 'android' ? [] : ['top']}>
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
-    <ScrollView style={h.scroll} contentContainerStyle={[h.content, { paddingBottom: bottomPadding }]}>
+    <ScrollView style={h.scroll} contentContainerStyle={[h.content, { paddingBottom: bottomPadding }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void pullToRefresh()} tintColor={colors.primary} colors={[colors.primary]} progressBackgroundColor={colors.surface} />}>
       <View style={h.header}>
         <Image source={logo} resizeMode="contain" accessibilityLabel="NEWZI" style={h.logo} />
         <View style={h.headerActions}>

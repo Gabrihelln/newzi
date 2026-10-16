@@ -248,6 +248,20 @@ def test_tts_provider_selection(monkeypatch):
     assert type(build_tts_provider("azure-tts")) is AzureSpeechProvider
 
 
+def test_edge_passage_without_audio_is_read_with_a_standby_voice(monkeypatch, tmp_path):
+    from edge_tts.exceptions import NoAudioReceived
+    from newzi_backend import audio
+    monkeypatch.setattr(audio.time, "sleep", lambda seconds: None)
+    calls = []
+    def render(self, text, voice, language, output):
+        calls.append(voice)
+        if voice == "pt-BR-ThalitaMultilingualNeural": raise NoAudioReceived("No audio was received.")
+    monkeypatch.setattr(audio.EdgeTTSProvider, "_render", render)
+    audio.EdgeTTSProvider()._render_with_standby("Trecho", "pt-BR-ThalitaMultilingualNeural", "pt-BR", tmp_path / "a.mp3")
+    assert calls == ["pt-BR-ThalitaMultilingualNeural", "pt-BR-ThalitaMultilingualNeural", "pt-BR-FranciscaNeural"]
+    assert audio.EdgeTTSProvider._standby_voice("en-US-AndrewMultilingualNeural", "pt-BR") == "pt-BR-AntonioNeural"
+
+
 def test_azure_speech_request_and_errors(monkeypatch, tmp_path):
     import urllib.error
     import urllib.request

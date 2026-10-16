@@ -18,6 +18,8 @@ export async function registerWithFirebase(email: string, password: string, disp
   try {
     const credential = await createUserWithEmailAndPassword(firebaseAuth, email.trim().toLowerCase(), password);
     await updateProfile(credential.user, { displayName: displayName.trim() });
+    // The token minted at sign-up has no name claim; a fresh one lets the backend save the name.
+    await getFirebaseIdToken(true);
     return credential.user;
   } finally { authOperationInProgress = false; }
 }

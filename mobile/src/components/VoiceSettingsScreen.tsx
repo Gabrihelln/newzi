@@ -3,6 +3,7 @@ import { ActivityIndicator, NativeModules, Pressable, SafeAreaView, ScrollView, 
 import Video from 'react-native-video';
 import { api } from '../api/client';
 import { pauseAudio, syncSelectedBriefingVoice } from '../audio/player';
+import { notifyContentChanged } from '../services/contentRevision';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
 import type { AudioVoiceCatalog, Briefing, Preferences } from '../types/api';
 import { radius, spacing, typography, useBaseStyles, useTheme } from '../theme';
@@ -78,6 +79,8 @@ export function VoiceSettingsScreen({ onBack, onSaved }: { onBack: () => void; o
       if (!mounted.current) return;
       setPrefs(saved);
       setMessage('Voz salva. Atualizando o áudio do seu resumo…');
+      // The Home keeps its own copy of the briefing audio: reload it so it follows the new voice.
+      notifyContentChanged();
       void api.home().then(home => {
         const current: Briefing | null = home.today_briefing?.items?.length ? home.today_briefing : home.latest_briefing;
         if (current) syncSelectedBriefingVoice(current, selected);
