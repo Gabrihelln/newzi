@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
@@ -316,14 +316,16 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
   const [prefs, setPrefs] = useState<Preferences | null>(null); const [voices, setVoices] = useState<{ id: string; name: string }[]>([]); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [loading, setLoading] = useState(true); const [loadError, setLoadError] = useState(''); const [timeError, setTimeError] = useState('');
   const timezone = getDeviceTimezone();
   const [premium, setPremium] = useState(false); const [upsell, setUpsell] = useState(false);
+  // The saved time: a new one only says "amanhã" when the user actually changed it.
+  const initialTime = useRef('');
   useEffect(() => { if (PREMIUM_OFFERED) api.subscription().then(plan => setPremium(plan.tier === 'premium')).catch(() => undefined); }, []);
   // Extra briefing times are Premium; Básico readers see what Premium offers. The extra times themselves arrive with purchases.
   const addTime = () => premium ? setMessage('Os horários extras do Premium chegam em uma próxima versão.') : setUpsell(true);
-  const load = async () => { setLoading(true); setLoadError(''); try { const [p, catalog] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] }))]); setPrefs({ ...p, timezone }); setVoices(catalog.voices); } catch { setPrefs(null); setLoadError('Não foi possível carregar suas configurações.'); } finally { setLoading(false); } };
+  const load = async () => { setLoading(true); setLoadError(''); try { const [p, catalog] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] }))]); setPrefs({ ...p, timezone }); initialTime.current = p.briefing_time; setVoices(catalog.voices); } catch { setPrefs(null); setLoadError('Não foi possível carregar suas configurações.'); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, []);
   // The voice is chosen on its own screen: show it when coming back, and never save this screen's stale copy over it.
   useFocusEffect(useCallback(() => { api.preferences().then(saved => setPrefs(current => current ? { ...current, audio_voice_id: saved.audio_voice_id } : current)).catch(() => undefined); }, []));
-  const save = async () => { if (!prefs) return; if (!isValidBriefingTime(prefs.briefing_time)) { setTimeError('Use um horário válido entre 00:00 e 23:59.'); return; } setBusy(true); setMessage(''); setTimeError(''); const updated = { ...prefs, timezone }; const { briefing_time, briefing_size, language, country_scope, audio_enabled } = updated; try { await api.savePreferences({ briefing_time, timezone, briefing_size, language, country_scope, audio_enabled }); setPrefs(updated); setMessage('Configurações salvas.'); } catch { setMessage('Não foi possível salvar as configurações.'); } finally { setBusy(false); } };
+  const save = async () => { if (!prefs) return; if (!isValidBriefingTime(prefs.briefing_time)) { setTimeError('Use um horário válido entre 00:00 e 23:59.'); return; } setBusy(true); setMessage(''); setTimeError(''); const updated = { ...prefs, timezone }; const { briefing_time, briefing_size, language, country_scope, audio_enabled } = updated; try { const saved = await api.savePreferences({ briefing_time, timezone, briefing_size, language, country_scope, audio_enabled }); setPrefs({ ...updated, next_briefing: saved?.next_briefing }); setMessage(saved?.next_briefing?.day === 'TOMORROW' && briefing_time !== initialTime.current ? `Configurações salvas. O resumo de hoje já foi feito; o próximo chega amanhã às ${briefing_time}.` : 'Configurações salvas.'); initialTime.current = briefing_time; } catch { setMessage('Não foi possível salvar as configurações.'); } finally { setBusy(false); } };
   const selectedVoice = voices.find(voice => voice.id === prefs?.audio_voice_id)?.name || 'Voz padrão';
   return <SecondaryPage title="Resumo diário" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando configurações" /> : loadError ? <ScreenState kind="error" title="Configurações indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs ? null : <>
     <Text style={st.pageIntro}>Ajuste quando o resumo chega e como prefere ouvi-lo.</Text>

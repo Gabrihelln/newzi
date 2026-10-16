@@ -125,18 +125,18 @@ def test_rate_limiter_prunes_idle_keys(monkeypatch):
     assert limiter.allow("b") and "a" not in limiter.hits
 
 
-def test_new_briefing_time_moves_todays_unsent_push(repo):
+def test_new_briefing_time_starts_tomorrow_once_todays_briefing_is_made(repo):
+    from datetime import datetime, timezone
     from newzi_backend.product_backend import ProductService
-    service = ProductService(repo)
-    today = service.local_date(repo.get_preferences("u1"))
-    for user_id in ("u1", "u2"):
-        repo.db.execute("""INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at)
-            VALUES(?,?,?,?,?,?,?,?)""", ("d_" + user_id, user_id, "e1", today, "06:00", "UTC", "READY", "t"))
-    add_job(repo, "sent", "u2", "device-u2")
-    repo.db.execute("UPDATE notification_jobs SET delivery_id='d_u2' WHERE id='sent'"); repo.db.commit()
-    for user_id in ("u1", "u2"):
-        previous = repo.get_preferences(user_id)
-        service.preferences_updated(user_id, previous, repo.save_preferences(user_id, {"briefing_time": "21:25"}))
-    times = dict(repo.db.execute("SELECT user_id,delivery_time FROM user_briefing_deliveries").fetchall())
-    # The pending push follows the new time; one already sent is not repeated.
-    assert times == {"u1": "21:25", "u2": "06:00"}
+    from newzi_backend.scheduling import FixedClock
+    service = ProductService(repo, clock=FixedClock(datetime(2026, 10, 16, 15, 0, tzinfo=timezone.utc)))
+    repo.save_preferences("u1", {"timezone": "UTC"}); repo.save_preferences("u2", {"timezone": "UTC"})
+    repo.db.execute("""INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at)
+        VALUES(?,?,?,?,?,?,?,?)""", ("d_u1", "u1", "e1", "2026-10-16", "06:00", "UTC", "READY", "t"))
+    saved = {user_id: service.save_preferences(user_id, {"briefing_time": "21:25"}) for user_id in ("u1", "u2")}
+    # Today's briefing keeps its time: the new one would only re-announce old news.
+    assert repo.db.execute("SELECT delivery_time FROM user_briefing_deliveries WHERE id='d_u1'").fetchone()[0] == "06:00"
+    assert saved["u1"]["next_briefing"] == {"date": "2026-10-17", "time": "21:25", "day": "TOMORROW"}
+    # Without a briefing made today, the new time still applies today.
+    assert saved["u2"]["next_briefing"] == {"date": "2026-10-16", "time": "21:25", "day": "TODAY"}
+    assert service.preferences("u1")["next_briefing"]["day"] == "TOMORROW"

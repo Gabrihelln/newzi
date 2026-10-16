@@ -22,7 +22,7 @@ async def delete_account(request: Request, uid: str = Depends(current_user)):
 
 @router.get("/preferences")
 async def preferences(request: Request, uid: str = Depends(current_user)):
-    return await call(request, service_of(request).repo.get_preferences, uid)
+    return await call(request, service_of(request).preferences, uid)
 
 
 @router.put("/preferences")

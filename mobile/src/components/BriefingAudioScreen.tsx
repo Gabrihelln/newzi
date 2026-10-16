@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, ImageBackground, Modal, PanResponder, Pressab
 import { api } from '../api/client';
 import { briefingAudioTitle, sameBriefing, getAudioContext, getAudioProgress, loadAudio, pauseAudio, playAudio, seekAudio, seekTo, setAudioContext, setPlaybackSpeed, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
+import { nextBriefingLabel } from '../config/dateTime';
 import type { AudioMetadata, Briefing, BriefingItem, Preferences } from '../types/api';
 import {typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
@@ -24,14 +25,6 @@ function formatEditionDate(briefing: Briefing, timezone?: string) {
   if (Number.isNaN(date.getTime())) return briefing.date;
   const parts = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', ...(briefing.generated_at ? { hour: '2-digit', minute: '2-digit' } : {}), ...(timezone ? { timeZone: timezone } : {}) }).format(date);
   return parts.replace('.', '');
-}
-
-function nextBriefingLabel(time: string, timezone: string) {
-  const now = new Date();
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(part => [part.type, part.value]));
-  const [hour, minute] = (time || '06:30').split(':').map(Number);
-  const today = Number(parts.hour) * 60 + Number(parts.minute) < hour * 60 + minute;
-  return `${today ? 'Hoje' : 'Amanhã'} às ${time || '06:30'}`;
 }
 
 function Waveform({ progress, duration, position, onSeek, disabled }: { progress: number; duration: number; position: number; onSeek: (x: number) => void; disabled: boolean }) {
@@ -148,7 +141,7 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
   const currentItem = briefing.items.find(item => item.id === currentSegment?.briefing_item_id);
   const canControl = sessionMatches && playback.loaded && Boolean((activeAudio || audio)?.audio_url);
   const timezone = preferences?.timezone || 'America/Sao_Paulo';
-  const nextTime = nextBriefingLabel(preferences?.briefing_time || '06:30', timezone);
+  const nextTime = nextBriefingLabel(preferences?.briefing_time || '06:30', timezone, new Date(), preferences?.next_briefing);
   const coverSize = Math.min(width - 56, 380);
   const realDuration = duration > 0 ? `${Math.round(duration / 60)} min` : 'A duração será exibida quando o áudio estiver pronto';
 

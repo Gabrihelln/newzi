@@ -151,6 +151,9 @@ class Normalizer:
             return "<token>"
         if key == "request_id" and isinstance(value, str):
             return "<request_id>"
+        if key == "next_briefing" and isinstance(value, dict):
+            # Today or tomorrow depends on the hour the suite runs.
+            return {**self(value), "day": "<day>"}
         if _DURATION_KEYS.search(key) and key not in _KEEP_MS:
             # Timings vary run to run; keep only the shape.
             if isinstance(value, (int, float)) and not isinstance(value, bool):

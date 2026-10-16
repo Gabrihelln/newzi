@@ -11079,7 +11079,12 @@
     "ARTIFICIAL_INTELLIGENCE",
     "BUSINESS",
     "TECHNOLOGY"
-   ]
+   ],
+   "next_briefing": {
+    "date": "<date>",
+    "time": "06:00",
+    "day": "<day>"
+   }
   }
  },
  {
@@ -11473,7 +11478,12 @@
     "topics": [
      "ECONOMY",
      "TECHNOLOGY"
-    ]
+    ],
+    "next_briefing": {
+     "date": "<date>",
+     "time": "07:00",
+     "day": "<day>"
+    }
    },
    "today_briefing": {
     "id": "<delivery#1>",
@@ -18928,7 +18938,12 @@
    "topics": [
     "ECONOMY",
     "TECHNOLOGY"
-   ]
+   ],
+   "next_briefing": {
+    "date": "<date>",
+    "time": "07:00",
+    "day": "<day>"
+   }
   }
  },
  {
@@ -19021,7 +19036,12 @@
    "audio_voice_id": "newzi_clara",
    "topics": [
     "ECONOMY"
-   ]
+   ],
+   "next_briefing": {
+    "date": "<date>",
+    "time": "07:00",
+    "day": "<day>"
+   }
   }
  },
  {

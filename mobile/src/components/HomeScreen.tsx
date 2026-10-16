@@ -371,7 +371,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
     catch { setSavedIds(current => { const next = new Set(current); wasSaved ? next.add(story.id) : next.delete(story.id); return next; }); }
     finally { setSavingIds(current => { const next = new Set(current); next.delete(story.id); return next; }); }
   };
-  const nextLabel = data?.preferences.briefing_time ? nextBriefingLabel(data.preferences.briefing_time, scheduleTimezone, clockNow) : loading ? 'Carregando horário...' : 'Horário indisponível';
+  const nextLabel = data?.preferences.briefing_time ? nextBriefingLabel(data.preferences.briefing_time, scheduleTimezone, clockNow, data.preferences.next_briefing) : loading ? 'Carregando horário...' : 'Horário indisponível';
 
   return <SafeAreaView style={h.safe} edges={Platform.OS === 'android' ? [] : ['top']}>
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />

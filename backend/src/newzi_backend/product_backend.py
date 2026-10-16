@@ -573,10 +573,23 @@ class ProductService:
             raise ApiError("ARTICLE_IMAGE_UNAVAILABLE","article image unavailable",502) from None
 
     # ------------------------------------------------------------- profile
+    def preferences(self, uid):
+        prefs=self.repo.get_preferences(uid)
+        return {**prefs,"next_briefing":self.next_briefing(uid,prefs)} if prefs else prefs
+
     def save_preferences(self, uid, data):
         previous=self.repo.get_preferences(uid); saved=self.repo.save_preferences(uid,data)
         self.preferences_updated(uid,previous,saved)
-        return saved
+        return {**saved,"next_briefing":self.next_briefing(uid,saved)}
+
+    def next_briefing(self, uid, prefs):
+        """When the next new briefing arrives. There is one per day: once today's is made, the next one is tomorrow."""
+        now=self.clock.now(prefs["timezone"]) if self.clock else datetime.now(ZoneInfo(prefs["timezone"])); today=now.date(); hour,minute=map(int,prefs["briefing_time"].split(":"))
+        made=self.repo.db.execute("""SELECT 1 FROM user_briefing_deliveries WHERE user_id=? AND local_date=?
+            UNION ALL SELECT 1 FROM generation_jobs WHERE user_id=? AND briefing_date=? AND status NOT IN ('PENDING','RETRY') LIMIT 1""",
+            (uid,today.isoformat(),uid,today.isoformat())).fetchone()
+        day=today if not made and (now.hour,now.minute)<(hour,minute) else today+timedelta(days=1)
+        return {"date":day.isoformat(),"time":prefs["briefing_time"],"day":"TODAY" if day==today else "TOMORROW"}
 
     def onboarding(self, uid):
         user=self.repo.get_user(uid)
@@ -597,11 +610,9 @@ class ProductService:
         if old_profile!=new_profile:
             return self.scheduler.regenerate_for_preferences(uid)
         if previous.get("briefing_time")!=current.get("briefing_time") or previous.get("timezone")!=current.get("timezone"):
-            self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid))
-            # Today's briefing moves to the new time too, unless its push has already gone out.
-            self.repo.db.execute("""UPDATE user_briefing_deliveries SET delivery_time=?,timezone=? WHERE user_id=? AND local_date=?
-                AND NOT EXISTS (SELECT 1 FROM notification_jobs n WHERE n.delivery_id=user_briefing_deliveries.id AND n.notification_type='DAILY_BRIEFING')""",
-                (current["briefing_time"],current["timezone"],uid,self.local_date(current))); self.repo.db.commit()
+            # Only a briefing not made yet follows the new time. One already made keeps its own time
+            # (re-announcing it later would present old news as the next briefing); the new time starts tomorrow.
+            self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid)); self.repo.db.commit()
         if previous.get("audio_voice_id")!=current.get("audio_voice_id"):
             delivery=self.repo.db.execute("SELECT id,edition_id,status FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC LIMIT 1",(uid,)).fetchone()
             if delivery:
@@ -701,7 +712,7 @@ class ProductService:
         return trending_stories(self.repo, uid, limit)
 
     def client_home(self, uid):
-        preferences=self.repo.get_preferences(uid) or {}
+        preferences=self.preferences(uid) or {}
         today=self.client_briefing(uid,self.local_date(preferences))
         history,_=self.client_history(uid,50)
         latest=next((item for item in history if item.get("status")=="READY" and item.get("items")),None)

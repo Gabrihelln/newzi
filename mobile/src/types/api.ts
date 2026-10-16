@@ -12,7 +12,9 @@ export type User = {
 export type Session = { token: string; expires_at: string };
 export type Topic = { id?: string; code: string; name: string; label?: string; description?: string; aliases?: string[]; depth?: number; path?: string[]; children?: string[]; parent_id?: string | null; type?: string; enabled?: boolean; order?: number; content_count?: number };
 export type ClientConfig = { supported_languages: string[]; supported_briefing_sizes: number[]; country_scopes: string[]; topics: Topic[] };
-export type Preferences = { user_id?: string; topics: string[]; content_scope?: 'selected' | 'all'; language: string; country_scope: 'LOCAL' | 'GLOBAL' | 'BOTH'; briefing_time: string; timezone: string; briefing_size: 5 | 10 | 15; audio_enabled: boolean; audio_voice_id?: string | null };
+export type Preferences = { user_id?: string; topics: string[]; content_scope?: 'selected' | 'all'; language: string; country_scope: 'LOCAL' | 'GLOBAL' | 'BOTH'; briefing_time: string; timezone: string; briefing_size: 5 | 10 | 15; audio_enabled: boolean; audio_voice_id?: string | null; next_briefing?: NextBriefing };
+/** When the next new briefing arrives; once today's is made, a new time only starts tomorrow. */
+export type NextBriefing = { date: string; time: string; day: 'TODAY' | 'TOMORROW' };
 export type AudioVoice = { id: string; name: string; description: string; language: string; gender: 'female' | 'male'; preview_url: string };
 export type AudioVoiceCatalog = { voices: AudioVoice[]; default_voice_id: string | null };
 export type Onboarding = { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; preferences: Preferences };
