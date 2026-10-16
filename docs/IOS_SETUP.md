@@ -391,3 +391,6 @@ O que falta (em andamento primeiro no Android, depois no iOS):
   onboarding ou em Perfil › Notificações; agora o app registra ao abrir com a sessão ativa, se a permissão
   já foi dada (`registerDeviceIfPermitted` em `mobile/src/push/push.ts`); (2) mudar o horário não movia o
   resumo do dia; agora move, se o push dele ainda não saiu. Precisa atualizar a VPS e testar de novo.
+- "Últimas notícias" parecia parada: a lista era ordenada por relevância (frescor numa escala de 30 dias) e as
+  "Em alta" iam sempre ao topo. Agora sai da mais recente para a mais antiga. O golden do contrato foi
+  regenerado e normaliza caminhos do Windows com espaço: os 55 testes do backend passam.

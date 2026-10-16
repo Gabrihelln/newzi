@@ -262,13 +262,15 @@ def test_football_overview_cache_and_audience(monkeypatch):
 
 def test_trending_stories_join_latest_news_with_their_flag():
     from newzi_backend.product_backend import with_trending
-    story = lambda sid, *others: {"id": sid, "headline": sid, "sources": [{"article_id": sid}, *({"article_id": other} for other in others)]}
-    latest = [story("tech1"), story("verge_quake"), story("tech2")]
-    trending = [{**story("g1_quake", "verge_quake"), "trending": {"rank": 1, "outlets": 4}},
-                {**story("ge_final", "espn_final"), "trending": {"rank": 2, "outlets": 3}}]
+    story = lambda sid, hour, *others: {"id": sid, "headline": sid, "published_at": f"2026-10-15T{hour:02d}:00:00.000Z",
+                                        "sources": [{"article_id": sid}, *({"article_id": other} for other in others)]}
+    latest = [story("tech1", 20), story("verge_quake", 19), story("tech2", 17)]
+    trending = [{**story("g1_quake", 19, "verge_quake"), "trending": {"rank": 1, "outlets": 4}},
+                {**story("ge_final", 18, "espn_final"), "trending": {"rank": 2, "outlets": 3}}]
     merged = with_trending(latest, trending)
-    assert [item["id"] for item in merged] == ["ge_final", "tech1", "verge_quake", "tech2"]   # no duplicate quake story
-    assert merged[2]["trending"] == {"rank": 1, "outlets": 4} and "trending" not in merged[1]
+    # No duplicate quake story, and an older trending story does not jump above newer news.
+    assert [item["id"] for item in merged] == ["tech1", "verge_quake", "ge_final", "tech2"]
+    assert merged[1]["trending"] == {"rank": 1, "outlets": 4} and "trending" not in merged[0]
 
 
 def test_subscription_plans_and_access(tmp_path, monkeypatch):

@@ -133,8 +133,9 @@ class Normalizer:
         return self.ids[value]
 
     def text(self, value):
-        # Temporary paths differ per run (and between short and long Windows path forms).
-        value = re.sub(r"[^\s\"']*newzi-tests-\w+[\\/]run_[0-9a-f]{8}", "<run>", value)
+        # Temporary paths differ per run and per OS (Windows profiles may contain spaces and use backslashes).
+        value = re.sub(r"[^\"']*newzi-tests-\w+[\\/]run_[0-9a-f]{8}", "<run>", value)
+        if value.startswith("<run>"): value = value.replace("\\", "/")
         value = _ID.sub(self._id, value)
         value = _TS.sub("<ts>", value)
         value = _HEX.sub("<hex>", value)

@@ -262,6 +262,8 @@ class ProductRepository:
             best=max(remaining,key=lambda row:(base_scores[row["id"]]-min(0.36,source_counts.get(row["source_id"],0)*0.12),row["published_at"],row["id"]))
             remaining.remove(best);source_counts[best["source_id"]]=source_counts.get(best["source_id"],0)+1
             chosen.append(best)
+        # Relevance and source variety pick the stories; a feed is read newest first (a search keeps relevance).
+        if not query: chosen.sort(key=lambda row:(row["published_at"],row["id"]),reverse=True)
         # Label by the user's interest (as briefings do), not by the article's strongest generic tag.
         tags_by_content={}
         if selected and chosen:
@@ -467,7 +469,7 @@ def not_found(message="not found"): return ApiError("RESOURCE_NOT_FOUND", messag
 
 def with_trending(latest, trending):
     """Latest news with what is trending now: matching stories get the "Em alta" flag, and trending
-    stories not in the list (even outside the user's topics) join it at the top."""
+    stories not in the list (even outside the user's topics) join it, newest first like the rest."""
     by_article = {}
     for item in trending:
         for article_id in [item["id"], *(source.get("article_id") for source in item.get("sources", []))]:
@@ -478,7 +480,8 @@ def with_trending(latest, trending):
                     if article_id in by_article), None)
         if hit:
             story["trending"] = hit["trending"]; matched.add(hit["id"])
-    return [item for item in trending if item["id"] not in matched] + latest
+    merged = [item for item in trending if item["id"] not in matched] + latest
+    return sorted(merged, key=lambda item: item.get("published_at") or "", reverse=True)
 
 
 class ProductService:
