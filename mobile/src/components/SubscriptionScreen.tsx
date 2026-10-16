@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, Text, View } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import { api } from '../api/client';
+import { STORE_NAME } from '../config/store';
 import type { Subscription, SubscriptionPlan } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import { BrandPage, BrandPageHeader } from './ScreenPrimitives';
 
-const SOON = 'A assinatura pela Google Play será liberada em breve. Avisaremos quando estiver disponível.';
+const SOON = `A assinatura pela ${STORE_NAME} será liberada em breve. Avisaremos quando estiver disponível.`;
+const RESTORING = `Procurando compras na sua conta ${STORE_NAME}…`;
 
 const dateLabel = (value?: string | null) => {
   const date = value ? new Date(value) : null;
@@ -41,7 +43,7 @@ function BasicPlan({ data }: { data: Subscription }) {
   const plan = data.plans.find(item => item.id === planId) || data.plans[0];
   const used = data.usage.briefing_times, limit = data.limits.briefing_times;
   const full = used >= limit;
-  const subscribe = () => Alert.alert('Newzi Premium', data.purchases_enabled ? 'Abrindo a Google Play…' : SOON);
+  const subscribe = () => Alert.alert('Newzi Premium', data.purchases_enabled ? `Abrindo a ${STORE_NAME}…` : SOON);
 
   return <View>
     <View style={styles.card}>
@@ -69,9 +71,9 @@ function BasicPlan({ data }: { data: Subscription }) {
     {!!plan && <Pressable accessibilityRole="button" onPress={subscribe} style={({ pressed }) => [styles.cta, pressed && { opacity: .85 }]}>
       <Text style={styles.ctaText}>Assinar por {plan.price}/{plan.per}</Text>
     </Pressable>}
-    <Text style={styles.footnote}>Renovação automática. Cancele quando quiser na Google Play.</Text>
+    <Text style={styles.footnote}>Renovação automática. Cancele quando quiser na {STORE_NAME}.</Text>
     <View style={styles.links}>
-      <Pressable accessibilityRole="button" onPress={() => Alert.alert('Restaurar compras', data.purchases_enabled ? 'Procurando compras na sua conta Google Play…' : SOON)} style={styles.restore}>
+      <Pressable accessibilityRole="button" onPress={() => Alert.alert('Restaurar compras', data.purchases_enabled ? RESTORING : SOON)} style={styles.restore}>
         <Text style={styles.restoreText}>Restaurar compras</Text>
       </Pressable>
       {!!data.legal?.terms_url && <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(data.legal!.terms_url!)} style={styles.restore}><Text style={styles.legalText}>Termos de uso</Text></Pressable>}
@@ -99,12 +101,13 @@ function PremiumPlan({ data }: { data: Subscription }) {
   const until = dateLabel(data.expires_at);
   const renewal = data.payment_issue ? `Seu acesso continua até ${until} enquanto o pagamento é resolvido.`
     : data.will_renew ? `Renova em ${until}${plan ? ` por ${plan.price}` : ''}.` : `Premium até ${until}. A renovação está desligada.`;
-  const manage = () => void Linking.openURL(`https://play.google.com/store/account/subscriptions?package=${DeviceInfo.getBundleId()}`);
+  const manage = () => void Linking.openURL(Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions'
+    : `https://play.google.com/store/account/subscriptions?package=${DeviceInfo.getBundleId()}`);
 
   return <View>
     {data.payment_issue && <View accessibilityRole="alert" style={styles.warning}>
       <Text style={styles.warningTitle}>Não conseguimos renovar</Text>
-      <Text style={styles.warningText}>Atualize a forma de pagamento na Google Play até {until} para não perder o Premium.</Text>
+      <Text style={styles.warningText}>Atualize a forma de pagamento na {STORE_NAME} até {until} para não perder o Premium.</Text>
     </View>}
     <View style={styles.premiumCard}>
       <View style={styles.planHead}>
@@ -117,9 +120,9 @@ function PremiumPlan({ data }: { data: Subscription }) {
 
     <View style={[styles.card, { paddingVertical: 0 }]}>
       <Pressable accessibilityRole="link" onPress={manage} style={styles.row}>
-        <Text style={styles.rowText}>Gerenciar na Google Play</Text><Icon name="arrowUpRight" size={18} color={colors.secondary} />
+        <Text style={styles.rowText}>Gerenciar na {STORE_NAME}</Text><Icon name="arrowUpRight" size={18} color={colors.secondary} />
       </Pressable>
-      <Pressable accessibilityRole="button" onPress={() => Alert.alert('Restaurar compras', data.purchases_enabled ? 'Procurando compras na sua conta Google Play…' : SOON)} style={[styles.row, styles.rowBorder]}>
+      <Pressable accessibilityRole="button" onPress={() => Alert.alert('Restaurar compras', data.purchases_enabled ? RESTORING : SOON)} style={[styles.row, styles.rowBorder]}>
         <Text style={styles.rowText}>Restaurar compras</Text><Icon name="chevron" size={18} color={colors.secondary} />
       </Pressable>
     </View>
@@ -128,7 +131,7 @@ function PremiumPlan({ data }: { data: Subscription }) {
     <View style={styles.card}>
       {data.benefits.map(item => <View key={item.title} style={styles.perk}><Icon name="check" size={17} color={colors.primary} /><Text style={styles.perkText}>{item.title}</Text></View>)}
     </View>
-    <Text style={styles.footnote}>Para cancelar, use a Google Play. Você continua com o Premium até o fim do período já pago.</Text>
+    <Text style={styles.footnote}>Para cancelar, use a {STORE_NAME}. Você continua com o Premium até o fim do período já pago.</Text>
   </View>;
 }
 

@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.newzi.app</string>
+	<string>app.newzi.ios</string>
 	<key>PROJECT_ID</key>
 	<string>newziapp</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:300896912437:ios:60d744722b57c3a179dd7c</string>
+	<string>1:300896912437:ios:9b02ccda6008d29479dd7c</string>
 </dict>
 </plist>

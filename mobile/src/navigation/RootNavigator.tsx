@@ -194,7 +194,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
       {({ navigation }) => <VoiceSettingsScreen onBack={() => navigation.goBack()} />}
     </MainStack.Screen>
     <MainStack.Screen name="Account">
-      {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onEditProfile={() => navigation.navigate('EditProfile')} />}
+      {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onEditProfile={() => navigation.navigate('EditProfile')} onAccountDeleted={onLogout} />}
     </MainStack.Screen>
   </MainStack.Navigator><AppNotices /></>;
 }

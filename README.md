@@ -38,7 +38,7 @@ O backend carrega o `.env` da raiz. O processo do engine lê variáveis diretame
 
 - Android usa `mobile/android/app/google-services.json`, configuração de cliente do Firebase; restrinja a chave às APIs e aos identificadores do aplicativo.
 - O backend precisa de uma conta de serviço Firebase Admin privada quando `FIREBASE_AUTH_ENABLED=true`. Guarde o JSON fora do repositório e informe seu caminho absoluto em `GOOGLE_APPLICATION_CREDENTIALS`.
-- Para iOS, registre o bundle ID `com.newzi.app` no Firebase e adicione o `GoogleService-Info.plist` ao target ativo do Xcode. Esse arquivo ainda precisa ser obtido para o projeto iOS.
+- Para iOS, o bundle ID é `app.newzi.ios` (o Android continua `com.newzi.app`); o `GoogleService-Info.plist` desse app iOS do Firebase está em `mobile/ios/NewsEngineNative/`.
 - Configure o Web Client ID do Google em `mobile/src/config/socialAuth.ts`. O login Apple e os recursos de push precisam ser configurados e validados no target iOS/Firebase antes de uma distribuição.
 
 ## Backend

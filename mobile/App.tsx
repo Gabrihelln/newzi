@@ -9,7 +9,7 @@ import { useBaseStyles, useTheme } from './src/theme';
 import { applySavedThemePreference } from './src/theme/appearance';
 import { RootNavigator, type RootAuthState } from './src/navigation/RootNavigator';
 import type { User } from './src/types/api';
-import { listenForPushEvents } from './src/push/push';
+import { listenForPushEvents, registerDeviceIfPermitted } from './src/push/push';
 import { openFromNotification } from './src/navigation/notificationRouting';
 import { showPushNotice } from './src/services/appNotices';
 import { devLog } from './src/config/env';
@@ -54,6 +54,11 @@ export default function App() {
   }, [syncDeviceTimezone]);
 
   useEffect(() => { try { return listenForPushEvents(openFromNotification, showPushNotice); } catch { return undefined; } }, []);
+
+  const signedInUid = authState === 'AUTHENTICATED' ? user?.id : undefined;
+  useEffect(() => {
+    if (signedInUid) registerDeviceIfPermitted().catch(() => devLog('[Push] device-registration:failed'));
+  }, [signedInUid]);
 
   const acceptSession = useCallback(async (nextUser: User) => {
     if (bootstrappingUid.current === nextUser.id && bootstrapTask.current) return bootstrapTask.current;

@@ -39,7 +39,10 @@ no iOS sem mudar código de tela; o que falta é **configuração nativa** (Xcod
 - Cache offline (MMKV + TanStack Query) e armazenamento seguro do login (Keychain no iOS).
 
 ### Identificadores
-- Bundle ID iOS / pacote Android: **`com.newzi.app`**
+- Bundle ID iOS: **`app.newzi.ios`** / pacote Android: **`com.newzi.app`**. São diferentes porque o
+  `com.newzi.app` ficou preso ao Personal Team gratuito usado nos primeiros testes e a Apple não libera
+  para outra equipe. **O bundle ID do iOS não pode mudar depois de publicado.**
+- Equipe Apple (Developer Program): **`3253WT48Q3`** (conta `gabrielaraujo.n96@icloud.com`)
 - Nome exibido: **Newzi**
 - Projeto Firebase: **`newziapp`**
 - Alvo Xcode: `NewsEngineNative` (nome interno antigo; **não renomeie**, o módulo JS se chama `Newzi`)
@@ -151,7 +154,7 @@ Observação: existe uma pasta antiga `mobile/ios/ios/` ignorada pelo Git; não 
 
 ### 5.2 [x] Firebase (login e push)
 **[Gabriel]** No console do Firebase (projeto `newziapp`): *Configurações do projeto › Seus apps ›
-Adicionar app › iOS*, bundle ID `com.newzi.app`, apelido "Newzi iOS". Baixe o **`GoogleService-Info.plist`**
+Adicionar app › iOS*, bundle ID `app.newzi.ios`, apelido "Newzi iOS". Baixe o **`GoogleService-Info.plist`**
 e entregue ao Claude.
 
 **[Claude]**
@@ -179,13 +182,16 @@ e entregue ao Claude.
 2. No Firebase › *Configurações do projeto › Cloud Messaging › App iOS*: envie o `.p8` com Key ID e Team ID.
 
 **[Claude]**
-1. Xcode › target › *Signing & Capabilities*: adicione **Push Notifications** e, em **Background Modes**,
-   marque **Remote notifications** (o modo **Audio** já está ligado no `Info.plist`). Isso cria
-   `NewsEngineNative.entitlements` com `aps-environment`.
+1. Feito: `NewsEngineNative/NewsEngineNative.entitlements` (`aps-environment`, ligado por
+   `CODE_SIGN_ENTITLEMENTS`) e `remote-notification` em `UIBackgroundModes`. A assinatura automática ligou o
+   Push no App ID `app.newzi.ios` (perfil "iOS Team Provisioning Profile: app.newzi.ios"). No archive para a
+   App Store, o Xcode troca `development` por `production` sozinho.
 2. O código JS já pede permissão e registra o token (`mobile/src/push/push.ts`, plataforma `IOS`), e o
    backend já envia com payload APNs (`backend/src/newzi_backend/notifications.py`). Confira se o
    `@react-native-firebase/messaging` precisa de algo no `AppDelegate` nesta versão (normalmente não, ele faz
-   o swizzling sozinho).
+   o swizzling sozinho). Conferido: não precisa; ele registra o APNs sozinho.
+4. Teste rápido sem a VPS: Firebase › *Messaging* › nova campanha › *Mensagens do Firebase Notifications*,
+   app iOS `app.newzi.ios`. As rotas de dev de push ficam desligadas em produção.
 3. Teste no iPhone: permitir notificações → em Perfil › Notificações, conferir; enviar um push de teste pelo
    backend (rotas de dev em `backend/src/newzi_backend/api/routes/dev.py`) com o app aberto (aviso dentro do
    app), em segundo plano e fechado; tocar na notificação deve abrir a tela certa
@@ -226,10 +232,19 @@ O arquivo `mobile/ios/NewsEngineNative/PrivacyInfo.xcprivacy` já existe. Depois
 os motivos de uso de APIs sensíveis (UserDefaults, data de arquivos, espaço em disco, tempo de boot) estão
 declarados para o app e para as bibliotecas (MMKV, Firebase, device-info). A App Store recusa o envio sem isso.
 
-### 5.8 [ ] Endereço da API para builds de release
-`mobile/src/config/env.ts` usa endereços de exemplo (`*.example.com`) para staging/produção, e um build de
-**release** recusa iniciar com eles (por segurança). Antes do TestFlight, o backend precisa estar publicado
-em HTTPS e esse endereço precisa ser configurado (o mesmo vale para o Android).
+### 5.8 [x] Endereço da API para builds de release
+Todos os ambientes usam `https://api.newzi.app` (`mobile/src/config/env.ts`), publicado na VPS.
+
+### 5.9 [x] Exigências da revisão da App Store
+- **Excluir conta (diretriz 5.1.1(v))**: Perfil › Dados pessoais › Excluir conta chama `DELETE /api/v1/me`,
+  que apaga os dados do usuário no banco e o usuário no Firebase Auth. **O backend da VPS precisa ser
+  atualizado** para a rota existir.
+- **Premium escondido no iOS** até a compra pela App Store funcionar (diretriz 2.1): `PREMIUM_OFFERED` em
+  `mobile/src/config/store.ts` esconde "Assinatura e plano" e "Adicionar outro horário". Os textos da
+  assinatura citam a loja da plataforma (`STORE_NAME`). Ao ligar a compra no iOS (seção 9), remover essa trava.
+- **Só iPhone** (`TARGETED_DEVICE_FAMILY = 1`): a Apple não testa no iPad nem pede capturas de iPad.
+- **`ITSAppUsesNonExemptEncryption = false`** no `Info.plist` (o app só usa HTTPS).
+- **Dynamic Island**: a tela "Outros resumos" (Histórico) não tinha área segura no topo; corrigido.
 
 ---
 
@@ -248,7 +263,7 @@ rode o esquema `NewsEngineNative`. O simulador usa a API online. Push não funci
 1. Conecte o iPhone por cabo, desbloqueie e confie no Mac. Em iOS 16+, ative
    *Ajustes › Privacidade e Segurança › Modo de Desenvolvedor*.
 2. Xcode › target › *Signing & Capabilities*: marque *Automatically manage signing* e escolha o **Team**
-   do Gabriel. O bundle ID continua `com.newzi.app`.
+   do Gabriel (`3253WT48Q3`, a do Developer Program). O bundle ID é `app.newzi.ios`.
 3. Escolha o iPhone como destino e rode. Na primeira vez, no iPhone:
    *Ajustes › Geral › VPN e Gerenciamento de Dispositivos* › confiar no desenvolvedor.
 4. Com o Metro rodando no Mac e os dois na mesma Wi-Fi, o app carrega o código e acessa a API online sozinho.
@@ -286,7 +301,7 @@ Registre problemas encontrados ao final deste arquivo (seção 11).
 ---
 
 ## 8. Publicar para testes (TestFlight)
-**[Gabriel]** No App Store Connect: *Apps › +* › novo app iOS, bundle ID `com.newzi.app`, nome Newzi,
+**[Gabriel]** No App Store Connect: *Apps › +* › novo app iOS, bundle ID `app.newzi.ios`, nome Newzi,
 idioma principal Português (Brasil).
 **[Claude]** Xcode › *Product › Archive* (esquema Release, destino "Any iOS Device") › *Distribute App ›
 App Store Connect*. Requer as etapas 5.7 e 5.8.
@@ -316,12 +331,13 @@ O que falta (em andamento primeiro no Android, depois no iOS):
    `user_briefing_deliveries`, ver `backend/src/newzi_backend/migrations.py` e `scheduling.py`). Precisa de
    nova migração, agendador por horário e ajustes na Home/configuração do briefing.
 5. Termos de uso e política de privacidade publicados (`TERMS_URL`, `PRIVACY_URL` no `.env`).
+6. Remover a trava `PREMIUM_OFFERED` do iOS (`mobile/src/config/store.ts`) e, na tela de excluir conta, avisar
+   que a assinatura da App Store é cancelada à parte (a Apple pede isso).
 
 ---
 
 ## 10. Outras pendências do projeto (contexto)
-- Backend e worker ainda rodam só em máquina local; falta publicar em servidor com HTTPS (`deploy/` tem
-  nginx e systemd prontos).
+- Backend e worker rodam na VPS em `https://api.newzi.app` (`deploy/` tem nginx e systemd).
 - Android: configuração de produção, build de release assinado, Crashlytics.
 - Login com Google desligado (ver 5.6).
 - Copa do Brasil não está no plano gratuito do football-data.org; a tabela da Libertadores também não.
@@ -360,3 +376,18 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 - Algo fica escondido pelo Dynamic Island (falta identificar a tela).
 - 5.3 Push (precisa do Apple Developer Program), 5.5 áudio em segundo plano, 6.1 simulador, seção 7.
 - O Firebase deixa de publicar versões novas no CocoaPods depois de outubro de 2026: planejar a migração para SPM.
+
+### 2026-10-15 — conta do Apple Developer Program
+- Team trocado para a equipe paga `3253WT48Q3` (`gabrielaraujo.n96@icloud.com`).
+- O Xcode recusou registrar `com.newzi.app` na equipe paga ("not available"), porque o Personal Team já o
+  registrou. Bundle ID do iOS trocado para `app.newzi.ios`, com novo app iOS no Firebase e novo
+  `GoogleService-Info.plist`. O Android continua `com.newzi.app`.
+- Exigências da revisão (5.9): excluir conta no app e no backend, Premium escondido no iOS, só iPhone,
+  `ITSAppUsesNonExemptEncryption`, área segura da tela Histórico.
+- 5.3 Push, parte do código: entitlements, `remote-notification` e Push no App ID. Falta a chave APNs no
+  Firebase e o teste no iPhone.
+- Push do Firebase Console chegou no iPhone (aberto, segundo plano, fechado e tela bloqueada). O push do
+  resumo pela VPS não chegou, por dois motivos corrigidos: (1) o aparelho só era registrado no backend no
+  onboarding ou em Perfil › Notificações; agora o app registra ao abrir com a sessão ativa, se a permissão
+  já foi dada (`registerDeviceIfPermitted` em `mobile/src/push/push.ts`); (2) mudar o horário não movia o
+  resumo do dia; agora move, se o push dele ainda não saiu. Precisa atualizar a VPS e testar de novo.

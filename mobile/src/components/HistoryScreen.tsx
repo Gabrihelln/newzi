@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { getAudioContext, subscribeAudioContext } from '../audio/player';
 import type { Briefing, BriefingItem } from '../types/api';
@@ -68,7 +69,8 @@ export function HistoryScreen({ onBack, onAudio }: {
     </Pressable>;
   };
 
-  return <FlatList
+  // The list is the whole screen: on iOS it must start below the notch/Dynamic Island.
+  return <SafeAreaView style={s.list} edges={Platform.OS === 'android' ? [] : ['top']}><FlatList
     style={s.list}
     contentContainerStyle={s.content}
     data={items}
@@ -87,7 +89,7 @@ export function HistoryScreen({ onBack, onAudio }: {
       </Pressable>}
     </View> : <View style={{ height: spacing.xxxl }} />}
     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load()} tintColor={colors.primary} />}
-  />;
+  /></SafeAreaView>;
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({

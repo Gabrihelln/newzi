@@ -439,6 +439,22 @@ class ProductRepository:
     def remove_saved_briefing(self, uid, briefing_id):
         cursor=self.db.execute("DELETE FROM saved_briefings WHERE user_id=? AND briefing_id=?",(uid,briefing_id)); self.db.commit(); return cursor.rowcount>0
 
+    # Children before parents, in one transaction. Editions and audio are shared by profile, not personal.
+    USER_DATA_DELETES = (
+        "DELETE FROM generation_job_phases WHERE job_id IN (SELECT id FROM generation_jobs WHERE user_id=?)",
+        "DELETE FROM notification_events WHERE device_id IN (SELECT id FROM push_devices WHERE user_id=?)",
+        *(f"DELETE FROM {table} WHERE user_id=?" for table in (
+            "saved_story_progress", "saved_stories", "article_feedback", "saved_briefings", "briefing_listening_progress",
+            "generation_jobs", "user_briefing_deliveries", "manual_refresh_requests", "notification_jobs", "push_devices",
+            "notification_settings", "subscriptions", "auth_sessions", "user_preferences")),
+        "DELETE FROM users WHERE id=?",
+    )
+
+    def delete_user(self, uid):
+        """Erase the account and everything stored for it (App Store guideline 5.1.1(v))."""
+        for statement in self.USER_DATA_DELETES: self.db.execute(statement, (uid,))
+        self.db.commit()
+
 
 class ApiError(Exception):
     """An expected failure with a stable error code, rendered in the API's error envelope."""
@@ -528,6 +544,13 @@ class ProductService:
         t=now_iso(); self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE user_id=?",(t,t,uid)); self.repo.db.commit()
         return {"status":"ok"}
 
+    def delete_account(self, uid):
+        # Local data first: if the identity provider then fails, the client retries with the same
+        # token, which recreates an empty user row that the retry deletes again.
+        user=self.repo.get_user(uid); self.repo.delete_user(uid)
+        self.identity.delete_user((user or {}).get("firebase_uid") or uid)
+        log.info("[Backend Auth] account_deleted=true")
+
     # ------------------------------------------------------------- public
     def client_config(self):
         return {"supported_languages":["pt-BR","en"],"supported_briefing_sizes":[5,10,15],"country_scopes":["LOCAL","GLOBAL","BOTH"],"topics":self.repo.list_topics()}
@@ -566,7 +589,11 @@ class ProductService:
         if old_profile!=new_profile:
             return self.scheduler.regenerate_for_preferences(uid)
         if previous.get("briefing_time")!=current.get("briefing_time") or previous.get("timezone")!=current.get("timezone"):
-            self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid)); self.repo.db.commit()
+            self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid))
+            # Today's briefing moves to the new time too, unless its push has already gone out.
+            self.repo.db.execute("""UPDATE user_briefing_deliveries SET delivery_time=?,timezone=? WHERE user_id=? AND local_date=?
+                AND NOT EXISTS (SELECT 1 FROM notification_jobs n WHERE n.delivery_id=user_briefing_deliveries.id AND n.notification_type='DAILY_BRIEFING')""",
+                (current["briefing_time"],current["timezone"],uid,self.local_date(current))); self.repo.db.commit()
         if previous.get("audio_voice_id")!=current.get("audio_voice_id"):
             delivery=self.repo.db.execute("SELECT id,edition_id,status FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC LIMIT 1",(uid,)).fetchone()
             if delivery:

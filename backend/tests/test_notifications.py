@@ -111,3 +111,20 @@ def test_rate_limiter_prunes_idle_keys(monkeypatch):
     assert limiter.allow("a") and limiter.allow("a") and not limiter.allow("a")
     clock.now = 61
     assert limiter.allow("b") and "a" not in limiter.hits
+
+
+def test_new_briefing_time_moves_todays_unsent_push(repo):
+    from newzi_backend.product_backend import ProductService
+    service = ProductService(repo)
+    today = service.local_date(repo.get_preferences("u1"))
+    for user_id in ("u1", "u2"):
+        repo.db.execute("""INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at)
+            VALUES(?,?,?,?,?,?,?,?)""", ("d_" + user_id, user_id, "e1", today, "06:00", "UTC", "READY", "t"))
+    add_job(repo, "sent", "u2", "device-u2")
+    repo.db.execute("UPDATE notification_jobs SET delivery_id='d_u2' WHERE id='sent'"); repo.db.commit()
+    for user_id in ("u1", "u2"):
+        previous = repo.get_preferences(user_id)
+        service.preferences_updated(user_id, previous, repo.save_preferences(user_id, {"briefing_time": "21:25"}))
+    times = dict(repo.db.execute("SELECT user_id,delivery_time FROM user_briefing_deliveries").fetchall())
+    # The pending push follows the new time; one already sent is not repeated.
+    assert times == {"u1": "21:25", "u2": "06:00"}

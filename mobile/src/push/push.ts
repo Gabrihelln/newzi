@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
-import { AuthorizationStatus, getInitialNotification, getMessaging, getToken, onMessage, onNotificationOpenedApp, onTokenRefresh, requestPermission, type RemoteMessage } from '@react-native-firebase/messaging';
+import { AuthorizationStatus, getInitialNotification, getMessaging, getToken, hasPermission, onMessage, onNotificationOpenedApp, onTokenRefresh, requestPermission, type RemoteMessage } from '@react-native-firebase/messaging';
 import { api } from '../api/client';
 
 export type PushPermissionState = 'AUTHORIZED' | 'PROVISIONAL' | 'DENIED' | 'NOT_DETERMINED';
@@ -23,6 +23,12 @@ export async function registerCurrentDevice() {
   return api.registerDevice({ platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID', push_token: token,
     app_version: `${DeviceInfo.getVersion()} (${DeviceInfo.getBuildNumber()})`, locale: deviceLocale(),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+}
+
+/** Keeps this install registered for the signed-in account (new phone, reinstall, another account), without asking again. */
+export async function registerDeviceIfPermitted() {
+  const status = await hasPermission(getMessaging());
+  if (status === AuthorizationStatus.AUTHORIZED || status === AuthorizationStatus.PROVISIONAL) await registerCurrentDevice();
 }
 
 export async function requestAndRegisterDevice() {

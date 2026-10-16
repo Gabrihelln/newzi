@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api/client';
 import { firebaseAuth } from '../services/firebaseAuth';
 import type { User } from '../types/api';
@@ -7,12 +7,13 @@ import {spacing, typography, useStyles, useTheme, type Palette } from '../theme'
 import { BrandPage, BrandPageHeader, ScreenState, SettingsCard, SettingsSection } from './ScreenPrimitives';
 import { Icon } from './Icon';
 
-export function AccountScreen({ onBack, onEditProfile }: { onBack: () => void; onEditProfile: () => void }) {
+export function AccountScreen({ onBack, onEditProfile, onAccountDeleted }: { onBack: () => void; onEditProfile: () => void; onAccountDeleted: () => void }) {
   const s = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -26,6 +27,23 @@ export function AccountScreen({ onBack, onEditProfile }: { onBack: () => void; o
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const deleteAccount = useCallback(async () => {
+    setDeleting(true);
+    try {
+      await api.deleteAccount();
+      onAccountDeleted();
+    } catch {
+      setDeleting(false);
+      Alert.alert('Não foi possível excluir sua conta', 'Confira sua conexão e tente novamente.');
+    }
+  }, [onAccountDeleted]);
+
+  const confirmDelete = () => Alert.alert(
+    'Excluir conta?',
+    'Sua conta, assuntos, salvos, histórico de resumos e configurações serão apagados para sempre. Não é possível desfazer.',
+    [{ text: 'Cancelar', style: 'cancel' }, { text: 'Excluir conta', style: 'destructive', onPress: () => void deleteAccount() }],
+  );
 
   const created = user?.created_at || firebaseAuth.currentUser?.metadata?.creationTime;
   const createdLabel = created && !Number.isNaN(new Date(created).getTime())
@@ -51,6 +69,15 @@ export function AccountScreen({ onBack, onEditProfile }: { onBack: () => void; o
       <SettingsSection title="Sessão">
         <SettingsCard><Info label="Conta conectada" value={user.email || firebaseAuth.currentUser?.email || 'E-mail não informado'} /></SettingsCard>
       </SettingsSection>
+      <SettingsSection title="Excluir conta">
+        <SettingsCard>
+          <Text style={s.helper}>Apaga sua conta e todos os seus dados do Newzi. Não é possível desfazer.</Text>
+          <Pressable accessibilityRole="button" accessibilityState={{ disabled: deleting }} disabled={deleting} onPress={confirmDelete} style={s.action}>
+            {deleting ? <ActivityIndicator color={colors.danger} /> : <Icon name="trash" color={colors.danger} size={20} />}
+            <Text style={[s.actionText, { color: colors.danger }]}>{deleting ? 'Excluindo conta…' : 'Excluir conta'}</Text>
+          </Pressable>
+        </SettingsCard>
+      </SettingsSection>
     </>}
   </BrandPage>;
 }
@@ -67,5 +94,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   label: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: typography.caption },
   value: { color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontSize: typography.body, lineHeight: 23, fontWeight: '600', marginTop: spacing.xs },
   action: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  helper: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: typography.bodySmall, lineHeight: 20, paddingTop: spacing.md },
   actionText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontWeight: '700', fontSize: typography.bodySmall },
 });

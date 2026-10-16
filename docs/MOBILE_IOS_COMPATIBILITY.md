@@ -25,7 +25,7 @@
 ## Mac execution checklist
 
 1. Run npm install and pod install from mobile/ios.
-2. Open the generated Xcode workspace in Xcode; the installed product and bundle identifier are Newzi / com.newzi.app.
+2. Open the generated Xcode workspace in Xcode; the installed product and bundle identifier are Newzi / app.newzi.ios (Android stays com.newzi.app).
 3. Confirm deployment target, Swift version and New Architecture settings.
 4. Confirm react-native-keychain pod compiles and Keychain access works on Simulator and iPhone.
 5. Build Debug and Release with signing configured.

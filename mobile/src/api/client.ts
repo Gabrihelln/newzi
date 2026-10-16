@@ -73,6 +73,7 @@ const cached = <T,>(key: unknown[], fetcher: () => Promise<T>) => cachedRead<T>(
 export const api = {
   logout: () => apiRequest('/api/v1/auth/logout', { method: 'POST' }),
   me: () => apiRequest<any>('/api/v1/me'),
+  deleteAccount: () => apiRequest<void>('/api/v1/me', { method: 'DELETE' }),
   config: () => apiRequest<any>('/api/v1/client/config'),
   onboarding: () => apiRequest<any>('/api/v1/me/onboarding'),
   // The backend is the only store of preferences; nothing is mirrored to Firestore.

@@ -83,3 +83,17 @@ def test_concurrent_requests_do_not_interfere(api):
     with ThreadPoolExecutor(16) as pool:
         assert set(pool.map(hit, range(120))) == {200}
     assert len(api.request("GET", "/api/v1/me/saved", token=token)[1]["items"]) == 60
+
+
+def test_delete_account_erases_user_data_and_session(api):
+    token, _ = register(api, "gone@x.com")
+    other, _ = register(api, "stays@x.com")
+    api.request("PUT", "/api/v1/me/onboarding", {"topics": ["TECHNOLOGY"]}, token=token)
+    api.request("POST", "/api/v1/me/devices", {"platform": "IOS", "push_token": "token-gone-123"}, token=token)
+    status, body, _ = api.request("DELETE", "/api/v1/me", token=token)
+    assert status == 204 and body == b""
+    assert api.request("GET", "/api/v1/me", token=token)[0] == 401
+    assert api.request("POST", "/api/v1/auth/login", {"email": "gone@x.com", "password": "password123"})[0] == 401
+    assert api.request("GET", "/api/v1/me", token=other)[0] == 200
+    # The address is free again for a new account.
+    register(api, "gone@x.com")

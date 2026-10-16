@@ -12,6 +12,7 @@ class IdentityProvider:
     def authenticate(self, credentials): raise NotImplementedError
     def resolve(self, token): raise NotImplementedError
     def revoke(self, token): raise NotImplementedError
+    def delete_user(self, uid): return None  # local accounts live only in the product database
 
 
 class LocalIdentityProvider(IdentityProvider):

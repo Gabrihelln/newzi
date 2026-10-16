@@ -97,6 +97,15 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
         user = self.repo.ensure_firebase_user(uid, decoded.get("email") or "", decoded.get("name") or "")
         return Identity(user) if user else None
 
+    def delete_user(self, uid):
+        try:
+            self.auth.delete_user(uid)
+        except self.auth.UserNotFoundError:
+            pass
+        # Cached tokens of the deleted user must stop authenticating (and recreating the row) at once.
+        with self._verified_lock:
+            self._verified = {k: v for k, v in self._verified.items() if v[1].get("uid") != uid}
+
     def revoke(self, token):
         # Firebase owns refresh-token revocation. Client logout signs out the
         # Firebase user; backend does not persist a second session token.

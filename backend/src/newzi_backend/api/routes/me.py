@@ -14,6 +14,12 @@ async def me(request: Request, uid: str = Depends(current_user)):
     return await call(request, lambda: repo.public_user(repo.get_user(uid)))
 
 
+@router.delete("")
+async def delete_account(request: Request, uid: str = Depends(current_user)):
+    await call(request, service_of(request).delete_account, uid)
+    return Response(status_code=204)
+
+
 @router.get("/preferences")
 async def preferences(request: Request, uid: str = Depends(current_user)):
     return await call(request, service_of(request).repo.get_preferences, uid)

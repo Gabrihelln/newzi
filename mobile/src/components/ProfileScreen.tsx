@@ -15,6 +15,7 @@ import { getDeviceTimezone } from '../config/timezone';
 import { isValidBriefingTime } from '../config/time';
 import { notifyContentChanged } from '../services/contentRevision';
 import { PremiumSheet } from './PremiumSheet';
+import { PREMIUM_OFFERED } from '../config/store';
 import { TimeWheel } from './TimeWheel';
 
 const newTablet = require('../../assets/onboarding/new-tablet.png');
@@ -110,8 +111,8 @@ export function ProfileScreen({ user, onNavigate, onSearch, onLogout }: ProfileS
       </ProfileSection>
       <ProfileSection title="Minha conta" subtitle="Segurança, privacidade e dados da sua conta.">
         <ProfileMenuRow title="Segurança e privacidade" subtitle="Senha, autenticação e dados" icon="lock" tint={colors.tone('#10A867', colors.topicGreen.icon)} background={colors.topicGreen.background} onPress={() => onNavigate('SecurityPrivacy')} />
-        <ProfileMenuRow title="Dados pessoais" subtitle="Suas informações e conta" icon="profile" tint={colors.primary} background={colors.tone('#E4F1FF', colors.surfaceTint)} onPress={() => onNavigate('Account')} />
-        <ProfileMenuRow title="Assinatura e plano" subtitle="Plano Básico ou Premium" icon="card" tint={colors.tone('#8548E6', colors.topicPurple.icon)} background={colors.topicPurple.background} onPress={() => onNavigate('Subscription')} last />
+        <ProfileMenuRow title="Dados pessoais" subtitle="Suas informações e conta" icon="profile" tint={colors.primary} background={colors.tone('#E4F1FF', colors.surfaceTint)} onPress={() => onNavigate('Account')} last={!PREMIUM_OFFERED} />
+        {PREMIUM_OFFERED && <ProfileMenuRow title="Assinatura e plano" subtitle="Plano Básico ou Premium" icon="card" tint={colors.tone('#8548E6', colors.topicPurple.icon)} background={colors.topicPurple.background} onPress={() => onNavigate('Subscription')} last />}
       </ProfileSection>
       <Pressable accessibilityRole="button" accessibilityLabel="Sair da conta" onPress={onLogout} style={({ pressed }) => [st.logout, pressed && { opacity: .7 }]}><Text style={st.logoutText}>Sair da conta</Text></Pressable>
     </ScrollView>
@@ -314,7 +315,7 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
   const [prefs, setPrefs] = useState<Preferences | null>(null); const [voices, setVoices] = useState<{ id: string; name: string }[]>([]); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [loading, setLoading] = useState(true); const [loadError, setLoadError] = useState(''); const [timeError, setTimeError] = useState('');
   const timezone = getDeviceTimezone();
   const [premium, setPremium] = useState(false); const [upsell, setUpsell] = useState(false);
-  useEffect(() => { api.subscription().then(plan => setPremium(plan.tier === 'premium')).catch(() => undefined); }, []);
+  useEffect(() => { if (PREMIUM_OFFERED) api.subscription().then(plan => setPremium(plan.tier === 'premium')).catch(() => undefined); }, []);
   // Extra briefing times are Premium; Básico readers see what Premium offers. The extra times themselves arrive with purchases.
   const addTime = () => premium ? setMessage('Os horários extras do Premium chegam em uma próxima versão.') : setUpsell(true);
   const load = async () => { setLoading(true); setLoadError(''); try { const [p, catalog] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] }))]); setPrefs({ ...p, timezone }); setVoices(catalog.voices); } catch { setPrefs(null); setLoadError('Não foi possível carregar suas configurações.'); } finally { setLoading(false); } };
@@ -325,7 +326,7 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
     <Text style={st.pageIntro}>Ajuste quando o resumo chega e como prefere ouvi-lo.</Text>
     <Text style={st.formLabel}>Horário de entrega</Text><View style={st.timeCard}><TimeWheel value={prefs.briefing_time} onChange={briefing_time => { setPrefs({ ...prefs, briefing_time }); setTimeError(''); }} /></View>
     {!!timeError && <Text accessibilityRole="alert" style={st.helper}>{timeError}</Text>}
-    <Pressable accessibilityRole="button" accessibilityLabel="Adicionar outro horário de resumo. Recurso Premium" onPress={addTime} style={st.addTimeRow}><Icon name="clock" color={colors.primary} size={19} /><Text style={st.addTimeText}>Adicionar outro horário</Text><View style={st.premiumTag}><Text style={st.premiumTagText}>PREMIUM</Text></View></Pressable>
+    {PREMIUM_OFFERED && <Pressable accessibilityRole="button" accessibilityLabel="Adicionar outro horário de resumo. Recurso Premium" onPress={addTime} style={st.addTimeRow}><Icon name="clock" color={colors.primary} size={19} /><Text style={st.addTimeText}>Adicionar outro horário</Text><View style={st.premiumTag}><Text style={st.premiumTagText}>PREMIUM</Text></View></Pressable>}
     <Text style={st.formLabel}>Fuso horário</Text><InfoCard label="Automático pelo aparelho" value={timezone} />
     <Text style={st.formLabel}>Tamanho</Text><View style={st.choiceLine}>{[5, 10, 15].map(size => <Pressable key={size} accessibilityRole="radio" accessibilityState={{ selected: prefs.briefing_size === size }} onPress={() => setPrefs({ ...prefs, briefing_size: size as Preferences['briefing_size'] })} style={[st.sizeChoice, prefs.briefing_size === size && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.briefing_size === size && { color: colors.primary }]}>{size} notícias</Text></Pressable>)}</View>
     <Text style={st.formLabel}>Idioma e cobertura</Text><View style={st.choiceLine}>{['pt-BR', 'en'].map(language => <Pressable key={language} accessibilityRole="radio" accessibilityState={{ selected: prefs.language === language }} onPress={() => setPrefs({ ...prefs, language })} style={[st.sizeChoice, prefs.language === language && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.language === language && { color: colors.primary }]}>{language === 'pt-BR' ? 'Português' : 'English'}</Text></Pressable>)}</View><View style={st.choiceLine}>{(['LOCAL', 'GLOBAL', 'BOTH'] as const).map(scope => <Pressable key={scope} accessibilityRole="radio" accessibilityState={{ selected: prefs.country_scope === scope }} onPress={() => setPrefs({ ...prefs, country_scope: scope })} style={[st.sizeChoice, prefs.country_scope === scope && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.country_scope === scope && { color: colors.primary }]}>{scope === 'BOTH' ? 'Brasil e global' : scope === 'LOCAL' ? 'Brasil' : 'Global'}</Text></Pressable>)}</View>
