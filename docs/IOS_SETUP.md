@@ -217,15 +217,30 @@ O player (`mobile/src/audio/AudioEngine.tsx`) usa `playInBackground`, `playWhenI
 - os controles aparecem na tela de bloqueio/Central de Controle e funcionam (play/pause/avançar).
 Se algo falhar, ajuste somente as props/configuração do `react-native-video` 6.19.3 para iOS.
 
-### 5.6 [ ] Login com Google e Sign in with Apple (só quando o Gabriel decidir ligar)
-Hoje o botão do Google está desligado. Quando for ligar:
-- **[Gabriel]** criar o Web Client ID no Google Cloud/Firebase.
-- **[Claude]** preencher `GOOGLE_WEB_CLIENT_ID`; no iOS passar também `iosClientId` em
-  `GoogleSignin.configure` (`mobile/src/services/firebaseAuth.ts`) e adicionar ao `Info.plist` o URL scheme
-  `REVERSED_CLIENT_ID` que vem no `GoogleService-Info.plist`.
-- **Regra da Apple (diretriz 4.8):** se o app oferecer login com Google, **precisa oferecer também "Entrar com
-  a Apple"**. Isso exige a capability *Sign in with Apple*, o provedor Apple ativado no Firebase Auth e o botão
-  no app. Sem isso a App Store recusa.
+### 5.6 [ ] Login social: Google e Apple (fazer depois, a pedido do Gabriel)
+Hoje só existe login por e-mail/senha; o botão do Google está desligado (`GOOGLE_WEB_CLIENT_ID` vazio em
+`mobile/src/config/socialAuth.ts`). Os dois logins entram **juntos**: pela **diretriz 4.8** da Apple, um app
+com login do Google precisa oferecer também "Entrar com a Apple", senão a App Store recusa.
+
+**Google**
+- **[Gabriel]** Firebase › Authentication › *Sign-in method*: ativar **Google**. Depois **baixar de novo** o
+  `GoogleService-Info.plist` do app `app.newzi.ios`: o atual não tem `CLIENT_ID`/`REVERSED_CLIENT_ID`, que só
+  aparecem com o Google ativado. Anotar o *Web client ID* que o Firebase cria.
+- **[Claude]** Preencher `GOOGLE_WEB_CLIENT_ID`; no iOS passar `iosClientId` em `GoogleSignin.configure`
+  (`mobile/src/services/firebaseAuth.ts`, biblioteca `@react-native-google-signin/google-signin` 16.1.4, já
+  instalada) e adicionar o URL scheme `REVERSED_CLIENT_ID` ao `Info.plist`. No Android, conferir o SHA-1 do
+  certificado de release no Firebase.
+
+**Apple (Sign in with Apple)**
+- **[Gabriel]** Firebase › Authentication: ativar **Apple**. Para funcionar também no Android: criar na Apple
+  um *Services ID*, uma chave *Sign in with Apple* (`.p8`, fora do Git) e cadastrar a URL de retorno do Firebase.
+- **[Claude]** Capability **Sign in with Apple** no target (entitlement), biblioteca nativa (por exemplo
+  `@invertase/react-native-apple-authentication`, sem Expo), botão "Entrar com a Apple" seguindo o padrão
+  visual da Apple, e login via `OAuthProvider('apple.com')` no Firebase.
+- **Exclusão de conta:** para contas criadas com a Apple, "Excluir conta" também precisa **revogar o token da
+  Apple** (exigência da Apple junto com a 5.1.1(v)); o Firebase tem `revokeToken` para isso.
+- Contas que entram com Apple podem usar o e-mail oculto (`@privaterelay.appleid.com`): o backend precisa
+  aceitar e-mail vazio ou de retransmissão no perfil.
 
 ### 5.7 [x] Privacidade (PrivacyInfo.xcprivacy)
 O arquivo `mobile/ios/NewsEngineNative/PrivacyInfo.xcprivacy` já existe. Depois do `pod install`, confira se
@@ -339,7 +354,7 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 ## 10. Outras pendências do projeto (contexto)
 - Backend e worker rodam na VPS em `https://api.newzi.app` (`deploy/` tem nginx e systemd).
 - Android: configuração de produção, build de release assinado, Crashlytics.
-- Login com Google desligado (ver 5.6).
+- Login social (Google + Apple) ainda não feito; planejado para depois (ver 5.6).
 - Copa do Brasil não está no plano gratuito do football-data.org; a tabela da Libertadores também não.
 
 ---
@@ -394,3 +409,7 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 - "Últimas notícias" parecia parada: a lista era ordenada por relevância (frescor numa escala de 30 dias) e as
   "Em alta" iam sempre ao topo. Agora sai da mais recente para a mais antiga. O golden do contrato foi
   regenerado e normaliza caminhos do Windows com espaço: os 55 testes do backend passam.
+- TestFlight: primeiro build enviado (versão 1.0, build 1), pelo terminal: `xcodebuild archive` (Release,
+  `generic/platform=iOS`) e `xcodebuild -exportArchive` com `method=app-store-connect`, `destination=upload`,
+  `teamID=3253WT48Q3`. Avisos de dSYM do React/Hermes são esperados (frameworks pré-compilados). **A cada novo
+  envio, aumentar `CURRENT_PROJECT_VERSION`** (o build); a Apple recusa número repetido.

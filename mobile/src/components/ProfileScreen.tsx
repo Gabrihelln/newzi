@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { updateProfile } from '@react-native-firebase/auth';
@@ -320,7 +321,9 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
   const addTime = () => premium ? setMessage('Os horários extras do Premium chegam em uma próxima versão.') : setUpsell(true);
   const load = async () => { setLoading(true); setLoadError(''); try { const [p, catalog] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] }))]); setPrefs({ ...p, timezone }); setVoices(catalog.voices); } catch { setPrefs(null); setLoadError('Não foi possível carregar suas configurações.'); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, []);
-  const save = async () => { if (!prefs) return; if (!isValidBriefingTime(prefs.briefing_time)) { setTimeError('Use um horário válido entre 00:00 e 23:59.'); return; } setBusy(true); setMessage(''); setTimeError(''); const updated = { ...prefs, timezone }; try { await api.savePreferences(updated); setPrefs(updated); setMessage('Configurações salvas.'); } catch { setMessage('Não foi possível salvar as configurações.'); } finally { setBusy(false); } };
+  // The voice is chosen on its own screen: show it when coming back, and never save this screen's stale copy over it.
+  useFocusEffect(useCallback(() => { api.preferences().then(saved => setPrefs(current => current ? { ...current, audio_voice_id: saved.audio_voice_id } : current)).catch(() => undefined); }, []));
+  const save = async () => { if (!prefs) return; if (!isValidBriefingTime(prefs.briefing_time)) { setTimeError('Use um horário válido entre 00:00 e 23:59.'); return; } setBusy(true); setMessage(''); setTimeError(''); const updated = { ...prefs, timezone }; const { briefing_time, briefing_size, language, country_scope, audio_enabled } = updated; try { await api.savePreferences({ briefing_time, timezone, briefing_size, language, country_scope, audio_enabled }); setPrefs(updated); setMessage('Configurações salvas.'); } catch { setMessage('Não foi possível salvar as configurações.'); } finally { setBusy(false); } };
   const selectedVoice = voices.find(voice => voice.id === prefs?.audio_voice_id)?.name || 'Voz padrão';
   return <SecondaryPage title="Resumo diário" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando configurações" /> : loadError ? <ScreenState kind="error" title="Configurações indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs ? null : <>
     <Text style={st.pageIntro}>Ajuste quando o resumo chega e como prefere ouvi-lo.</Text>
