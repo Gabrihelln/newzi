@@ -41,14 +41,13 @@ async def complete_onboarding(request: Request, uid: str = Depends(current_user)
 
 
 @router.get("/audio/voices")
-async def voices(request: Request, uid: str = Depends(current_user)):
-    service = service_of(request)
-    return await call(request, lambda: service.audio.voice_catalog(service.repo.get_preferences(uid)["language"]))
+async def voices(request: Request, uid: str = Depends(current_user), language: str | None = None):
+    return await call(request, service_of(request).voice_catalog, uid, language)
 
 
 @router.get("/audio/voices/{voice_id}/preview")
-async def voice_preview(voice_id: str, request: Request, uid: str = Depends(current_user)):
-    path, mime_type = await call(request, service_of(request).voice_preview, uid, voice_id)
+async def voice_preview(voice_id: str, request: Request, uid: str = Depends(current_user), language: str | None = None):
+    path, mime_type = await call(request, service_of(request).voice_preview, uid, voice_id, language)
     return FileResponse(path, media_type=mime_type, headers={"Cache-Control": "private, max-age=3600"})
 
 

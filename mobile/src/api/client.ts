@@ -118,7 +118,8 @@ export const api = {
   audio: (id: string) => cached(['audio', id], async () => { const result = await apiRequest<AudioMetadata>(`/api/v1/me/briefings/${encodeURIComponent(id)}/audio`); return result.audio_url && !/^https?:\/\//i.test(result.audio_url) ? { ...result, audio_url: `${API_BASE_URL}${result.audio_url}` } : result; }),
   saveBriefingListeningProgress: (id: string, progressSeconds: number, durationSeconds: number) => apiRequest<{ status: string; completed: boolean }>(`/api/v1/me/briefings/${encodeURIComponent(id)}/progress`, { method: 'PUT', body: JSON.stringify({ progress_seconds: progressSeconds, duration_seconds: durationSeconds }) }),
   retryDeliveryAudio: (id: string) => apiRequest<any>(`/api/v1/me/briefings/${encodeURIComponent(id)}/audio/retry`, { method: 'POST' }),
-  audioVoices: async () => { const catalog = await apiRequest<AudioVoiceCatalog>('/api/v1/me/audio/voices'); return { ...catalog, voices: catalog.voices.map(voice => ({ ...voice, preview_url: `${API_BASE_URL}${voice.preview_url}` })) }; },
+  // `language` lists the voices of a language not saved yet (onboarding); their previews follow it.
+  audioVoices: async (language?: string) => { const query = language ? `language=${encodeURIComponent(language)}` : ''; const catalog = await apiRequest<AudioVoiceCatalog>(`/api/v1/me/audio/voices${query ? `?${query}` : ''}`); return { ...catalog, voices: catalog.voices.map(voice => ({ ...voice, preview_url: `${API_BASE_URL}${voice.preview_url}${query ? `${voice.preview_url.includes('?') ? '&' : '?'}${query}` : ''}` })) }; },
   registerDevice: (body: any) => apiRequest<any>('/api/v1/me/devices', { method: 'POST', body: JSON.stringify(body) }),
   disableDevice: (id: string) => apiRequest<any>(`/api/v1/me/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   notificationSettings: () => apiRequest<NotificationSettings>('/api/v1/me/notification-settings'),

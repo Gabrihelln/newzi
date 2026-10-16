@@ -847,8 +847,16 @@ class ProductService:
         if not audio_path: raise not_found("audio not available")
         return audio_path, result["mime_type"]
 
-    def voice_preview(self, uid, voice_id):
-        language=self.repo.get_preferences(uid)["language"]
+    def voice_language(self, uid, requested=None):
+        """Onboarding lists voices for the language just picked, before it is saved; otherwise the saved one."""
+        if requested in {"pt-BR", "en"}: return requested
+        return (self.repo.get_preferences(uid) or {}).get("language") or self.config.default_language
+
+    def voice_catalog(self, uid, language=None):
+        return self.audio.voice_catalog(self.voice_language(uid,language))
+
+    def voice_preview(self, uid, voice_id, language=None):
+        language=self.voice_language(uid,language)
         if voice_id not in {voice["id"] for voice in self.audio.available_voices(language)}: raise not_found("voice not available")
         try: preview=self.audio.voice_preview(voice_id,language)
         except Exception: raise ApiError("VOICE_PREVIEW_UNAVAILABLE","voice preview unavailable",503) from None

@@ -821,7 +821,7 @@ class AudioService:
             public = {key: value for key, value in profile.items() if key not in ("provider_voice", "languages")}
             public["preview_url"] = f"/api/v1/me/audio/voices/{profile['id']}/preview?v={self.provider.version}"
             voices.append(public)
-        return {"voices": voices, "default_voice_id": self.default_voice(language)}
+        return {"voices": voices, "default_voice_id": self.default_voice(language), "preview_text": PREVIEW_TEXT.get(language, PREVIEW_TEXT["pt-BR"])}
 
     def voice_preview(self, voice_id, language="pt-BR"):
         provider_voice = self._provider_voice(voice_id, language)

@@ -16,7 +16,7 @@ export type Preferences = { user_id?: string; topics: string[]; content_scope?: 
 /** When the next new briefing arrives; once today's is made, a new time only starts tomorrow. */
 export type NextBriefing = { date: string; time: string; day: 'TODAY' | 'TOMORROW' };
 export type AudioVoice = { id: string; name: string; description: string; language: string; gender: 'female' | 'male'; preview_url: string };
-export type AudioVoiceCatalog = { voices: AudioVoice[]; default_voice_id: string | null };
+export type AudioVoiceCatalog = { voices: AudioVoice[]; default_voice_id: string | null; preview_text?: string };
 export type Onboarding = { status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED'; preferences: Preferences };
 export type BriefingSource = { name?: string; publisher?: string; url: string; article_id?: string; published_at?: string };
 export type BriefingItem = { id: string; position: number; headline: string; summary: string; category?: string | null; primary_taxonomy_id?: string | null; primary_taxonomy_label?: string | null; why_it_matters?: string | null; key_points: string[]; confidence?: number; evidence_quality?: string; warnings?: string[]; summary_provider?: string; sources: BriefingSource[]; published_at?: string | null; image_url?: string | null; reading_time_minutes?: number; trending?: { rank: number; outlets: number } };

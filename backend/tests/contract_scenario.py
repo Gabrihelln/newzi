@@ -112,7 +112,10 @@ def run(base_url, seed):
 
     # Voices
     call("voices", "GET", "/api/v1/me/audio/voices", token=ta)
+    # Onboarding lists the voices of the language just picked, before saving it.
+    call("voices for another language", "GET", "/api/v1/me/audio/voices?language=en", token=ta)
     call("voice preview", "GET", "/api/v1/me/audio/voices/newzi_clara/preview", token=ta)
+    call("voice preview for another language", "GET", "/api/v1/me/audio/voices/newzi_jenny/preview?language=en", token=ta)
     call("voice preview unknown", "GET", "/api/v1/me/audio/voices/nobody/preview", token=ta)
 
     # News and articles

@@ -17942,12 +17942,161 @@
      "preview_url": "/api/v1/me/audio/voices/newzi_giuseppe/preview?v=7.2.7-rate-2"
     }
    ],
-   "default_voice_id": "newzi_clara"
+   "default_voice_id": "newzi_clara",
+   "preview_text": "Bom dia. Este é o seu resumo Newzi, com as histórias mais importantes selecionadas para você acompanhar o dia com clareza."
+  }
+ },
+ {
+  "step": "voices for another language",
+  "request": "GET /api/v1/me/audio/voices?language=en",
+  "status": 200,
+  "body": {
+   "voices": [
+    {
+     "id": "newzi_ava",
+     "name": "Ava",
+     "description": "Voz feminina multilíngue, expressiva e acolhedora",
+     "language": "en",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_ava/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_andrew",
+     "name": "Andrew",
+     "description": "Voz masculina multilíngue, calorosa e confiante",
+     "language": "en",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_andrew/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_emma",
+     "name": "Emma",
+     "description": "Voz feminina multilíngue, clara e conversacional",
+     "language": "en",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_emma/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_brian",
+     "name": "Brian",
+     "description": "Voz masculina multilíngue, casual e sincera",
+     "language": "en",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_brian/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_william",
+     "name": "William",
+     "description": "Voz masculina multilíngue, amigável",
+     "language": "en",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_william/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_seraphina",
+     "name": "Seraphina",
+     "description": "Voz feminina multilíngue, amigável",
+     "language": "pt-BR",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_seraphina/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_florian",
+     "name": "Florian",
+     "description": "Voz masculina multilíngue, amigável",
+     "language": "pt-BR",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_florian/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_vivienne",
+     "name": "Vivienne",
+     "description": "Voz feminina multilíngue, amigável",
+     "language": "pt-BR",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_vivienne/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_remy",
+     "name": "Remy",
+     "description": "Voz masculina multilíngue, amigável",
+     "language": "pt-BR",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_remy/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_giuseppe",
+     "name": "Giuseppe",
+     "description": "Voz masculina multilíngue, amigável",
+     "language": "pt-BR",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_giuseppe/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_jenny",
+     "name": "Jenny",
+     "description": "English (US) female voice, friendly and warm",
+     "language": "en",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_jenny/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_aria",
+     "name": "Aria",
+     "description": "English (US) female voice, confident",
+     "language": "en",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_aria/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_christopher",
+     "name": "Christopher",
+     "description": "English (US) male voice, reliable and authoritative",
+     "language": "en",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_christopher/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_guy",
+     "name": "Guy",
+     "description": "English (US) male voice, passionate",
+     "language": "en",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_guy/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_sonia",
+     "name": "Sonia",
+     "description": "English (UK) female voice",
+     "language": "en",
+     "gender": "female",
+     "preview_url": "/api/v1/me/audio/voices/newzi_sonia/preview?v=7.2.7-rate-2"
+    },
+    {
+     "id": "newzi_ryan",
+     "name": "Ryan",
+     "description": "English (UK) male voice",
+     "language": "en",
+     "gender": "male",
+     "preview_url": "/api/v1/me/audio/voices/newzi_ryan/preview?v=7.2.7-rate-2"
+    }
+   ],
+   "default_voice_id": "newzi_ava",
+   "preview_text": "Good morning. This is your Newzi briefing, with the most important stories selected to help you follow the day clearly."
   }
  },
  {
   "step": "voice preview",
   "request": "GET /api/v1/me/audio/voices/newzi_clara/preview",
+  "status": 200,
+  "body": {
+   "content_type": "audio/mpeg",
+   "non_empty": true
+  }
+ },
+ {
+  "step": "voice preview for another language",
+  "request": "GET /api/v1/me/audio/voices/newzi_jenny/preview?language=en",
   "status": 200,
   "body": {
    "content_type": "audio/mpeg",
