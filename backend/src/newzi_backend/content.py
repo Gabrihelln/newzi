@@ -13,6 +13,30 @@ from newzi_engine.topic_registry import taxonomy
 from .timeutil import iso, now_iso, parse
 
 INDEX_VERSION = "content-index-v1"
+# Longest the worker keeps the database write lock while indexing or clustering.
+WRITE_HOLD_SECONDS = 0.2
+
+
+class ShortWrites:
+    """Keeps the worker's writes in short transactions.
+
+    SQLite has one writer at a time, and a Python connection keeps the write lock from its first write
+    until it commits. An indexing run used to commit once at the end, and clustering ran its CPU-heavy
+    comparisons with writes still pending, so for tens of seconds every write from the API (a device
+    registration, a notification switch) waited until the phone gave up. Commit at least every
+    WRITE_HOLD_SECONDS, and always before slow work.
+    """
+    def __init__(self, repo, hold=WRITE_HOLD_SECONDS):
+        self.repo = repo; self.hold = hold; self.since = time.perf_counter()
+
+    def release(self):
+        if self.repo.db.in_transaction:
+            self.repo.db.commit()
+        self.since = time.perf_counter()
+
+    def checkpoint(self):
+        if time.perf_counter() - self.since >= self.hold:
+            self.release()
 # Users with many interests get a longer briefing (up to this size) instead of losing topics.
 MAX_EXPANDED_BRIEFING_SIZE = 20
 # Outlets listed for one story: the chosen article plus others covering the same event.
@@ -172,6 +196,7 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
     metrics = {"articles_seen": 0, "classification_count": 0, "cache_hits": 0,
                "articles_new": 0, "articles_updated": 0, "articles_unchanged": 0,
                "public_content_changed": 0}
+    writes = ShortWrites(repo)
     for article in articles:
         if not article.url.startswith(("http://", "https://")) or not article.title:
             continue
@@ -190,7 +215,10 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
             repo.db.execute("UPDATE indexed_content SET source_name=?,source_id=?,source_country=?,published_at=?,image_url=COALESCE(?,image_url),image_source=COALESCE(?,image_source),image_checked_at=COALESCE(?,image_checked_at),quality_score=?,last_seen_at=?,ingested_at=?,ingestion_run_id=COALESCE(?,ingestion_run_id) WHERE id=?",(article.source_name,article.source_id,country,published_iso,article.image_url,article.image_source,article.image_checked_at,quality,seen_iso,seen_iso,ingestion_run_id,article.article_id))
             metrics["cache_hits"] += 1
             metrics["articles_unchanged"] += 1
+            writes.checkpoint()
             continue
+        # Classifying takes a while: never do it holding the write lock.
+        writes.release()
         classification_started=time.perf_counter()
         classification = classify_for_index(article, sources.get(article.source_id, {}).get("categories", []))
         classification_ms+=int((time.perf_counter()-classification_started)*1000)
@@ -217,6 +245,7 @@ def sync_content(repo, articles=None, ingestion_run_id=None, advance_revision=Tr
             else:
                 metrics["articles_new"] += 1
             metrics["public_content_changed"] += 1
+        writes.checkpoint()
     repo.db.commit()
     if metrics["public_content_changed"] and advance_revision:
         current_revision += 1
@@ -374,7 +403,10 @@ def _cluster_incremental_content(repo, changed_articles):
     considered=events_touched=events_created=events_updated=assignments=comparisons=possible_pairs=0
     cluster_phase_ms=0.0; feature_ms=candidate_ms=prune_ms=similarity_ms=0.0
     claimed=set()  # an event split in two keeps its id on one side only
+    writes=ShortWrites(repo)
     for group in groups:
+        # The previous window's event ids are saved before this window's comparisons, which take seconds.
+        writes.release()
         lower=iso(group[0].published_at-window)
         upper=iso(group[-1].published_at+window)
         rows=repo.db.execute("""SELECT c.id,c.title,c.description,c.url,c.source_name,c.source_id,

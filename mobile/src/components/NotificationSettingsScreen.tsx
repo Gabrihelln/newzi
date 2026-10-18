@@ -44,9 +44,11 @@ export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
     return () => listener.remove();
   }, [refreshPermission]);
 
-  // Each switch saves on its own, right away: there is no save button.
+  // Each switch saves on its own, right away: there is no save button. Turning a notice on while the phone
+  // blocks notifications also asks for the system permission, since nothing would arrive without it.
   const change = async (field: Field, value: boolean) => {
     if (!settings || saving[field]) return;
+    if (value && permission !== null && !isPushAllowed(permission) && !asking) void allowNotifications();
     setMessage('');
     setSaving(current => ({ ...current, [field]: true }));
     setSettings(current => current && { ...current, [field]: value });

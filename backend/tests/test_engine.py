@@ -597,3 +597,26 @@ def test_subscription_plans_and_access(tmp_path, monkeypatch):
     assert subscription_for(repo, uid, now)["tier"] == "basic"                  # expired
     monkeypatch.setenv("BILLING_ENABLED", "1")
     assert subscription_for(repo, uid, now)["purchases_enabled"]
+
+
+def test_indexing_and_clustering_never_hold_the_write_lock_during_slow_work(repo, monkeypatch):
+    """API writes (a device registration, a notification switch) must not wait behind a news cycle."""
+    from newzi_backend import content
+    from newzi_engine.clustering import events
+    held = []
+    classify, cluster = content.classify_for_index, events.cluster_articles
+
+    def classify_checked(*args, **kwargs):
+        held.append(("classify", repo.db.in_transaction)); return classify(*args, **kwargs)
+
+    def cluster_checked(*args, **kwargs):
+        held.append(("cluster", repo.db.in_transaction)); return cluster(*args, **kwargs)
+    monkeypatch.setattr(content, "classify_for_index", classify_checked)
+    monkeypatch.setattr(events, "cluster_articles", cluster_checked)
+    stories = [story(f"s{index}", source, title, hours_ago=index)
+               for index, (source, title) in enumerate([("verge", "Google releases Gemini 4 Argon"), ("wired", "Google rolls out Gemini 4 Argon"),
+                                                        ("folha", "Filme sobre criador do ChatGPT é aclamado"), ("g1", "Chuva forte atinge São Paulo")])]
+    content.sync_content(repo, stories)
+    content._cluster_incremental_content(repo, stories)
+    assert {kind for kind, _ in held} == {"classify", "cluster"}
+    assert not any(in_transaction for _, in_transaction in held)
