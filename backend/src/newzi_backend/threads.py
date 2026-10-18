@@ -14,13 +14,18 @@ from collections import Counter, defaultdict
 
 # Share of a story's word weight two stories must have in common to be one story.
 THREAD_SIMILARITY = 0.4
-# A story joining a thread must also resemble the thread's first story, so threads cannot chain
-# ("Papa recebe alta" -> "Papa fala com Putin" -> ...).
-ANCHOR_SIMILARITY = 0.3
+# A story joining a thread must loosely resemble the thread's first story...
+ANCHOR_SIMILARITY = 0.25
+# ...and, once the thread has SUPPORT_FROM stories, closely resemble MIN_SUPPORT of them, so one
+# loosely related story cannot chain others into a big thread ("Papa recebe alta" -> "Papa fala com
+# Putin" -> ...). An update ("recebe alta" after "celebra missa no hospital") resembles several.
+MIN_SUPPORT = 2
+SUPPORT_FROM = 3
 # Two stories sharing fewer words are never one story, however rare the words.
 MIN_SHARED_WORDS = 3
-# One story is about the same someone or somewhere (Papa, Jottapê, Oregon): headline templates
+# One story is about the same someone or somewhere (Leão, Jottapê, Oregon): headline templates
 # ("X x Y: onde assistir", "Atuações do X: dê suas notas") share words but never their names.
+# The name must be uncommon: "EUA" or "Brasileirão" are in too many stories to prove anything.
 MIN_SHARED_NAMES = 1
 # Shared names (Lula, Flávio) say who a story is about, not what happened; two stories must also
 # share this many uncommon words about the fact itself (cirurgia, câncer, pulmão).
@@ -93,8 +98,8 @@ def stems(title, description=""):
     return frozenset(stem for stem, _ in _words(title, description))
 
 
-def _templates(ordered, names):
-    """{source id: words that outlet repeats in headlines about different names}.
+def _templates(ordered, words, names):
+    """{source id: words that outlet repeats in stories about different names}.
 
     A story's headlines keep naming the same someone ("Papa", "Leão"); a template's headlines name
     someone new each time ("Melhores momentos: Hamburg x Stuttgart", "... Dortmund ..."). A name the
@@ -102,7 +107,7 @@ def _templates(ordered, names):
     """
     by_source = defaultdict(list)
     for content in ordered:
-        by_source[content.get("source_id")].append(stems(content["title"]))
+        by_source[content.get("source_id")].append(words[content["id"]])   # headline and lead sentence
     templates = {}
     for source, headlines in by_source.items():
         found = frozenset()
@@ -125,8 +130,9 @@ def _templates(ordered, names):
 
 def _similarity(a, b, weight, names=frozenset(), uncommon=None, ignored=frozenset()):
     shared = (a & b) - ignored
-    facts = {word for word in shared - names if (uncommon is None or word in uncommon) and not _YEAR.fullmatch(word)}
-    if len(shared) < MIN_SHARED_WORDS or len(shared & names) < MIN_SHARED_NAMES or len(facts) < MIN_SHARED_FACT_WORDS:
+    rare = shared if uncommon is None else shared & uncommon
+    facts = {word for word in rare - names if not _YEAR.fullmatch(word)}
+    if len(shared) < MIN_SHARED_WORDS or len(rare & names) < MIN_SHARED_NAMES or len(facts) < MIN_SHARED_FACT_WORDS:
         return 0.0
     return sum(weight[word] for word in shared) / max(1e-9, min(sum(weight[word] for word in a), sum(weight[word] for word in b)))
 
@@ -156,7 +162,7 @@ def story_threads(contents):
     # Only words rare enough to tell stories apart are used to find candidate threads.
     rare_limit = max(8, int(total * 0.02))
     uncommon = frozenset(word for word, count in frequency.items() if count <= rare_limit)
-    templates = _templates(ordered, names)
+    templates = _templates(ordered, words, names)
     source_of = {content["id"]: content.get("source_id") for content in ordered}
     def similarity(story_id, other_id):
         ignored = templates.get(source_of[story_id], frozenset()) | templates.get(source_of[other_id], frozenset())
@@ -172,9 +178,11 @@ def story_threads(contents):
             candidates = {candidate for word in story_words if frequency[word] <= rare_limit for candidate in postings[word]}
             best, best_score = None, THREAD_SIMILARITY
             for candidate in sorted(candidates):
-                score = max(similarity(story_id, member) for member in members[candidate])
-                anchor = similarity(story_id, members[candidate][0])
-                if score >= best_score and anchor >= ANCHOR_SIMILARITY:
+                scores = [similarity(story_id, member) for member in members[candidate]]
+                score = max(scores)
+                support = sum(value >= THREAD_SIMILARITY for value in scores)
+                if (score >= best_score and scores[0] >= ANCHOR_SIMILARITY
+                        and support >= (MIN_SUPPORT if len(scores) >= SUPPORT_FROM else 1)):
                     best, best_score = candidate, score
             thread = best or event_id or story_id
         thread_of[story_id] = thread

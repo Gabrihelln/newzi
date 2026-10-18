@@ -251,6 +251,28 @@ def test_an_outlets_headline_template_is_not_a_story():
     assert len({threads[f"s{n}"] for n in range(8, 12)}) == 1
 
 
+def test_common_names_and_templated_descriptions_do_not_join_stories():
+    from newzi_backend.threads import story_threads
+    rows = [("Atuações da Ponte: Da Hora marca, mas defesa não resiste à pressão; dê suas notas", "ge",
+             "Confira as notas dos jogadores da Ponte na derrota pelo Brasileirão."),
+            ("Atuações do Mirassol: André Luís e Eduardo garantem vitória; dê suas notas", "ge",
+             "Confira as notas dos jogadores do Mirassol na vitória pelo Brasileirão."),
+            ("Atuações do Botafogo: Tiquinho é o melhor em vitória sobre a Chapecoense; dê suas notas", "ge",
+             "Confira as notas dos jogadores do Botafogo na vitória pelo Brasileirão."),
+            ("Atuações: Lucas muda o jogo e é o melhor em vitória do São Paulo; dê suas notas", "ge",
+             "Confira as notas dos jogadores do São Paulo na vitória pelo Brasileirão."),
+            ("Atuações do Vasco: Puma e Tchê Tchê são os piores em derrota; dê suas notas", "ge",
+             "Confira as notas dos jogadores do Vasco na derrota pelo Brasileirão."),
+            ("Eleições nos EUA: democratas superam republicanos na arrecadação de fundos", "g1", ""),
+            ("Déficit das contas públicas dos EUA sobe a US$ 1,99 trilhão, maior em 5 anos", "g1", "")]
+    filler = [(f"Prefeitura dos EUA anuncia obra número {n}", f"site{n}", "") for n in range(10)]   # "EUA" is common
+    contents = [{"id": f"s{n}", "title": title, "source_id": source, "description": description,
+                 "published_at": f"2026-10-17T{n % 24:02d}:00:00.000Z", "event_id": None}
+                for n, (title, source, description) in enumerate(rows + filler)]
+    threads = story_threads(contents)
+    assert len({threads[f"s{n}"] for n in range(len(rows))}) == len(rows)
+
+
 def test_old_stories_never_fill_a_briefing(repo):
     index(repo, "old", "ge", "Botafogo anuncia novo técnico", hours_ago=24 * 5, topic="SPORTS")
     index(repo, "recent", "lance", "Seleção é convocada para amistosos", hours_ago=30, topic="SPORTS")
