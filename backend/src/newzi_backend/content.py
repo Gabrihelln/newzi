@@ -495,10 +495,14 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     # A preview of a match that has been played is not news; nor is "começa neste sábado" on Sunday.
     for story_id in overtaken_stories([item["content"] for item in by_id.values()], briefing_date, now, tz):
         del by_id[story_id]
-    # Clustering stores one event_id per story covered by several outlets; a briefing tells each story once.
+    # A briefing tells each story once, through its latest coverage. Clustering keeps events narrow,
+    # so events of one ongoing story ("Papa celebra missa no hospital", "Papa recebe alta") are
+    # grouped into a thread; from here on "event" means that thread.
+    from .threads import story_threads
+    thread_of = story_threads([item["content"] for item in by_id.values()])
     event_members = {}
     for item in by_id.values():
-        event_members.setdefault(item["content"]["event_id"] or item["content"]["id"], []).append(item["content"])
+        event_members.setdefault(thread_of[item["content"]["id"]], []).append(item["content"])
     ranked = []
     from .scheduling import BriefingProfile
     profile_key = BriefingProfile(tuple(interests), language, briefing_size, country_scope).key()
@@ -507,7 +511,8 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     # previewed yesterday returns with its result); otherwise yesterday's news is not news.
     event_told, event_lead = {}, {}
     for event_id, members in event_members.items():
-        told = [told_at[key] for key in (event_id, *(member["id"] for member in members)) if key in told_at]
+        keys = {event_id} | {member["id"] for member in members} | {member["event_id"] for member in members if member["event_id"]}
+        told = [told_at[key] for key in keys if key in told_at]
         event_told[event_id] = max(told) if told else None
         event_lead[event_id] = _event_lead(members, language, since=event_told[event_id])
     def has_update(event_id):
@@ -534,7 +539,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         # win only within a relevance tier when no same-language story is comparable.
         same_language = str(content["source_language"] or "").split("-")[0].lower() == language.split("-")[0].lower()
         # A story several outlets cover matters more; the bonus stays far below one relevance tier.
-        event_id = content["event_id"] or content["id"]
+        event_id = thread_of[content["id"]]
         publishers = len({member["source_id"] for member in event_members[event_id]})
         score = ({"EXACT": 400, "HIERARCHICAL": 300, "BROADER": 200, "GLOBAL": 100}.get(level.removeprefix("EXTENDED_"), 0)
                  + freshness_bonus + match + content["quality_score"] - age_hours/24 + (30 if same_language else 0)

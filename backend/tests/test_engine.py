@@ -174,6 +174,59 @@ def test_a_headline_framed_for_a_past_day_is_left_out(repo):
     assert [item["event_id"] for item in sports_briefing(repo)] == ["fresh"]
 
 
+POPE = [("missa", "vatican", "Papa Leão XIV celebra missa no hospital após cirurgia para retirar câncer do pulmão", 40),
+        ("alta1", "folha", "Papa Leão XIV recebe alta após cirurgia para tratar câncer de pulmão", 24),
+        ("alta2", "g1", "Papa Leão 14 recebe alta do hospital, podendo voltar ao Vaticano", 21),
+        ("alta3", "uol", "Papa recebe alta do hospital depois de cirurgia para remover câncer no pulmão", 9)]
+
+
+def index_pope(repo, stories=POPE):
+    for article_id, source, title, hours in stories:   # clustering left each in its own event, as in production
+        index(repo, article_id, source, title, event_id=article_id, hours_ago=hours, topic="WORLD")
+    index(repo, "other", "bbc", "Terremoto atinge o Japão e deixa feridos", hours_ago=3, topic="WORLD")
+
+
+def world_briefing(repo, user_id=None):
+    from newzi_backend.content import compose
+    return compose(repo, ["WORLD"], "pt-BR", 5, now=NOW, briefing_date=NOW.date().isoformat(), user_id=user_id)["items"]
+
+
+def test_one_story_split_across_events_is_told_once_through_its_latest_state(repo):
+    index_pope(repo)
+    items = world_briefing(repo)
+    pope = [item for item in items if "Papa" in item["headline"]]
+    assert len(pope) == 1 and pope[0]["headline"] == "Papa recebe alta do hospital depois de cirurgia para remover câncer no pulmão"
+    assert len(items) == 2
+
+
+def test_a_story_told_while_ongoing_returns_with_its_update(repo):
+    index_pope(repo)
+    told_yesterday(repo, "any_profile", "missa", "missa", hours_ago=30)   # "still in hospital" was told
+    repo.db.execute("UPDATE briefing_editions SET user_id='reader'"); repo.db.commit()
+    pope = [item for item in world_briefing(repo, "reader") if "Papa" in item["headline"]]
+    assert [item["headline"] for item in pope] == ["Papa recebe alta do hospital depois de cirurgia para remover câncer no pulmão"]
+    assert "EVENT_UPDATE" in pope[0]["warnings"]
+
+
+def test_different_stories_about_the_same_people_stay_apart():
+    from newzi_backend.threads import story_threads
+    titles = ["Qual foi a diferença de votos entre Lula e Flávio Bolsonaro no primeiro turno?",
+              "Nova pesquisa: Flávio Bolsonaro e Lula empatam com 50% no segundo turno das eleições",
+              "Economia: Lula e Flávio divergem sobre ajuste fiscal e papel do Estado",
+              "Flávio Bolsonaro defende aumentar segurança e diz que fará de tudo para o pobre",
+              "Coligação de Lula aciona PGE e PF para apurar supostas vantagens da Meta à campanha",
+              "A crise global que Flávio Bolsonaro ou Lula terão de enfrentar se eleitos",
+              "Lula compara fim da 6x1 com Constituinte e fala em vitória da sociedade",
+              "Lula e Flávio Bolsonaro trocam ataques em debate na televisão",
+              "Flávio Bolsonaro visita o Nordeste em campanha pelo segundo turno",
+              "Lula grava programa eleitoral com aliados no segundo turno"]
+    filler = [f"Notícia número {n} sobre assunto {n} da cidade {n}" for n in range(40)]
+    contents = [{"id": f"s{n}", "title": title, "published_at": f"2026-10-17T{n % 24:02d}:00:00.000Z", "event_id": None}
+                for n, title in enumerate(titles + filler)]
+    threads = story_threads(contents)
+    assert len({threads[f"s{n}"] for n in range(len(titles))}) == len(titles)
+
+
 def test_old_stories_never_fill_a_briefing(repo):
     index(repo, "old", "ge", "Botafogo anuncia novo técnico", hours_ago=24 * 5, topic="SPORTS")
     index(repo, "recent", "lance", "Seleção é convocada para amistosos", hours_ago=30, topic="SPORTS")
