@@ -40,12 +40,14 @@
     "@react-native/metro-config": "0.86.3",
     "@react-native/typescript-config": "0.86.3",
     "@types/react": "^19.2.0",
+    "patch-package": "8.0.1",
     "typescript": "^5.8.3"
   },
   "scripts": {
     "start": "node scripts/adb-reverse.cjs && react-native start",
     "android": "node scripts/adb-reverse.cjs && react-native run-android",
     "ios": "react-native run-ios",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "patch-package"
   }
 }

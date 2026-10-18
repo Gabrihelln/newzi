@@ -1,0 +1,90 @@
+diff --git a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/VideoPlaybackService.kt b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/VideoPlaybackService.kt
+index 4760ea5..9fe8ef2 100644
+--- a/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/VideoPlaybackService.kt
++++ b/node_modules/react-native-video/android/src/main/java/com/brentvatne/exoplayer/VideoPlaybackService.kt
+@@ -67,6 +67,19 @@ class VideoPlaybackService : MediaSessionService() {
+ 
+         val notificationId = player.hashCode()
+         startForeground(notificationId, buildNotification(mediaSession))
++        // Newzi: the real media notification is up; drop the "Preparing playback" placeholder, which otherwise stays.
++        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(PLACEHOLDER_NOTIFICATION_ID)
++    }
++
++    // Newzi: the app's own status-bar icon (res/drawable/ic_notification) and brand color, like its other notifications.
++    private fun smallIcon(): Int {
++        val appIcon = resources.getIdentifier("ic_notification", "drawable", packageName)
++        return if (appIcon != 0) appIcon else androidx.media3.session.R.drawable.media3_icon_circular_play
++    }
++
++    private fun accentColor(): Int {
++        val color = resources.getIdentifier("notification_accent", "color", packageName)
++        return if (color != 0) getColor(color) else NotificationCompat.COLOR_DEFAULT
+     }
+ 
+     fun unregisterPlayer(player: ExoPlayer) {
+@@ -139,7 +152,8 @@ class VideoPlaybackService : MediaSessionService() {
+          */
+         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+             NotificationCompat.Builder(this, NOTIFICATION_CHANEL_ID)
+-                .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)
++                .setSmallIcon(smallIcon())
++                .setColor(accentColor())
+                 .setStyle(MediaStyleNotificationHelper.MediaStyle(session))
+                 .setContentIntent(PendingIntent.getActivity(this, 0, returnToPlayer, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+                 .build()
+@@ -185,7 +199,8 @@ class VideoPlaybackService : MediaSessionService() {
+             NotificationCompat.Builder(this, NOTIFICATION_CHANEL_ID)
+                 // Show controls on lock screen even when user hides sensitive content.
+                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+-                .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)
++                .setSmallIcon(smallIcon())
++                .setColor(accentColor())
+                 // Add media control buttons that invoke intents in your media service
+                 .addAction(androidx.media3.session.R.drawable.media3_icon_rewind, "Seek Backward", seekBackwardPendingIntent) // #0
+                 .addAction(
+@@ -203,7 +218,8 @@ class VideoPlaybackService : MediaSessionService() {
+                 .setContentTitle(session.player.mediaMetadata.title)
+                 .setContentText(session.player.mediaMetadata.description)
+                 .setContentIntent(PendingIntent.getActivity(this, 0, returnToPlayer, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+-                .setLargeIcon(session.player.mediaMetadata.artworkUri?.let { session.bitmapLoader.loadBitmap(it).get() })
++                // Newzi: an artwork that fails to load (404, offline) must not take the whole notification down.
++                .setLargeIcon(session.player.mediaMetadata.artworkUri?.let { runCatching { session.bitmapLoader.loadBitmap(it).get() }.getOrNull() })
+                 .setOngoing(true)
+                 .build()
+         }
+@@ -240,7 +256,8 @@ class VideoPlaybackService : MediaSessionService() {
+         }
+ 
+         return NotificationCompat.Builder(this, NOTIFICATION_CHANEL_ID)
+-            .setSmallIcon(androidx.media3.session.R.drawable.media3_icon_circular_play)
++            .setSmallIcon(smallIcon())
++            .setColor(accentColor())
+             .setContentTitle(getString(R.string.media_playback_notification_title))
+             .setContentText(getString(R.string.media_playback_notification_text))
+             .build()
+@@ -248,7 +265,14 @@ class VideoPlaybackService : MediaSessionService() {
+ 
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-            startForeground(PLACEHOLDER_NOTIFICATION_ID, createPlaceholderNotification())
++            // Newzi: with a player registered, stay in the foreground with its media notification instead of
++            // posting the placeholder again (it reappeared on every tap of a notification button).
++            val active = mediaSessionsList.values.firstOrNull()
++            if (active != null && active.player.currentMediaItem != null) {
++                startForeground(active.player.hashCode(), buildNotification(active))
++            } else {
++                startForeground(PLACEHOLDER_NOTIFICATION_ID, createPlaceholderNotification())
++            }
+         }
+ 
+         intent?.let {
+@@ -273,7 +297,8 @@ class VideoPlaybackService : MediaSessionService() {
+     }
+ 
+     companion object {
+-        private const val SEEK_INTERVAL_MS = 10000L
++        // Newzi: the notification skips match the app's 15-second buttons.
++        private const val SEEK_INTERVAL_MS = 15000L
+         private const val TAG = "VideoPlaybackService"
+         private const val PLACEHOLDER_NOTIFICATION_ID = 9999
+ 
