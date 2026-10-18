@@ -1,10 +1,11 @@
 import React from 'react';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../theme';
 
-export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor' | 'trash' | 'flag' | 'layers' | 'mic' | 'shield' | 'bellOff' | 'bolt' | 'info' | 'mail' | 'phone' | 'pin' | 'star' | 'plus' | 'apple' | 'google';
+export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor' | 'trash' | 'flag' | 'layers' | 'mic' | 'shield' | 'bellOff' | 'bolt' | 'info' | 'mail' | 'phone' | 'pin' | 'star' | 'plus' | 'apple' | 'google' | 'replay15' | 'forward15' | 'filter';
 
-export function Icon({ name, color: requested, size = 22 }: { name: IconName; color?: string; size?: number }) {
+/** `filled` paints the whole shape (a saved bookmark); otherwise icons are outlines. */
+export function Icon({ name, color: requested, size = 22, filled = false }: { name: IconName; color?: string; size?: number; filled?: boolean }) {
   const theme = useTheme();
   const color = requested ?? theme.colors.text;
   const stroke = { stroke: color, strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
@@ -18,6 +19,10 @@ export function Icon({ name, color: requested, size = 22 }: { name: IconName; co
     {name === 'apple' && <><Path d="M16.9 12.6c.1 2 1.5 2.7 1.6 2.8-.8 2.1-2.2 4.2-3.9 4.2-.9 0-1.3-.5-2.4-.5s-1.6.5-2.4.5c-1.7.1-3.2-2.3-4-4.4-1.6-3.5-.7-8.5 3.2-8.6 1 0 1.9.6 2.5.6.7 0 1.8-.7 3-.6 1.3.1 2.2.6 2.8 1.5-2.4 1.3-2.3 4.3-.2 5.5Z" fill={color} /><Path d="M14.5 5.5c.7-.8 1.1-1.9 1-3-1 .1-2.1.8-2.8 1.6-.7.8-1.1 1.8-1 2.8 1.1.1 2.1-.5 2.8-1.4Z" fill={color} /></>}
     {/* Google's "G" keeps its own colors whatever color is asked for. */}
     {name === 'google' && <><Path fill="#4285F4" d="M21.35 12.24c0-.71-.06-1.23-.2-1.78H12v3.55h5.37a4.8 4.8 0 0 1-1.98 3.14v2.6h3.18c1.86-1.72 2.78-4.25 2.78-7.51Z" /><Path fill="#34A853" d="M12 21.5c2.7 0 4.96-.9 6.62-2.45l-3.18-2.6c-.9.6-2.05.96-3.44.96-2.64 0-4.87-1.78-5.67-4.16H3.05v2.67A9.5 9.5 0 0 0 12 21.5Z" /><Path fill="#FBBC05" d="M6.33 13.25A5.8 5.8 0 0 1 6.03 12c0-.43.1-.85.3-1.25V8.08H3.05A9.5 9.5 0 0 0 2.5 12c0 1.53.37 2.99 1.05 4.25l3.28-3Z" /><Path fill="#EA4335" d="M12 6.59c1.47 0 2.8.5 3.84 1.53l2.86-2.87A9.22 9.22 0 0 0 12 2.5a9.5 9.5 0 0 0-8.95 5.58l3.28 2.67C7.13 8.37 9.36 6.59 12 6.59Z" /></>}
+    {/* 15-second skips: a clean circular arrow with the number inside, as in common players. */}
+    {name === 'replay15' && <><Path d="M5.2 8.6A8 8 0 1 1 4 12.8" {...stroke} /><Path d="M4.6 4.4v4.6h4.6" {...stroke} /><SvgText x="12.4" y="15.6" fontSize="8.4" fontWeight="800" fill={color} textAnchor="middle">15</SvgText></>}
+    {name === 'forward15' && <><Path d="M18.8 8.6A8 8 0 1 0 20 12.8" {...stroke} /><Path d="M19.4 4.4v4.6h-4.6" {...stroke} /><SvgText x="11.6" y="15.6" fontSize="8.4" fontWeight="800" fill={color} textAnchor="middle">15</SvgText></>}
+    {name === 'filter' && <Path d="M4 7h16M7 12h10M10 17h4" {...stroke} />}
     {name === 'bellOff' && <><Path d="M8.7 3.9A6 6 0 0 1 18 9c0 3.2.6 5 1.3 6.2M6.3 6.3A6 6 0 0 0 6 9c0 7-3 7-3 9h15" {...stroke} /><Path d="M10 21h4M3 3l18 18" {...stroke} /></>}
     {name === 'shield' && <><Path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6Z" {...stroke} /><Path d="m8.8 12 2.2 2.2 4.3-4.4" {...stroke} /></>}
     {name === 'bolt' && <Path d="M13 2.5 4.5 13.5H12l-1 8 8.5-11H12Z" {...stroke} />}
@@ -27,7 +32,7 @@ export function Icon({ name, color: requested, size = 22 }: { name: IconName; co
     {name === 'chevronDown' && <Path d="m5 9 7 7 7-7" {...stroke} />}
     {name === 'close' && <Path d="m6 6 12 12M18 6 6 18" {...stroke} />}
     {name === 'calendar' && <><Rect x="3" y="5" width="18" height="16" rx="2" {...stroke} /><Path d="M7 3v4m10-4v4M3 10h18m-13 4h2m4 0h2m-8 3h2" {...stroke} /></>}
-    {(name === 'bookmark' || name === 'saved') && <Path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z" {...stroke} />}
+    {(name === 'bookmark' || name === 'saved') && <Path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4Z" {...stroke} fill={filled ? color : 'none'} />}
     {name === 'clock' && <><Circle cx="12" cy="12" r="9" {...stroke} /><Path d="M12 7v5l3 2" {...stroke} /></>}
     {name === 'play' && <Path d="m8 5 12 7-12 7Z" fill={color} />}
     {name === 'pause' && <><Rect x="6" y="4" width="4" height="16" rx="1.5" fill={color} /><Rect x="14" y="4" width="4" height="16" rx="1.5" fill={color} /></>}

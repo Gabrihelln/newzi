@@ -248,6 +248,12 @@ login do Google precisa oferecer também "Entrar com a Apple" no iPhone, e é o 
 4. Testar no iPhone: entrar com Google, entrar com Apple (inclusive "Ocultar meu e-mail"), sair e entrar de
    novo, e excluir uma conta criada com a Apple.
 
+### 5.6.1 [ ] Barra de navegação em Liquid Glass (iOS 26)
+A barra flutuante usa `@callstack/liquid-glass` 0.8.2 (`LiquidGlassView`, `mobile/src/navigation/RootNavigator.tsx`):
+no iOS 26 ela vira vidro; em iOS anterior (e no Android, onde a biblioteca não tem código nativo) continua a barra
+sólida com sombra. **[Claude] no Mac:** `pod install`, compilar com o Xcode 26 e conferir a barra num iPhone com
+iOS 26, nos temas claro e escuro.
+
 ### 5.7 [x] Privacidade (PrivacyInfo.xcprivacy)
 O arquivo `mobile/ios/NewsEngineNative/PrivacyInfo.xcprivacy` já existe. Depois do `pod install`, confira se
 os motivos de uso de APIs sensíveis (UserDefaults, data de arquivos, espaço em disco, tempo de boot) estão

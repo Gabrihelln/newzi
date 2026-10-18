@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
-import { Image, Pressable, SafeAreaView, ScrollView, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StatusBar, Text, TextInput, View } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { changePasswordWithFirebase, friendlyFirebaseAuthError, hasPasswordSignIn } from '../services/firebaseAuth';
 import { isStrongEnough, passwordChecks } from '../services/passwordRules';
 import {typography, useStyles, useTheme, type Palette } from '../theme';
+import { AppHeader, TAB_GUTTER } from './AppHeader';
+import { absolutePhotoUrl, ProfileAvatar } from './SettingsKit';
 import { Icon } from './Icon';
-import { useLogo } from './brand';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import type { User } from '../types/api';
 import { PREMIUM_OFFERED } from '../config/store';
 
-const newTablet = require('../../assets/onboarding/new-tablet.png');
-const fallbackAvatar = require('../../assets/onboarding/new-waving.png');
 type ProfileRoute = 'EditProfile' | 'ContentPreferences' | 'NotificationSettings' | 'Appearance' | 'DailyBriefing' | 'SecurityPrivacy' | 'Account' | 'Subscription';
-type ProfileScreenProps = { user: User | null; onNavigate: (route: ProfileRoute) => void; onSearch: () => void; onLogout: () => void };
+type ProfileScreenProps = { user: User | null; onNavigate: (route: ProfileRoute) => void; onLogout: () => void };
 
 function memberSince(user?: User | null) {
   const value = firebaseAuth.currentUser?.metadata?.creationTime || user?.created_at;
@@ -22,30 +21,12 @@ function memberSince(user?: User | null) {
   return Number.isNaN(date.getTime()) ? 'Data de cadastro indisponível' : `Membro desde ${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(date)}`;
 }
 
-function ProfileHeader({ onSearch, onAvatar }: { onSearch: () => void; onAvatar: () => void }) {
-  const st = useStyles(makeStyles);
-  const theme = useTheme();
-  const { colors } = theme;
-  const [failed, setFailed] = useState(false);
-  const avatar = firebaseAuth.currentUser?.photoURL;
-  return <View style={st.header}>
-    <Image source={useLogo()} resizeMode="contain" accessibilityLabel="NEWZI" style={st.logo} />
-    <View style={st.headerRight}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Buscar notícias" onPress={onSearch} style={st.headerButton}><Icon name="search" color={colors.tone('#12264D', colors.ink)} size={25} /></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Abrir dados pessoais" onPress={onAvatar} style={st.headerAvatar}>{avatar && !failed ? <Image source={{ uri: avatar }} onError={() => setFailed(true)} style={st.avatarImage} /> : <Image source={fallbackAvatar} style={st.avatarImage} />}</Pressable>
-    </View>
-  </View>;
-}
-
 function ProfileHero() {
   const st = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  const { width } = useWindowDimensions();
   return <View style={st.hero}>
-    <View pointerEvents="none" style={[st.heroOrb, { width: width * .45, right: 12 }]} />
     <View style={st.heroCopy}><Text style={st.heroTitle}>Seu perfil</Text><Text style={st.heroSub}>Gerencie suas preferências{ '\n' }e personalize sua experiência.</Text></View>
-    <Image source={newTablet} resizeMode="contain" style={st.heroMascot} accessibilityLabel="New com um tablet" />
   </View>;
 }
 
@@ -53,12 +34,10 @@ function ProfileCard({ user, onEdit }: { user: User | null; onEdit: () => void }
   const st = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  const [failed, setFailed] = useState(false);
-  const avatar = firebaseAuth.currentUser?.photoURL;
   const name = user?.display_name?.trim() || firebaseAuth.currentUser?.displayName?.trim() || 'Sua conta';
   return <View style={st.profileCard}>
     <View style={st.profileAvatarWrap}>
-      {avatar && !failed ? <Image source={{ uri: avatar }} onError={() => setFailed(true)} style={st.profileAvatar} /> : <Image source={fallbackAvatar} style={st.profileAvatar} />}
+      <ProfileAvatar name={name} photo={firebaseAuth.currentUser?.photoURL || absolutePhotoUrl(user?.photo_url)} size={88} letters={2} />
       <Pressable accessibilityRole="button" accessibilityLabel="Editar foto do perfil" onPress={onEdit} style={st.cameraBadge}><Icon name="camera" color={colors.primary} size={22} /></Pressable>
     </View>
     <View style={st.profileCopy}><Text numberOfLines={1} style={st.profileName}>{name}</Text><Text numberOfLines={1} style={st.profileEmail}>{user?.email || firebaseAuth.currentUser?.email || 'E-mail indisponível'}</Text><Text numberOfLines={1} style={st.memberSince}>{memberSince(user)}</Text></View>
@@ -84,7 +63,7 @@ function ProfileSection({ title, subtitle, children }: { title: string; subtitle
   return <View style={st.section}><Text style={st.sectionTitle}>{title}</Text><Text style={st.sectionSubtitle}>{subtitle}</Text><View style={st.menuCard}>{children}</View></View>;
 }
 
-export function ProfileScreen({ user, onNavigate, onSearch, onLogout }: ProfileScreenProps) {
+export function ProfileScreen({ user, onNavigate, onLogout }: ProfileScreenProps) {
   const st = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
@@ -92,7 +71,7 @@ export function ProfileScreen({ user, onNavigate, onSearch, onLogout }: ProfileS
   return <SafeAreaView style={st.safe}>
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
     <ScrollView contentContainerStyle={[st.scrollContent, { paddingBottom: bottomPadding }]}>
-      <ProfileHeader onSearch={onSearch} onAvatar={() => onNavigate('Account')} />
+      <AppHeader onAvatar={() => onNavigate('Account')} />
       <ProfileHero />
       <ProfileCard user={user} onEdit={() => onNavigate('EditProfile')} />
       <ProfileSection title="Meu Newzi" subtitle="Personalize sua experiência e receba conteúdos mais relevantes.">
@@ -185,10 +164,10 @@ function InfoCard({ label, value }: { label: string; value: string }) { const st
 
 const makeStyles = (colors: Palette) => ({
   dialogBackdrop: { flex: 1, backgroundColor: colors.tone('#0A1E4466', colors.scrim), alignItems: 'center' as const, justifyContent: 'center' as const, padding: 24 }, dialogCard: { width: '100%' as const, maxWidth: 380, borderRadius: 24, backgroundColor: colors.surface, padding: 22, alignItems: 'stretch' as const }, dialogIcon: { alignSelf: 'center' as const, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.tone('#E4F1FF', colors.surfaceTint), alignItems: 'center' as const, justifyContent: 'center' as const, marginBottom: 12 }, dialogTitle: { textAlign: 'center' as const, color: colors.tone('#111B48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 19, fontWeight: '800' as const }, dialogBody: { textAlign: 'center' as const, color: colors.tone('#5E7296', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 14, lineHeight: 20, marginTop: 8 }, dialogSecondary: { minHeight: 44, alignItems: 'center' as const, justifyContent: 'center' as const, marginTop: 6 }, dialogSecondaryText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700' as const },
-  safe: { flex: 1, backgroundColor: colors.background } as const, scrollContent: { paddingHorizontal: 18, paddingTop: 5 } as const,
-  header: { height: 56, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: 3 }, logo: { width: 124, height: 44, marginLeft: -4 }, headerRight: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 }, headerButton: { width: 34, height: 42, alignItems: 'center' as const, justifyContent: 'center' as const }, headerAvatar: { width: 43, height: 43, borderRadius: 24, overflow: 'hidden' as const, backgroundColor: colors.surfaceTint, marginLeft: 2 }, avatarImage: { width: '100%' as const, height: '100%' as const },
-  hero: { height: 131, justifyContent: 'center' as const, marginHorizontal: 1, position: 'relative' as const, overflow: 'hidden' as const }, heroOrb: { position: 'absolute' as const, height: 112, bottom: -20, borderRadius: 70, backgroundColor: colors.surfaceTint }, heroCopy: { zIndex: 1, width: '69%' as const, paddingLeft: 3 }, heroTitle: { color: colors.tone('#101A48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 34, lineHeight: 40, fontWeight: '800' as const, letterSpacing: -.8 }, heroSub: { color: colors.tone('#64799E', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 16, lineHeight: 20, marginTop: 2 }, heroMascot: { position: 'absolute' as const, width: 199, height: 154, right: -10, bottom: -12 },
-  profileCard: { minHeight: 139, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 25, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tone('#EFF5FA', colors.divider), marginBottom: 21, shadowColor: colors.tone('#7797BA', colors.shadow.color), shadowOpacity: .08, shadowRadius: 11, shadowOffset: { width: 0, height: 4 }, elevation: 2 }, profileAvatarWrap: { width: 88, height: 88, flexShrink: 0, position: 'relative' as const }, profileAvatar: { width: 88, height: 88, borderRadius: 46, backgroundColor: colors.surfaceTint }, cameraBadge: { position: 'absolute' as const, width: 38, height: 38, borderRadius: 20, right: -3, bottom: -1, backgroundColor: colors.surface, alignItems: 'center' as const, justifyContent: 'center' as const, shadowColor: colors.tone('#6382A5', colors.shadow.color), shadowOpacity: .15, shadowRadius: 5, elevation: 2 }, profileCopy: { flex: 1, minWidth: 0 }, profileName: { color: colors.tone('#101A48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 21, fontWeight: '800' as const }, profileEmail: { color: colors.tone('#657A9D', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 13, marginTop: 3 }, memberSince: { color: colors.tone('#657A9D', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, marginTop: 3 }, editButton: { minHeight: 45, minWidth: 105, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, paddingHorizontal: 9, borderRadius: 14, borderWidth: 1.2, borderColor: colors.primary, backgroundColor: colors.background }, editText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' as const },
+  safe: { flex: 1, backgroundColor: colors.background } as const, scrollContent: { paddingHorizontal: TAB_GUTTER, paddingTop: 0 } as const,
+  
+  hero: { justifyContent: 'center' as const, marginHorizontal: 1, marginTop: 4, marginBottom: 18 }, heroCopy: { paddingLeft: 3 }, heroTitle: { color: colors.tone('#101A48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 34, lineHeight: 40, fontWeight: '800' as const, letterSpacing: -.8 }, heroSub: { color: colors.tone('#64799E', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 16, lineHeight: 20, marginTop: 2 }, 
+  profileCard: { minHeight: 139, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 25, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tone('#EFF5FA', colors.divider), marginBottom: 21, shadowColor: colors.tone('#7797BA', colors.shadow.color), shadowOpacity: .08, shadowRadius: 11, shadowOffset: { width: 0, height: 4 }, elevation: 2 }, profileAvatarWrap: { width: 88, height: 88, flexShrink: 0, position: 'relative' as const }, cameraBadge: { position: 'absolute' as const, width: 38, height: 38, borderRadius: 20, right: -3, bottom: -1, backgroundColor: colors.surface, alignItems: 'center' as const, justifyContent: 'center' as const, shadowColor: colors.tone('#6382A5', colors.shadow.color), shadowOpacity: .15, shadowRadius: 5, elevation: 2 }, profileCopy: { flex: 1, minWidth: 0 }, profileName: { color: colors.tone('#101A48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 21, fontWeight: '800' as const }, profileEmail: { color: colors.tone('#657A9D', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 13, marginTop: 3 }, memberSince: { color: colors.tone('#657A9D', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, marginTop: 3 }, editButton: { minHeight: 45, minWidth: 105, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, paddingHorizontal: 9, borderRadius: 14, borderWidth: 1.2, borderColor: colors.primary, backgroundColor: colors.background }, editText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' as const },
   section: { marginBottom: 16 }, sectionTitle: { color: colors.tone('#111B48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 20, lineHeight: 25, fontWeight: '800' as const, letterSpacing: -.4 }, sectionSubtitle: { color: colors.tone('#687D9F', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 13, lineHeight: 18, marginTop: 1, marginBottom: 8 }, menuCard: { backgroundColor: colors.surface, borderRadius: 25, paddingHorizontal: 12, borderWidth: 1, borderColor: colors.tone('#F0F5FA', colors.divider), shadowColor: colors.tone('#7797BA', colors.shadow.color), shadowOpacity: .06, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 }, menuRow: { minHeight: 78, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingVertical: 9 }, menuRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider }, menuIconBox: { width: 49, height: 49, borderRadius: 14, alignItems: 'center' as const, justifyContent: 'center' as const, flexShrink: 0 }, menuCopy: { flex: 1, minWidth: 0 }, menuTitle: { color: colors.tone('#111B48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '700' as const }, menuSubtitle: { color: colors.tone('#6B80A0', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 16, marginTop: 2 },
   secondaryContent: { paddingHorizontal: 18, paddingTop: 7, paddingBottom: 42 }, secondaryHeader: { height: 54, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: 16 }, backButton: { width: 42, height: 46, justifyContent: 'center' as const }, backGlyph: { color: colors.tone('#667C9F', colors.secondary), fontSize: 34 }, secondaryTitle: { flex: 1, textAlign: 'center' as const, color: colors.tone('#101A48', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 19, fontWeight: '800' as const }, pageIntro: { color: colors.tone('#657A9D', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 15, lineHeight: 21, marginBottom: 16 }, formLabel: { color: colors.tone('#16254A', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700' as const, marginTop: 14, marginBottom: 7 }, input: { minHeight: 50, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 15, color: colors.tone('#16254A', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 15 }, readonly: { justifyContent: 'center' as const }, readonlyText: { color: colors.tone('#7486A4', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 15 }, helper: { color: colors.tone('#7688A4', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 17, marginTop: 7 }, timeCard: { borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 15, paddingVertical: 6 }, logout: { minHeight: 50, borderRadius: 25, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center' as const, justifyContent: 'center' as const, marginTop: 4, marginBottom: 12 }, logoutText: { color: colors.danger, fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '700' as const }, formMessage: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 13, marginTop: 12 }, actionButton: { minHeight: 50, borderRadius: 25, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.primary, marginTop: 18, paddingHorizontal: 20 }, actionButtonText: { color: colors.onPrimary, fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '700' as const },
   preferenceGrid: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 9 }, topicChoice: { minHeight: 50, minWidth: '47%' as const, maxWidth: '49%' as const, flexGrow: 1, borderRadius: 16, borderWidth: 1, borderColor: colors.tone('#E4EDF7', colors.border), backgroundColor: colors.surface, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: 12 }, topicChoiceText: { flex: 1, color: colors.tone('#344866', colors.body), fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '600' as const }, checkMark: { width: 20, color: colors.onPrimary, fontSize: 16, fontWeight: '800' as const }, choiceLine: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, marginBottom: 5 }, sizeChoice: { minHeight: 40, borderRadius: 14, borderWidth: 1, borderColor: colors.tone('#E2ECF6', colors.border), backgroundColor: colors.surface, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 11 }, sizeChoiceActive: { borderColor: colors.primary, backgroundColor: colors.surfaceTint }, sizeChoiceText: { color: colors.tone('#5D7192', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '600' as const }, voiceRow: { minHeight: 66, flexDirection: 'row' as const, alignItems: 'center' as const, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.tone('#E6EEF7', colors.border), paddingHorizontal: 14, marginTop: 14 }, audioToggle: { minHeight: 57, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: 4, marginTop: 8 },

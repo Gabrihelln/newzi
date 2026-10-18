@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, ImageBackground, Pressable, RefreshControl, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { api, ClientError } from '../api/client';
@@ -7,13 +7,12 @@ import {typography, useStyles, useTheme, type Palette } from '../theme';
 import type { BriefingItem, Preferences, Topic, User } from '../types/api';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import { useContentRevisionTick } from '../services/contentRevision';
+import { AppHeader, TAB_GUTTER } from './AppHeader';
 import { Icon } from './Icon';
-import { useLogo } from './brand';
 import { LiveMatchCard } from './LiveMatchCard';
 import { TopicIcon, topicIconFor } from './TopicIcon';
 import { ArticleImage } from './ArticleImage';
 
-const mascotFallback = require('../../assets/onboarding/new-waving.png');
 const topicColorsFor = (colors: Palette) => [
   { background: colors.tone('#E5F2FF', colors.surfaceTint), color: colors.primary }, { background: colors.topicPurple.background, color: colors.topicPurple.icon },
   { background: colors.topicGreen.background, color: colors.tone('#12A965', colors.topicGreen.icon) }, { background: colors.topicOrange.background, color: colors.topicOrange.icon },
@@ -21,7 +20,7 @@ const topicColorsFor = (colors: Palette) => [
 ];
 type ExplorePayload = { topics: Topic[]; latest_news: BriefingItem[]; preferences?: Pick<Preferences, 'topics' | 'content_scope'> };
 type SortMode = 'relevant' | 'recent' | 'alpha';
-type Trend = { topic: Topic; count: number; newest: number };
+type Trend = { topic: Topic; count: number; newest: number; today: number };
 type DisplayTopic = Topic & { presentation_depth: number };
 const payloadCache = new Map<string, { value: ExplorePayload; at: number }>();
 
@@ -29,8 +28,9 @@ const topicKey = (topic: Topic) => topic.id || topic.code;
 const displayName = (topic: Topic) => topic.name || topic.label || topic.code;
 export const colorFor = (index: number, colors: Palette) => { const list = topicColorsFor(colors); return list[index % list.length]; };
 
-export function ExploreScreen({ user, onTopic, onDetail, onProfile, onFootball }: {
+export function ExploreScreen({ user, onTopic, onDetail, onProfile, onFootball, onEditTopics }: {
   user: User | null;
+  onEditTopics: () => void;
   onTopic: (topic: Topic) => void;
   onDetail: (story: BriefingItem) => void;
   onProfile: () => void;
@@ -56,9 +56,7 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile, onFootball }
   const [sortOpen, setSortOpen] = useState(false);
   const [allTrending, setAllTrending] = useState(false);
   const [allTopics, setAllTopics] = useState(false);
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const userId = firebaseAuth.currentUser?.uid || user?.id || 'anonymous';
-  const avatarUrl = firebaseAuth.currentUser?.photoURL;
   const topics = payload?.topics || [];
   const stories = payload?.latest_news || [];
   const topicMap = useMemo(() => new Map(topics.map(topic => [topic.code, topic])), [topics]);
@@ -113,8 +111,9 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile, onFootball }
       const topic = topicMap.get(code) || topics.find(item => displayName(item).toLocaleLowerCase('pt-BR') === (story.primary_taxonomy_label || story.category || '').toLocaleLowerCase('pt-BR'));
       if (!topic) return;
       const key = topicKey(topic);
-      const current = ranked.get(key) || { topic, count: 0, newest: Number.MAX_SAFE_INTEGER };
+      const current = ranked.get(key) || { topic, count: 0, newest: Number.MAX_SAFE_INTEGER, today: 0 };
       current.count += 1;
+      if (story.published_at && new Date(story.published_at).toDateString() === new Date().toDateString()) current.today += 1;
       current.newest = Math.min(current.newest, index);
       ranked.set(key, current);
     });
@@ -163,13 +162,12 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile, onFootball }
   const maxCount = topics.reduce((maximum, topic) => Math.max(maximum, topic.content_count || 0), 1);
   const matchingTopics = query.trim().length >= 2 ? topics.filter(topic => `${displayName(topic)} ${topic.description || ''} ${topic.code}`.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))).slice(0, 4) : [];
   const shownTrends = allTrending ? trends : trends.slice(0, 5);
-  const focusSearch = () => searchRef.current?.focus();
   const refresh = () => { setRefreshing(true); setLoading(false); void load(true); };
   const openTopic = (topic: Topic) => { setSelectedTopic(topicKey(topic)); onTopic(topic); };
 
   const intro = <ExploreIntro
-    width={width} user={user} avatarUrl={avatarUrl && !avatarFailed ? avatarUrl : undefined}
-    onAvatarError={() => setAvatarFailed(true)} onSearch={focusSearch} onProfile={onProfile}
+    width={width} user={user}
+    onProfile={onProfile} onEditTopics={onEditTopics}
     searchRef={searchRef} query={query} onQuery={setQuery} topics={myTopics} trends={shownTrends}
     selectedTopic={selectedTopic} onSelectTopic={openTopic} loading={loading} error={error} onRetry={() => { setLoading(true); void load(true); }}
     matchingTopics={matchingTopics} remoteMatches={remoteMatches} searchError={searchError} searching={searching}
@@ -203,7 +201,7 @@ export function ExploreScreen({ user, onTopic, onDetail, onProfile, onFootball }
 }
 
 function ExploreIntro(props: {
-  width: number; user: User | null; avatarUrl?: string; onAvatarError: () => void; onSearch: () => void; onProfile: () => void;
+  width: number; user: User | null; onProfile: () => void; onEditTopics: () => void;
   searchRef: React.RefObject<TextInput | null>; query: string; onQuery: (value: string) => void; topics: Topic[]; trends: Trend[]; selectedTopic: string | null; onSelectTopic: (topic: Topic) => void;
   loading: boolean; error: string; onRetry: () => void; matchingTopics: Topic[]; remoteMatches: BriefingItem[]; searchError: string; searching: boolean; onDetail: (story: BriefingItem) => void; onFootball: () => void;
   sort: SortMode; sortOpen: boolean; onToggleSort: () => void; onSort: (value: SortMode) => void; allTrending: boolean; onShowAllTrending: () => void;
@@ -213,41 +211,29 @@ function ExploreIntro(props: {
   const { colors } = theme;
   const topicWidth = Math.max(104, Math.min(126, (props.width - 62) / 5.2));
   return <View>
-      <ExploreHeader user={props.user} avatarUrl={props.avatarUrl} onAvatarError={props.onAvatarError} onSearch={props.onSearch} onProfile={props.onProfile} />
+      <AppHeader onAvatar={props.onProfile} />
     <ExploreHero />
     <ExploreSearch ref={props.searchRef} query={props.query} onChange={props.onQuery} />
     {props.query.trim().length >= 2 && <SearchMatches topics={props.matchingTopics} stories={props.remoteMatches} loading={props.searching} error={props.searchError} onTopic={props.onSelectTopic} onDetail={props.onDetail} />}
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>Seus assuntos</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Editar seus assuntos" onPress={props.onEditTopics} hitSlop={8} style={styles.linkRow}><Icon name="edit" color={colors.primary} size={15} /><Text style={styles.linkText}> Editar</Text></Pressable>
+    </View>
     <View style={styles.topicCarousel}>
       {props.loading ? <HorizontalSkeletons cardWidth={topicWidth} /> : props.error ? <InlineRetry message={props.error} onRetry={props.onRetry} /> : props.topics.length ? <FlatList horizontal data={props.topics} keyExtractor={topicKey} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalContent} renderItem={({ item, index }) => <TopTopicCard topic={item} index={index} width={topicWidth} selected={props.selectedTopic === topicKey(item)} onPress={() => props.onSelectTopic(item)} />} /> : <Text style={styles.emptyText}>Nenhum assunto disponível no momento.</Text>}
     </View>
     <View style={styles.section}>
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Em alta no momento</Text><Pressable accessibilityRole="button" onPress={props.onShowAllTrending} style={styles.linkRow}><Text style={styles.linkText}>{props.allTrending ? 'Ver menos' : 'Ver todos'}</Text><Icon name="chevron" color={colors.primary} size={16} /></Pressable></View>
-      {props.loading ? <HorizontalSkeletons cardWidth={188} dark /> : props.error ? <Text style={styles.emptyText}>Assuntos em alta indisponíveis.</Text> : props.trends.length ? <FlatList horizontal data={props.trends} keyExtractor={item => topicKey(item.topic)} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalContent} renderItem={({ item, index }) => <TrendingCard trend={item} rank={index + 1} onPress={() => props.onSelectTopic(item.topic)} />} /> : <Text style={styles.emptyText}>Ainda não há notícias recentes para calcular os assuntos em alta.</Text>}
+      {props.loading ? <HorizontalSkeletons cardWidth={214} dark /> : props.error ? <Text style={styles.emptyText}>Assuntos em alta indisponíveis.</Text> : props.trends.length ? <FlatList horizontal data={props.trends} keyExtractor={item => topicKey(item.topic)} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalContent} renderItem={({ item, index }) => <TrendingCard trend={item} rank={index + 1} onPress={() => props.onSelectTopic(item.topic)} />} /> : <Text style={styles.emptyText}>Ainda não há notícias recentes para calcular os assuntos em alta.</Text>}
     </View>
     <LiveMatchCard onOpen={props.onFootball} />
     <View style={styles.allHeader}>
       <Text style={styles.sectionTitle}>Todos os assuntos</Text>
       <Pressable accessibilityRole="button" accessibilityLabel={`Ordenar assuntos: ${sortLabel[props.sort]}`} accessibilityState={{ expanded: props.sortOpen }} onPress={props.onToggleSort} style={styles.sortButton}>
-        <Text style={styles.sortText}>{sortLabel[props.sort]}</Text><View style={{ transform: [{ rotate: props.sortOpen ? '-90deg' : '90deg' }] }}><Icon name="chevron" color={colors.secondary} size={16} /></View>
+        <Icon name="filter" color={colors.secondary} size={17} /><Text style={styles.sortText}>{sortLabel[props.sort]}</Text><View style={{ transform: [{ rotate: props.sortOpen ? '180deg' : '0deg' }] }}><Icon name="chevronDown" color={colors.secondary} size={16} /></View>
       </Pressable>
     </View>
     {props.sortOpen && <View style={styles.sortMenu}>{(['relevant', 'recent', 'alpha'] as SortMode[]).map(value => <Pressable key={value} accessibilityRole="button" accessibilityState={{ selected: props.sort === value }} onPress={() => props.onSort(value)} style={styles.sortOption}><Text style={[styles.sortOptionText, props.sort === value && styles.sortSelected]}>{sortLabel[value]}</Text>{props.sort === value && <Icon name="check" color={colors.primary} size={18} />}</Pressable>)}</View>}
-  </View>;
-}
-
-function ExploreHeader({ user, avatarUrl, onAvatarError, onSearch, onProfile }: { user: User | null; avatarUrl?: string; onAvatarError: () => void; onSearch: () => void; onProfile: () => void }) {
-  const styles = useStyles(makeStyles);
-  const theme = useTheme();
-  const { colors } = theme;
-  const initials = user?.display_name?.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'N';
-  return <View style={styles.header}>
-    <Image source={useLogo()} resizeMode="contain" accessibilityLabel="NEWZI" style={styles.logo} />
-    <View style={styles.headerActions}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Buscar assuntos e notícias" onPress={onSearch} style={styles.headerIcon}><Icon name="search" size={24} /></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil" onPress={onProfile} style={styles.avatarButton}>
-        {avatarUrl ? <Image source={{ uri: avatarUrl }} onError={onAvatarError} style={styles.avatar} /> : <View style={styles.avatarFallback}><Text style={styles.avatarInitials}>{initials}</Text></View>}
-      </Pressable>
-    </View>
   </View>;
 }
 
@@ -266,7 +252,7 @@ function ExploreHero() {
 
 const ExploreSearch = React.forwardRef<TextInput, { query: string; onChange: (value: string) => void }>(({ query, onChange }, ref) => { const styles = useStyles(makeStyles); const { colors } = useTheme(); return <View style={styles.searchBox}>
   <Icon name="search" size={23} color={colors.tone('#738AAF', colors.secondary)} />
-  <TextInput ref={ref} value={query} onChangeText={onChange} placeholder="Buscar por assunto, tema ou palavra-chave..." placeholderTextColor={colors.tone('#7186A8', colors.muted)} accessibilityLabel="Buscar por assunto, tema ou palavra-chave" returnKeyType="search" style={styles.searchInput} autoCapitalize="none" />
+  <TextInput ref={ref} value={query} onChangeText={onChange} placeholder="Buscar assunto, tema ou palavra-chave" placeholderTextColor={colors.tone('#7186A8', colors.muted)} accessibilityLabel="Buscar por assunto, tema ou palavra-chave" returnKeyType="search" style={styles.searchInput} autoCapitalize="none" />
   {!!query && <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => onChange('')} style={styles.clearButton}><Text style={styles.clearText}>×</Text></Pressable>}
 </View>; });
 ExploreSearch.displayName = 'ExploreSearch';
@@ -292,19 +278,19 @@ function TopTopicCard({ topic, index, width, selected, onPress }: { topic: Topic
   const { colors } = theme;
   const palette = colorFor(index, colors);
   return <Pressable accessibilityRole="button" accessibilityLabel={`${displayName(topic)}, ${topic.content_count || 0} notícias`} accessibilityState={{ selected }} onPress={onPress} style={[styles.topCard, { width, backgroundColor: palette.background }, selected && styles.topCardSelected]}>
-    <TopicGlyph topic={topic} index={index} size={52} />
+    <TopicGlyph topic={topic} index={index} size={54} background={colors.surface} />
     <Text numberOfLines={2} style={styles.topCardName}>{displayName(topic)}</Text>
     <Text style={styles.topCardCount}>{topic.content_count || 0} notícias</Text>
   </Pressable>;
 }
 
-export function TopicGlyph({ topic, index, size }: { topic: Pick<Topic, 'code' | 'name' | 'order'>; index: number; size: number }) {
+export function TopicGlyph({ topic, index, size, background }: { topic: Pick<Topic, 'code' | 'name' | 'order'>; index: number; size: number; background?: string }) {
   const styles = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
   const palette = colorFor(index, colors);
   const glyph = topicIconFor({ code: topic.code, name: displayName(topic) });
-  return <View style={[styles.glyph, { width: size, height: size, borderRadius: size / 2, backgroundColor: palette.background }]}>
+  return <View style={[styles.glyph, { width: size, height: size, borderRadius: size / 2, backgroundColor: background || palette.background }]}>
     <TopicIcon name={glyph} color={palette.color} size={size * .5} />
   </View>;
 }
@@ -314,12 +300,15 @@ function TrendingCard({ trend, rank, onPress }: { trend: Trend; rank: number; on
   const theme = useTheme();
   const { colors } = theme;
   const palette = colorFor(trend.topic.order || rank - 1, colors);
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${displayName(trend.topic)}, em alta número ${rank}, ${trend.count} notícias recentes`} onPress={onPress} style={styles.trendCard}>
-    <ImageBackground source={mascotFallback} resizeMode="contain" imageStyle={styles.trendMascot} style={[styles.trendBackground, { backgroundColor: colors.inverse }]}>
+  const glyph = topicIconFor({ code: trend.topic.code, name: displayName(trend.topic) });
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${displayName(trend.topic)}, em alta número ${rank}, ${trend.count} notícias recentes${trend.today ? `, ${trend.today} hoje` : ''}`} onPress={onPress} style={styles.trendCard}>
+    <View pointerEvents="none" style={styles.trendGlyph}><TopicIcon name={glyph} color={palette.color} size={118} /></View>
+    <View style={styles.trendTop}>
       <View style={[styles.rankBadge, { backgroundColor: palette.background }]}><Text style={[styles.rankText, { color: palette.color }]}>{rank}</Text></View>
-      <View style={styles.trendCopy}><Text numberOfLines={2} style={styles.trendName}>{displayName(trend.topic)}</Text><Text style={styles.trendCount}>{trend.count} {trend.count === 1 ? 'notícia recente' : 'notícias recentes'}</Text></View>
-      <View style={styles.trendArrow}><Icon name="chevron" color={colors.tone('#0A2450', colors.ink)} size={16} /></View>
-    </ImageBackground>
+      {trend.today > 0 && <View style={styles.todayBadge}><Icon name="trending" color={colors.tone('#D7E5F7', colors.onInverse)} size={13} /><Text style={styles.todayText}>+{trend.today} hoje</Text></View>}
+    </View>
+    <View style={styles.trendCopy}><Text numberOfLines={2} style={styles.trendName}>{displayName(trend.topic)}</Text><Text style={styles.trendCount}>{trend.count} {trend.count === 1 ? 'notícia recente' : 'notícias recentes'}</Text></View>
+    <View style={styles.trendArrow}><Icon name="chevron" color={colors.tone('#0A2450', colors.ink)} size={16} /></View>
   </Pressable>;
 }
 
@@ -354,20 +343,20 @@ const TOPICS_PREVIEW = 8;
 const sortLabel: Record<SortMode, string> ={ relevant: 'Mais relevantes', recent: 'Mais recentes', alpha: 'A–Z' };
 const makeStyles = (colors: Palette) => ({
   safe: { flex: 1, backgroundColor: colors.background } as const,
-  listContent: { paddingHorizontal: 18, paddingTop: 2 } as const,
-  header: { height: 56, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: 13 },
-  logo: { width: 126, height: 46, marginLeft: -3 }, headerActions: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 9 },
-  headerIcon: { width: 36, height: 42, alignItems: 'center' as const, justifyContent: 'center' as const, position: 'relative' as const },
-  avatarButton: { width: 42, height: 42, borderRadius: 21, overflow: 'hidden' as const, backgroundColor: colors.tone('#E5F2FF', colors.surfaceTint), alignItems: 'center' as const, justifyContent: 'center' as const }, avatar: { width: 42, height: 42, borderRadius: 21 }, avatarFallback: { width: 42, height: 42, borderRadius: 21, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.tone('#DDEEFF', colors.surfaceTint) }, avatarInitials: { color: colors.primaryDark, fontFamily: typography.fontFamily.ui, fontWeight: '800' as const, fontSize: 14 },
+  listContent: { paddingHorizontal: TAB_GUTTER, paddingTop: 0 } as const,
+  
+  
+  
+  
   hero: { marginTop: -4, marginBottom: 14 },
   heroCopy: { paddingLeft: 2 }, eyebrow: { color: colors.tone('#7489AB', colors.secondary), letterSpacing: 2, fontSize: 10, lineHeight: 14, fontFamily: typography.fontFamily.ui, fontWeight: '800' as const, marginBottom: 2 },
   heroTitle: { color: colors.ink, fontFamily: typography.fontFamily.ui, fontWeight: '800' as const, fontSize: 24, lineHeight: 29, letterSpacing: -.6 }, heroSubtitle: { color: colors.tone('#61789E', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 13, lineHeight: 18, marginTop: 3 },
-  searchBox: { height: 58, borderRadius: 32, paddingHorizontal: 16, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, backgroundColor: colors.surfaceTint, marginBottom: 16, borderWidth: 1, borderColor: colors.divider }, searchInput: { flex: 1, minWidth: 0, fontFamily: typography.fontFamily.ui, color: colors.textPrimary, fontSize: 15, paddingVertical: 0 }, clearButton: { width: 30, height: 38, alignItems: 'center' as const, justifyContent: 'center' as const }, clearText: { color: colors.secondary, fontSize: 25 },
+  searchBox: { height: 56, borderRadius: 18, paddingHorizontal: 16, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, backgroundColor: colors.surface, marginBottom: 18, borderWidth: 1, borderColor: colors.border }, searchInput: { flex: 1, minWidth: 0, fontFamily: typography.fontFamily.ui, color: colors.textPrimary, fontSize: 15, paddingVertical: 0 }, clearButton: { width: 30, height: 38, alignItems: 'center' as const, justifyContent: 'center' as const }, clearText: { color: colors.secondary, fontSize: 25 },
   searchMatches: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tone('#E2EFFB', colors.border), borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, marginTop: -7, marginBottom: 12 }, matchRow: { minHeight: 50, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 9, borderBottomWidth: 1, borderBottomColor: colors.tone('#EFF4FA', colors.divider) }, matchCopy: { flex: 1 }, matchTitle: { color: colors.tone('#10254A', colors.ink), fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, fontSize: 13 }, matchMeta: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 2 }, matchCategory: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, fontSize: 10, marginBottom: 3 }, storyMatch: { minHeight: 74, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.tone('#EFF4FA', colors.divider) }, storyMatchImage: { width: 62, height: 56, borderRadius: 9 }, storyMatchCopy: { flex: 1, minWidth: 0 }, searchError: { color: colors.danger, fontSize: 12, marginTop: -6, marginBottom: 12, paddingHorizontal: 8 }, searchEmpty: { color: colors.secondary, fontSize: 12, padding: 12, marginTop: -7, marginBottom: 12 },
-  topicCarousel: { height: 126, marginBottom: 15 }, horizontalContent: { gap: 8, paddingBottom: 3 }, topCard: { height: 122, borderRadius: 20, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 7, paddingVertical: 8 }, topCardSelected: { borderWidth: 2, borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: .17, shadowRadius: 8, elevation: 2 }, glyph: { alignItems: 'center' as const, justifyContent: 'center' as const, flexShrink: 0 }, topCardName: { textAlign: 'center' as const, fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, color: colors.ink, fontSize: 12, lineHeight: 15, marginTop: 3 }, topCardCount: { color: colors.tone('#6E83A3', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 3 },
-  section: { marginBottom: 20 }, sectionHeader: { height: 32, marginBottom: 6, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: 1 }, sectionTitle: { fontFamily: typography.fontFamily.ui, fontSize: 19, lineHeight: 25, color: colors.ink, fontWeight: '800' as const, letterSpacing: -.45 }, linkRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 0 }, linkText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, fontSize: 12 }, trendCard: { width: 184, height: 146, borderRadius: 18, overflow: 'hidden' as const, marginRight: 1 }, trendBackground: { flex: 1, justifyContent: 'space-between' as const, padding: 12 }, trendMascot: { opacity: .18, width: 130, height: 130, left: 54, top: 14 }, rankBadge: { width: 32, height: 32, borderRadius: 17, justifyContent: 'center' as const, alignItems: 'center' as const }, rankText: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' as const }, trendCopy: { marginTop: 'auto' as const, paddingRight: 25 }, trendName: { color: colors.onPrimary, fontFamily: typography.fontFamily.ui, fontSize: 16, lineHeight: 19, fontWeight: '800' as const }, trendCount: { color: colors.onInverse, fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 4 }, trendArrow: { position: 'absolute' as const, right: 10, bottom: 10, width: 30, height: 30, borderRadius: 16, backgroundColor: colors.surface, alignItems: 'center' as const, justifyContent: 'center' as const },
-  allHeader: { minHeight: 34, marginBottom: 6, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, sortButton: { minHeight: 40, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 3 }, sortText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '600' as const }, sortChevron: { color: colors.primary, fontSize: 19, marginTop: -2 }, sortMenu: { alignSelf: 'flex-end' as const, minWidth: 164, marginBottom: 9, padding: 5, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tone('#E3EEF8', colors.border), shadowColor: colors.tone('#395E8C', colors.shadow.color), shadowOpacity: .12, shadowRadius: 12, elevation: 4 }, sortOption: { minHeight: 42, paddingHorizontal: 10, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, sortOptionText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 13 }, sortSelected: { color: colors.primary, fontWeight: '700' as const },
-  topicRow: { minHeight: 78, marginBottom: 3, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 26, backgroundColor: colors.tone('#FFFFFFD9', colors.overlay), flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, borderWidth: 1, borderColor: colors.tone('#F0F5FB', colors.divider) }, topicRowSelected: { borderColor: colors.primary, backgroundColor: colors.tone('#F4FAFF', colors.surfaceTint) }, childTopicRow: { marginLeft: 15 }, topicDescription: { flex: 1, minWidth: 0 }, topicName: { color: colors.tone('#0A1E44', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '800' as const, lineHeight: 18 }, topicSub: { color: colors.tone('#667D9E', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 15, marginTop: 1 }, topicMetric: { width: 84, justifyContent: 'center' as const, gap: 7 }, topicCount: { color: colors.tone('#657D9F', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 11 }, progressTrack: { height: 5, width: '100%' as const, borderRadius: 3, backgroundColor: colors.tone('#E1EBF7', colors.surfaceTint), overflow: 'hidden' as const }, progressFill: { height: 5, borderRadius: 3 },
-  moreTopics: { minHeight: 46, marginTop: 6, borderRadius: 23, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6, backgroundColor: colors.surfaceTint, borderWidth: 1, borderColor: colors.divider }, moreTopicsText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '700' as const },
-  skeletonCarousel: { flexDirection: 'row' as const, gap: 8, paddingBottom: 4 }, horizontalSkeleton: { height: 122, borderRadius: 18, backgroundColor: colors.surfaceTint }, darkSkeleton: { height: 146, backgroundColor: colors.tone('#D8E7F6', colors.placeholder) }, skeletonRows: { gap: 4 }, rowSkeleton: { minHeight: 78, marginBottom: 3, borderRadius: 25, backgroundColor: colors.surfaceTint, flexDirection: 'row' as const, alignItems: 'center' as const, paddingHorizontal: 14, gap: 12 }, rowSkeletonGlyph: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.tone('#E0ECF8', colors.surfaceTint) }, rowSkeletonCopy: { flex: 1, gap: 8 }, rowSkeletonLine: { width: '88%' as const, height: 9, borderRadius: 5, backgroundColor: colors.tone('#E0ECF8', colors.surfaceTint) }, rowSkeletonMetric: { width: 78, height: 20, borderRadius: 6, backgroundColor: colors.tone('#E0ECF8', colors.surfaceTint) }, emptyText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 18, paddingVertical: 12 }, emptyTopics: { backgroundColor: colors.surface, padding: 18, borderRadius: 18, alignItems: 'center' as const, marginTop: 8 }, emptyTopicsTitle: { color: colors.text, fontWeight: '700' as const, marginBottom: 5 }, retryCard: { padding: 12, backgroundColor: colors.surface, borderRadius: 14, gap: 6 }, retryText: { color: colors.secondary, fontSize: 12 },
+  topicCarousel: { height: 140, marginBottom: 18 }, horizontalContent: { gap: 8, paddingBottom: 3 }, topCard: { height: 136, borderRadius: 22, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 8, paddingVertical: 10 }, topCardSelected: { borderWidth: 2, borderColor: colors.primary, shadowColor: colors.primary, shadowOpacity: .17, shadowRadius: 8, elevation: 2 }, glyph: { alignItems: 'center' as const, justifyContent: 'center' as const, flexShrink: 0 }, topCardName: { textAlign: 'center' as const, fontFamily: typography.fontFamily.ui, fontWeight: '800' as const, color: colors.ink, fontSize: 14, lineHeight: 18, marginTop: 8 }, topCardCount: { color: colors.tone('#6E83A3', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, marginTop: 3 },
+  section: { marginBottom: 20 }, sectionHeader: { height: 32, marginBottom: 6, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, paddingHorizontal: 1 }, sectionTitle: { fontFamily: typography.fontFamily.ui, fontSize: 19, lineHeight: 25, color: colors.ink, fontWeight: '800' as const, letterSpacing: -.45 }, linkRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 0 }, linkText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontWeight: '700' as const, fontSize: 14 }, trendCard: { width: 214, height: 140, borderRadius: 22, overflow: 'hidden' as const, padding: 14, justifyContent: 'space-between' as const, backgroundColor: colors.tone('#132B5C', colors.inverse) }, trendGlyph: { position: 'absolute' as const, right: -18, top: 22, opacity: .15 }, trendTop: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, todayBadge: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,.14)' }, todayText: { color: '#D7E5F7', fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' as const }, trendBackground: {}, trendMascot: {}, rankBadge: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center' as const, alignItems: 'center' as const }, rankText: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' as const }, trendCopy: { paddingRight: 44 }, trendName: { color: '#FFFFFF', fontFamily: typography.fontFamily.ui, fontSize: 17, lineHeight: 21, fontWeight: '800' as const }, trendCount: { color: colors.tone('#C9D8EE', colors.onInverse), fontFamily: typography.fontFamily.ui, fontSize: 12.5, marginTop: 4 }, trendArrow: { position: 'absolute' as const, right: 12, bottom: 12, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, alignItems: 'center' as const, justifyContent: 'center' as const },
+  allHeader: { minHeight: 34, marginBottom: 6, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, sortButton: { minHeight: 42, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 7, paddingHorizontal: 16, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, sortText: { color: colors.ink, fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '600' as const }, sortChevron: { color: colors.primary, fontSize: 19, marginTop: -2 }, sortMenu: { alignSelf: 'flex-end' as const, minWidth: 164, marginBottom: 9, padding: 5, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.tone('#E3EEF8', colors.border), shadowColor: colors.tone('#395E8C', colors.shadow.color), shadowOpacity: .12, shadowRadius: 12, elevation: 4 }, sortOption: { minHeight: 42, paddingHorizontal: 10, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const }, sortOptionText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 13 }, sortSelected: { color: colors.primary, fontWeight: '700' as const },
+  topicRow: { minHeight: 84, marginBottom: 10, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 22, backgroundColor: colors.surface, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, borderWidth: 1, borderColor: colors.tone('#EBF1F8', colors.border), shadowColor: colors.shadow.color, shadowOpacity: .05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1 }, topicRowSelected: { borderColor: colors.primary, backgroundColor: colors.tone('#F4FAFF', colors.surfaceTint) }, childTopicRow: { marginLeft: 15 }, topicDescription: { flex: 1, minWidth: 0 }, topicName: { color: colors.tone('#0A1E44', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '800' as const, lineHeight: 18 }, topicSub: { color: colors.tone('#667D9E', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 15, marginTop: 1 }, topicMetric: { width: 84, justifyContent: 'center' as const, gap: 7 }, topicCount: { color: colors.tone('#657D9F', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 11 }, progressTrack: { height: 5, width: '100%' as const, borderRadius: 3, backgroundColor: colors.tone('#E1EBF7', colors.surfaceTint), overflow: 'hidden' as const }, progressFill: { height: 5, borderRadius: 3 },
+  moreTopics: { minHeight: 44, marginTop: 2, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 6 }, moreTopicsText: { color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '700' as const },
+  skeletonCarousel: { flexDirection: 'row' as const, gap: 8, paddingBottom: 4 }, horizontalSkeleton: { height: 136, borderRadius: 18, backgroundColor: colors.surfaceTint }, darkSkeleton: { height: 140, backgroundColor: colors.tone('#D8E7F6', colors.placeholder) }, skeletonRows: { gap: 4 }, rowSkeleton: { minHeight: 78, marginBottom: 3, borderRadius: 25, backgroundColor: colors.surfaceTint, flexDirection: 'row' as const, alignItems: 'center' as const, paddingHorizontal: 14, gap: 12 }, rowSkeletonGlyph: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.tone('#E0ECF8', colors.surfaceTint) }, rowSkeletonCopy: { flex: 1, gap: 8 }, rowSkeletonLine: { width: '88%' as const, height: 9, borderRadius: 5, backgroundColor: colors.tone('#E0ECF8', colors.surfaceTint) }, rowSkeletonMetric: { width: 78, height: 20, borderRadius: 6, backgroundColor: colors.tone('#E0ECF8', colors.surfaceTint) }, emptyText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 18, paddingVertical: 12 }, emptyTopics: { backgroundColor: colors.surface, padding: 18, borderRadius: 18, alignItems: 'center' as const, marginTop: 8 }, emptyTopicsTitle: { color: colors.text, fontWeight: '700' as const, marginBottom: 5 }, retryCard: { padding: 12, backgroundColor: colors.surface, borderRadius: 14, gap: 6 }, retryText: { color: colors.secondary, fontSize: 12 },
 });

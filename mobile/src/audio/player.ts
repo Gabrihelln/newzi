@@ -3,6 +3,7 @@ import type { OnBufferData, OnLoadData, OnPlaybackStateChangedData, OnProgressDa
 import { api } from '../api/client';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
 import type { AudioMetadata, Briefing } from '../types/api';
+import { editionArtworkUrl, editionDay, editionPeriodLabel } from '../components/EditionCover';
 
 // Playback runs in one native media player (react-native-video: Media3 on Android, AVPlayer on iOS),
 // rendered invisibly by <AudioEngine /> at the app root. It shows lock-screen and notification
@@ -12,7 +13,7 @@ import type { AudioMetadata, Briefing } from '../types/api';
 
 export type PlaybackState = { position: number; duration: number; playing: boolean; paused: boolean; ended: boolean; buffering: boolean; loaded: boolean; started?: boolean; speed?: number };
 export type AudioContext = { url: string; briefing: Briefing; metadata: AudioMetadata };
-export type EngineSource = { key: number; uri: string; headers?: Record<string, string>; title: string };
+export type EngineSource = { key: number; uri: string; headers?: Record<string, string>; title: string; artwork?: string };
 export type EngineSnapshot = { source: EngineSource | null; paused: boolean; rate: number };
 
 type AudioCache = {
@@ -62,10 +63,15 @@ export function sameBriefing(a: Briefing | null | undefined, b: Briefing | null 
 
 function briefingKey(briefing: Briefing) { return briefing.delivery_id || briefing.id || briefing.edition_id || ''; }
 
+/** Title of the media notification: "Resumo da tarde · 18 out". */
 export function briefingAudioTitle(briefing: Briefing | null | undefined) {
-  const [year, month, day] = String(briefing?.date || '').split('-');
-  return day && month && year ? `Resumo de ${day}/${month}` : 'Resumo do dia';
+  if (!briefing?.date) return 'Resumo do dia';
+  const period = editionPeriodLabel(briefing).toLowerCase();
+  return `${period[0].toUpperCase()}${period.slice(1)} · ${editionDay(briefing, false)}`;
 }
+
+/** Album-style artwork of the notification: the edition's cover. */
+export const briefingArtwork = (briefing: Briefing | null | undefined) => briefing?.date ? editionArtworkUrl(briefing) : undefined;
 
 function update(patch: Partial<PlaybackState>) {
   state = { ...state, ...patch };
@@ -207,7 +213,7 @@ async function resolveSource(url: string) {
 }
 
 function openSource(url: string, resolved: { uri: string; headers?: Record<string, string> }, title: string,
-  options: { startAt?: number; startRatio?: number; resumePlaying?: boolean } = {}) {
+  options: { startAt?: number; startRatio?: number; resumePlaying?: boolean } = {}, artwork?: string) {
   if (pendingLoad) { clearTimeout(pendingLoad.timer); pendingLoad.reject(new Error('audio load superseded')); pendingLoad = null; }
   const key = ++sourceSeq;
   nativeBuffering = true; nativePlaying = false;
@@ -220,11 +226,11 @@ function openSource(url: string, resolved: { uri: string; headers?: Record<strin
     }, LOAD_TIMEOUT_MS);
     pendingLoad = { key, startAt: options.startAt || 0, startRatio: options.startRatio, resumePlaying: options.resumePlaying, resolve, reject, timer };
   });
-  setEngine({ source: { key, ...resolved, title }, paused: true });
+  setEngine({ source: { key, ...resolved, title, artwork }, paused: true });
   return loaded;
 }
 
-export async function loadAudio(url: string, title = 'Resumo do dia') {
+export async function loadAudio(url: string, title = 'Resumo do dia', artwork?: string) {
   if (!/^https?:\/\//i.test(url)) throw new Error('invalid audio URL');
   if (currentUrl === url && snapshot.source && state.loaded) return;
   if (loadingUrl === url && loadingPromise) return loadingPromise;
@@ -236,7 +242,7 @@ export async function loadAudio(url: string, title = 'Resumo do dia') {
     audioContext = null;
     contextListeners.forEach(listener => listener(null));
     update({ position: 0, duration: 0, playing: false, paused: false, ended: false, loaded: false, started: false });
-    await openSource(url, resolved, title, { startAt: saved });
+    await openSource(url, resolved, title, { startAt: saved }, artwork);
   })();
   try { await loadingPromise; }
   catch (error) { update({ buffering: false, loaded: false }); throw error; }
@@ -318,7 +324,7 @@ export async function switchAudioVariant(url: string, briefing: Briefing, metada
     readyVoiceVariant = null;
     contextListeners.forEach(listener => listener(audioContext));
     update({ playing: false, buffering: true });
-    await openSource(url, resolved, briefingAudioTitle(briefing), { startRatio: ratio, resumePlaying: wasPlaying && ratio < 1 });
+    await openSource(url, resolved, briefingAudioTitle(briefing), { startRatio: ratio, resumePlaying: wasPlaying && ratio < 1 }, briefingArtwork(briefing));
     persistBriefingProgress(state.position, state.duration, true);
   } catch {
     // Keep the previous context when the variant cannot be loaded; the user can retry from the player.

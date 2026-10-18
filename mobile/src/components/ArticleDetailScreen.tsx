@@ -195,7 +195,7 @@ function ReaderHeader({ onBack, saved, saving, savedReady, onBookmark, onShare, 
       <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={onBack} style={s.headerButton}><View style={{ transform: [{ rotate: '180deg' }] }}><Icon name="chevron" color={colors.textPrimary} size={21} /></View></Pressable>
     <Image source={useLogo()} resizeMode="contain" accessibilityLabel="NEWZI" style={s.logo} />
     <View style={s.headerActions}>
-      <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover notícia dos salvos' : 'Salvar notícia'} accessibilityState={{ selected: saved, disabled: saving || !savedReady }} disabled={saving || !savedReady} onPress={onBookmark} style={s.headerButton}><Icon name="bookmark" color={saved ? colors.primary : colors.tone('#1D3767', colors.body)} size={22} /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover notícia dos salvos' : 'Salvar notícia'} accessibilityState={{ selected: saved, disabled: saving || !savedReady }} disabled={saving || !savedReady} onPress={onBookmark} style={s.headerButton}><Icon name="bookmark" filled={saved} color={saved ? colors.primary : colors.tone('#1D3767', colors.body)} size={22} /></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Compartilhar notícia" onPress={onShare} style={s.headerButton}><Icon name="share" color={colors.tone('#1D3767', colors.body)} size={20} /></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Mais opções da notícia" onPress={onMore} style={s.headerButton}><Icon name="more" color={colors.tone('#1D3767', colors.body)} size={22} /></Pressable>
     </View>

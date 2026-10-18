@@ -13,7 +13,8 @@ export function AudioEngine() {
   return <Video
     key={key}
     ref={attachEngine}
-    source={{ uri: source.uri, headers: source.headers, metadata: { title: source.title, artist: 'Newzi' } }}
+    // The edition cover is the notification's and lock screen's artwork, like an album cover.
+    source={{ uri: source.uri, headers: source.headers, metadata: { title: source.title, artist: 'Newzi', imageUri: source.artwork } }}
     paused={paused}
     rate={rate}
     playInBackground

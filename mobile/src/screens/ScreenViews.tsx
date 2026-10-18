@@ -12,7 +12,7 @@ const noop = () => undefined;
 
 export function TodayScreen(props: Partial<HomeScreenProps> & Pick<HomeScreenProps, 'onDetail' | 'onAuthExpired'>) {
   return <HomeScreen user={props.user || null} onDetail={props.onDetail} onAuthExpired={props.onAuthExpired}
-    onAudio={props.onAudio || noop} onHistory={props.onHistory || noop} onSearch={props.onSearch || noop}
+    onAudio={props.onAudio || noop} onHistory={props.onHistory || noop}
     onProfile={props.onProfile || noop} onExplore={props.onExplore || noop}
     onSchedule={props.onSchedule || noop} onTopic={props.onTopic || noop} onLatestBriefing={props.onLatestBriefing || noop} />;
 }

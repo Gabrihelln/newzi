@@ -1,5 +1,6 @@
 import React from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { DarkTheme, DefaultTheme, NavigationContainer, useIsFocused, useNavigation, type Theme as NavigationTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -21,7 +22,7 @@ import { FootballScreen } from '../components/FootballScreen';
 import { SubscriptionScreen } from '../components/SubscriptionScreen';
 import { getAudioContext, sameBriefing, subscribeAudio } from '../audio/player';
 import { startContentRevisionMonitor } from '../services/contentRevision';
-import { SearchScreen, TopicFeedScreen } from '../components/HomeScreen';
+import { TopicFeedScreen } from '../components/HomeScreen';
 import { BrandPage, BrandPageHeader, ScreenState } from '../components/ScreenPrimitives';
 import { navigationRef, setMainFlowReady } from './notificationRouting';
 import { Icon } from '../components/Icon';
@@ -32,16 +33,19 @@ import { ContentPreferencesScreen } from '../components/ContentPreferencesScreen
 import { AudioExpandedScreen, DetailScreen, ExploreScreen, SavedContentScreen, SavedScreen, SavedTopicsScreen, TodayScreen } from '../screens/ScreenViews';
 
 export type RootAuthState = 'BOOTING' | 'AUTHENTICATED' | 'UNAUTHENTICATED';
-export type MainStackParamList = { Tabs: undefined; Detail: { item?: BriefingItem; storyId?: string; trackReadingProgress?: boolean; readingProgress?: number }; SavedTopics: undefined; SavedContent: { topic?: SavedTopicSummary }; EditProfile: undefined; ContentPreferences: undefined; DailyBriefing: undefined; SecurityPrivacy: undefined; Subscription: undefined; AudioExpanded: { briefing?: Briefing; briefingId?: string }; History: undefined; Search: undefined; TopicFeed: { topic: Topic }; NotificationSettings: undefined; Appearance: undefined; VoiceSettings: undefined; Football: undefined; Account: undefined };
+export type MainStackParamList = { Tabs: undefined; Detail: { item?: BriefingItem; storyId?: string; trackReadingProgress?: boolean; readingProgress?: number }; SavedTopics: undefined; SavedContent: { topic?: SavedTopicSummary }; EditProfile: undefined; ContentPreferences: undefined; DailyBriefing: undefined; SecurityPrivacy: undefined; Subscription: undefined; AudioExpanded: { briefing?: Briefing; briefingId?: string }; History: undefined; TopicFeed: { topic: Topic }; NotificationSettings: undefined; Appearance: undefined; VoiceSettings: undefined; Football: undefined; Account: undefined };
 type MainTabParamList = { Inicio: undefined; Explorar: undefined; Salvos: undefined; Perfil: undefined };
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const OnboardingStack = createNativeStackNavigator();
 const MainStack = createNativeStackNavigator<MainStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabParamList>();
+// Space between the floating tab bar and each side of the screen.
+const TAB_BAR_SIDE = 14;
 
 function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomTabBarProps; onAudio: () => void; onExpand: (briefing: Briefing) => void; showMini: boolean }) {
-  const { colors } = useTheme();
+  const { colors, dark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const tabsFocused = useIsFocused();
   const [audioPlaying, setAudioPlaying] = React.useState(false);
   React.useEffect(() => subscribeAudio(state => setAudioPlaying(state.playing)), []);
@@ -55,19 +59,27 @@ function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomT
   ];
   return <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: Math.max(insets.bottom, 8), alignItems: 'center' }}>
     {showMini && <MiniAudioPlayer onExpand={onExpand} />}
-    <View style={{ width: '80%', alignSelf: 'center', height: 66, borderRadius: 34, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingHorizontal: 2, shadowColor: colors.shadow.color, shadowOpacity: .16, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 8 }}>
+    {/* The bar reaches close to the screen edges and its icons spread across it; the player stays in the middle.
+        A soft, wide shadow lifts it off the page. On iOS 26 it is Liquid Glass; elsewhere a solid surface. */}
+    <LiquidGlassView effect={isLiquidGlassSupported ? 'regular' : 'none'} colorScheme={dark ? 'dark' : 'light'}
+      style={{ width: width - TAB_BAR_SIDE * 2, alignSelf: 'center', height: 66, borderRadius: 34, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: isLiquidGlassSupported ? 'transparent' : colors.surface,
+        borderWidth: isLiquidGlassSupported ? 0 : StyleSheet.hairlineWidth, borderColor: colors.border,
+        shadowColor: colors.shadow.color, shadowOpacity: dark ? .45 : .24, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 14 }}>
+    <View style={{ alignSelf: 'stretch', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       {tabItems.map(item => {
         if (!item) return <PressAudio key="audio" onPress={onAudio} active={audioPlaying && onHome && tabsFocused} />;
         const focused = props.state.index === props.state.routes.findIndex(route => route.key === item.route.key);
         return <Pressable key={item.route.key} accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected: focused }} onPress={() => {
           const event = props.navigation.emit({ type: 'tabPress', target: item.route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) props.navigation.navigate(item.route.name, item.route.params);
-        }} style={{ flex: 1, height: 60, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+        }} style={{ width: 62, height: 60, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
           <Icon name={item.icon} color={focused ? colors.primary : colors.tabIdle} size={22} />
           <Text style={{ color: focused ? colors.primary : colors.tabIdle, fontFamily: 'Inter', fontWeight: focused ? '700' : '500', fontSize: 10 }}>{item.label}</Text>
         </Pressable>;
       })}
     </View>
+    </LiquidGlassView>
   </View>;
 }
 /** Central player button; pulses while the daily briefing is playing on the Home tab. */
@@ -99,7 +111,7 @@ function MainTabs({ onAuthExpired, onLogout, user }: { onAuthExpired: () => void
     <Tabs.Screen name="Inicio" options={{ title: 'Início', tabBarAccessibilityLabel: 'Início' }}>{() => <TodayTab user={user} onAuthExpired={onAuthExpired} onLatestBriefing={setLatestBriefing} />}</Tabs.Screen>
     <Tabs.Screen name="Explorar" options={{ title: 'Explorar', tabBarAccessibilityLabel: 'Explorar' }}>{() => <ExploreTab user={user} />}</Tabs.Screen>
     <Tabs.Screen name="Salvos" options={{ title: 'Salvos', tabBarAccessibilityLabel: 'Salvos' }}>{() => <SavedTab />}</Tabs.Screen>
-    <Tabs.Screen name="Perfil" options={{ title: 'Perfil', tabBarAccessibilityLabel: 'Perfil' }}>{() => <ProfileTab user={user} onSearch={() => navigation.navigate('Search')} onLogout={onLogout} />}</Tabs.Screen>
+    <Tabs.Screen name="Perfil" options={{ title: 'Perfil', tabBarAccessibilityLabel: 'Perfil' }}>{() => <ProfileTab user={user} onLogout={onLogout} />}</Tabs.Screen>
   </Tabs.Navigator>;
 }
 function TodayTab({ onAuthExpired, user, onLatestBriefing }: { onAuthExpired: () => void; user: User | null; onLatestBriefing: (briefing: Briefing | null) => void }) {
@@ -107,14 +119,14 @@ function TodayTab({ onAuthExpired, user, onLatestBriefing }: { onAuthExpired: ()
   const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>();
   return <TodayScreen user={user} onAuthExpired={onAuthExpired} onLatestBriefing={onLatestBriefing}
     onDetail={item => parent?.navigate('Detail', { item })} onAudio={briefing => parent?.navigate('AudioExpanded', { briefing })}
-    onHistory={() => parent?.navigate('History')} onSearch={() => parent?.navigate('Search')}
+    onHistory={() => parent?.navigate('History')}
     onProfile={() => parent?.navigate('Account')}
     onExplore={() => navigation.navigate('Explorar')} onSchedule={() => parent?.navigate('DailyBriefing')}
     onTopic={topic => parent?.navigate('TopicFeed', { topic })} />;
 }
-function ExploreTab({ user }: { user: User | null }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ExploreScreen user={user} onTopic={topic => parent?.navigate('TopicFeed', { topic })} onDetail={item => parent?.navigate('Detail', { item })} onProfile={() => parent?.navigate('Account')} onFootball={() => parent?.navigate('Football')} />; }
-function SavedTab() { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); const focused = useIsFocused(); return <SavedScreen refreshOnFocus={focused} onDetail={(item, progress) => parent?.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => parent?.navigate('AudioExpanded', { briefing })} onSearch={() => parent?.navigate('Search')} onProfile={() => parent?.navigate('Account')} onSeeAll={() => parent?.navigate('SavedContent', {})} onSeeTopics={() => parent?.navigate('SavedTopics')} onTopic={topic => parent?.navigate('SavedContent', { topic })} />; }
-function ProfileTab({ user, onSearch, onLogout }: { user: User | null; onSearch: () => void; onLogout: () => void }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ProfileScreen user={user} onNavigate={route => parent?.navigate(route as never)} onSearch={onSearch} onLogout={onLogout} />; }
+function ExploreTab({ user }: { user: User | null }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ExploreScreen user={user} onTopic={topic => parent?.navigate('TopicFeed', { topic })} onDetail={item => parent?.navigate('Detail', { item })} onProfile={() => parent?.navigate('Account')} onFootball={() => parent?.navigate('Football')} onEditTopics={() => parent?.navigate('ContentPreferences')} />; }
+function SavedTab() { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); const focused = useIsFocused(); return <SavedScreen refreshOnFocus={focused} onDetail={(item, progress) => parent?.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => parent?.navigate('AudioExpanded', { briefing })} onProfile={() => parent?.navigate('Account')} onSeeAll={() => parent?.navigate('SavedContent', {})} onSeeTopics={() => parent?.navigate('SavedTopics')} onTopic={topic => parent?.navigate('SavedContent', { topic })} />; }
+function ProfileTab({ user, onLogout }: { user: User | null; onLogout: () => void }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ProfileScreen user={user} onNavigate={route => parent?.navigate(route as never)} onLogout={onLogout} />; }
 function DetailScreenRoute({ route, navigation }: any) {
   const [item, setItem] = React.useState<BriefingItem | null>(route.params?.item || null);
   const [loading, setLoading] = React.useState(!route.params?.item);
@@ -161,7 +173,6 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
   React.useEffect(() => { setMainFlowReady(true); return () => setMainFlowReady(false); }, []);
   return <><MainStack.Navigator screenOptions={{ headerShown: false }}>
     <MainStack.Screen name="Tabs">{() => <MainTabs user={user} onAuthExpired={onAuthExpired} onLogout={onLogout} />}</MainStack.Screen>
-    <MainStack.Screen name="Search">{({ navigation }) => <SearchScreen onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} />}</MainStack.Screen>
     <MainStack.Screen name="TopicFeed">{({ route, navigation }) => <TopicFeedScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={item => navigation.navigate('Detail', { item })} />}</MainStack.Screen>
     <MainStack.Screen name="EditProfile">{({ navigation }) => <EditProfileScreen user={user} onBack={() => navigation.goBack()} onSaved={updated => { onUserUpdated(updated); navigation.goBack(); }} />}</MainStack.Screen>
     <MainStack.Screen name="ContentPreferences">{({ navigation }) => <ContentPreferencesScreen onBack={() => navigation.goBack()} onDone={() => navigation.navigate('Tabs' as never, { screen: 'Inicio' } as never)} />}</MainStack.Screen>

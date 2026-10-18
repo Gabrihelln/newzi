@@ -4,18 +4,17 @@ import { ActivityIndicator, AppState, Image, Platform, Pressable, RefreshControl
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { api, ClientError, CONNECTION_ERROR_MESSAGE } from '../api/client';
-import { briefingAudioTitle, getAudioProgress, loadAudio, pauseAudio, playAudio, releaseAudio, sameBriefing, seekTo, setAudioContext, subscribeAudio, subscribeAudioContext } from '../audio/player';
+import { briefingArtwork, briefingAudioTitle, getAudioProgress, loadAudio, pauseAudio, playAudio, releaseAudio, sameBriefing, seekTo, setAudioContext, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
 import {radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import type { Briefing, BriefingItem, HomeData, Topic, User } from '../types/api';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import { useContentRevisionTick } from '../services/contentRevision';
+import { AppHeader, TAB_GUTTER } from './AppHeader';
 import { Icon } from './Icon';
-import { useLogo } from './brand';
 import { ArticleImage, isCanonicalArticleImageUrl } from './ArticleImage';
 import { formatHomeDate, greetingForLocalTime, nextBriefingLabel } from '../config/dateTime';
 
-const fallbackMascot = require('../../assets/onboarding/new-waving.png');
 const FEATURED_LIMIT = 3;
 const FEATURED_AUTO_SCROLL_MS = 5000;
 // While the Home is on screen it refreshes on its own, so new stories appear without reopening the app.
@@ -83,7 +82,7 @@ function SavedButton({ saved, busy, onPress }: { saved: boolean; busy: boolean; 
   const h = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  return <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover dos salvos' : 'Salvar notícia'} accessibilityState={{ selected: saved, disabled: busy }} disabled={busy} onPress={onPress} hitSlop={8} style={h.bookmarkButton}><Icon name="bookmark" size={21} color={saved ? colors.primary : colors.tone('#0D244C', colors.ink)} /><View pointerEvents="none" style={saved ? h.bookmarkFill : undefined} /></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover dos salvos' : 'Salvar notícia'} accessibilityState={{ selected: saved, disabled: busy }} disabled={busy} onPress={onPress} hitSlop={8} style={h.bookmarkButton}><Icon name="bookmark" size={21} filled={saved} color={saved ? colors.primary : colors.tone('#0D244C', colors.ink)} /></Pressable>;
 }
 function TopicCard({ topic, index, width, onPress }: { topic: Topic; index: number; width: number; onPress: () => void }) {
   const h = useStyles(makeStyles);
@@ -177,7 +176,7 @@ function AudioControls({ briefing, audio, loading, regenerating }: { briefing: B
     if (!ready) return;
     setBusy(true);
     try {
-      await loadAudio(audio.audio_url, briefingAudioTitle(briefing));
+      await loadAudio(audio.audio_url, briefingAudioTitle(briefing), briefingArtwork(briefing));
       setAudioContext(audio.audio_url, briefing, audio);
       await playAudio();
     } catch { /* keep the briefing visible and let the next status poll recover */ }
@@ -209,7 +208,6 @@ export type HomeScreenProps = {
   onAudio: (briefing: Briefing) => void;
   onHistory: () => void;
   onAuthExpired: () => void;
-  onSearch: () => void;
   onProfile: () => void;
   onExplore: () => void;
   onSchedule: () => void;
@@ -217,11 +215,10 @@ export type HomeScreenProps = {
   onLatestBriefing: (briefing: Briefing | null) => void;
 };
 
-export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile, onExplore, onSchedule, onLatestBriefing }: HomeScreenProps) {
+export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore, onSchedule, onLatestBriefing }: HomeScreenProps) {
   const h = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  const logo = useLogo();
   const contentRevisionTick=useContentRevisionTick();
   const { width } = useWindowDimensions();
   const bottomPadding = useFloatingTabContentInset(false);
@@ -248,7 +245,6 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
   const featuredTouching = useRef(false);
   const featuredTouchedAt = useRef(0);
   const name = fullNameOf(user?.display_name, firebaseAuth.currentUser?.displayName);
-  const avatarUrl = firebaseAuth.currentUser?.photoURL;
   const featureCardWidth = Math.max(280, width - 34);
   const [refreshing, setRefreshing] = useState(false);
   // Bumped on every successful load so the audio status is fetched again too (e.g. after a voice change).
@@ -377,15 +373,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
     <ScrollView style={h.scroll} contentContainerStyle={[h.content, { paddingBottom: bottomPadding }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void pullToRefresh()} tintColor={colors.primary} colors={[colors.primary]} progressBackgroundColor={colors.surface} />}>
-      <View style={h.header}>
-        <Image source={logo} resizeMode="contain" accessibilityLabel="NEWZI" style={h.logo} />
-        <View style={h.headerActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Buscar notícias" onPress={onSearch} style={h.headerIcon}><Icon name="search" size={23} /></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Abrir perfil" onPress={onProfile} style={h.avatarButton}>
-            <Image source={avatarUrl ? { uri: avatarUrl } : fallbackMascot} resizeMode="cover" style={h.avatar} />
-          </Pressable>
-        </View>
-      </View>
+      <AppHeader onAvatar={onProfile} />
 
       <View style={h.greetingArea}>
         <View style={h.greetingText}>
@@ -420,27 +408,6 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onSearch, onProfile,
   </SafeAreaView>;
 }
 
-export function SearchScreen({ onBack, onDetail }: { onBack: () => void; onDetail: (item: BriefingItem) => void }) {
-  const h = useStyles(makeStyles);
-  const theme = useTheme();
-  const { colors } = theme;
-  const revisionTick=useContentRevisionTick();
-  const [query, setQuery] = useState(''); const [submittedQuery,setSubmittedQuery]=useState(''); const [retry,setRetry]=useState(0); const [items, setItems] = useState<BriefingItem[]>([]); const [loading, setLoading] = useState(false); const [error, setError] = useState('');
-  const search = () => { if (query.trim()) { setSubmittedQuery(query.trim()); setRetry(value=>value+1); } };
-  useEffect(()=>{
-    if (!submittedQuery) return;
-    let active=true;setLoading(true);setError('');
-    api.news(20,{query:submittedQuery}).then(result=>{if(active)setItems(result.items);})
-      .catch(()=>{if(active)setError('Não foi possível buscar notícias.');})
-      .finally(()=>{if(active)setLoading(false);});
-    return ()=>{active=false;};
-  },[submittedQuery,retry,revisionTick]);
-  return <SafeAreaView style={h.searchScreen} edges={['top']}><StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
-    <View style={h.searchHeader}><Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={onBack} style={h.searchBack}><View style={{ transform: [{ rotate: '180deg' }] }}><Icon name="chevron" color={colors.text} size={20} /></View></Pressable><View style={h.searchField}><Icon name="search" color={colors.secondary} /><TextInput accessibilityLabel="Buscar notícias" placeholder="Buscar notícias" placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} onSubmitEditing={() => void search()} returnKeyType="search" autoFocus style={h.searchInput} /><Pressable accessibilityRole="button" accessibilityLabel="Buscar" onPress={() => void search()}><Icon name="chevron" color={colors.primary} /></Pressable></View></View>
-    {loading ? <ActivityIndicator accessibilityLabel="Buscando notícias" color={colors.primary} style={{ marginTop: 30 }} /> : <ScrollView contentContainerStyle={h.searchResults}>{error ? <View><Text accessibilityRole="alert" style={h.emptyInline}>{error}</Text><Pressable accessibilityRole="button" onPress={() => void search()}><Text style={h.retryLink}>Tentar novamente</Text></Pressable></View> : items.length ? items.map(item => <Pressable key={item.id} accessibilityRole="button" onPress={() => onDetail(item)} style={h.searchResult}><ArticleImage uri={item.image_url} articleId={item.id} accessibilityLabel={item.headline} style={h.searchResultImage} /><View style={h.searchResultCopy}><Text style={h.searchCategory}>{item.primary_taxonomy_label || 'Notícias'}</Text><Text style={h.searchHeadline}>{item.headline}</Text><Text numberOfLines={2} style={h.searchSummary}>{item.summary}</Text></View></Pressable>) : <Text style={h.emptyInline}>Digite um assunto ou uma palavra para buscar.</Text>}</ScrollView>}
-  </SafeAreaView>;
-}
-
 export function TopicFeedScreen({ topic, onBack, onDetail }: { topic: Topic; onBack: () => void; onDetail: (item: BriefingItem) => void }) {
   const h = useStyles(makeStyles);
   const theme = useTheme();
@@ -458,11 +425,11 @@ export function TopicFeedScreen({ topic, onBack, onDetail }: { topic: Topic; onB
 
 const makeStyles = (colors: Palette) => ({
   safe: { flex: 1, backgroundColor: colors.background } as const, scroll: { flex: 1 } as const,
-  content: { paddingHorizontal: 16, paddingTop: 4 } as const,
-  header: { height: 52, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginBottom: 6 },
-  logo: { width: 130, height: 46, marginLeft: -4 }, headerActions: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12 },
-  headerIcon: { width: 34, height: 40, alignItems: 'center' as const, justifyContent: 'center' as const, position: 'relative' as const },
-  avatarButton: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' as const, backgroundColor: colors.surfaceBlue }, avatar: { width: '100%' as const, height: '100%' as const },
+  content: { paddingHorizontal: TAB_GUTTER, paddingTop: 0 } as const,
+  
+  
+  
+  
   greetingArea: { minHeight: 92, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: 8, marginBottom: 9 }, greetingText: { flex: 1, minWidth: 0 },
   greeting: { fontFamily: typography.fontFamily.ui, fontSize: 15, lineHeight: 19, color: colors.secondary }, nameLine: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 }, name: { color: colors.ink, fontFamily: typography.fontFamily.ui, fontWeight: '800' as const, fontSize: 30, lineHeight: 35, flexShrink: 1 }, date: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 11, lineHeight: 15, marginTop: 2, flexShrink: 1 },
   nextCard: { width: 154, minHeight: 62, borderRadius: 19, backgroundColor: colors.tone('#E7F2FF', colors.surfaceBlue), flexDirection: 'row' as const, alignItems: 'center' as const, paddingHorizontal: 8, gap: 5 }, nextCopy: { flex: 1, minWidth: 0 }, nextTitle: { fontFamily: typography.fontFamily.ui, fontSize: 9, color: colors.secondary }, nextTime: { fontFamily: typography.fontFamily.ui, fontSize: 10, fontWeight: '700' as const, color: colors.textPrimary, marginTop: 3 },
@@ -470,7 +437,7 @@ const makeStyles = (colors: Palette) => ({
   homeError: { minHeight: 38, justifyContent: 'center' as const, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.tone('#FFF6F5', colors.dangerSurface), marginBottom: 10 }, homeErrorText: { color: colors.danger, fontFamily: typography.fontFamily.ui, fontSize: 11 },
   section: { marginBottom: 12 }, sectionHead: { height: 28, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, marginHorizontal: 5, marginBottom: 5 }, sectionTitle: { fontFamily: typography.fontFamily.ui, fontSize: 17, lineHeight: 22, color: colors.ink, fontWeight: '800' as const, letterSpacing: -.35 }, allButton: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 1 }, allText: { fontFamily: typography.fontFamily.ui, fontSize: 12, color: colors.primary, fontWeight: '600' as const }, horizontalContent: { gap: 6, paddingHorizontal: 1, paddingBottom: 1 }, topicCard: { minHeight: 73, borderRadius: 17, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 4, paddingVertical: 5 }, topicIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center' as const, justifyContent: 'center' as const, marginBottom: 3 }, topicName: { fontFamily: typography.fontFamily.ui, color: colors.tone('#11254A', colors.ink), fontSize: 10, fontWeight: '700' as const, textAlign: 'center' as const, lineHeight: 12 }, topicCount: { fontFamily: typography.fontFamily.ui, color: colors.secondary, fontSize: 9, marginTop: 3 },
   featureCarousel: { gap: 2, paddingHorizontal: 1 }, featureCard: { position: 'relative' as const, borderRadius: 21, backgroundColor: colors.surface, overflow: 'hidden' as const, borderWidth: 1, borderColor: colors.border, minHeight: 186 }, featurePress: { overflow: 'hidden' as const }, featureBadge: { position: 'absolute' as const, top: 9, left: 10 }, featureContent: { minHeight: 70, paddingLeft: 13, paddingTop: 8, paddingRight: 54, paddingBottom: 9, backgroundColor: colors.tone('#FFFFFFF0', colors.overlay) }, featureMeta: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5 }, featureTime: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 11 }, categoryBadge: { alignSelf: 'flex-start' as const, overflow: 'hidden' as const, maxWidth: '100%' as const, borderRadius: 14, paddingHorizontal: 9, paddingVertical: 4, fontFamily: typography.fontFamily.ui, fontSize: 10, fontWeight: '800' as const }, featureHeadline: { fontFamily: typography.fontFamily.ui, fontSize: 17, lineHeight: 21, fontWeight: '700' as const, color: colors.tone('#091D42', colors.ink), marginTop: 3 }, featureSave: { position: 'absolute' as const, right: 10, bottom: 8, backgroundColor: colors.overlay, borderRadius: 16 }, carouselDots: { flexDirection: 'row' as const, justifyContent: 'center' as const, alignItems: 'center' as const, gap: 8, paddingTop: 9 }, carouselDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.tone('#C8D8EC', colors.waveInactive) }, carouselDotActive: { backgroundColor: colors.primary, width: 9, height: 9 },
-  bookmarkButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.overlay }, bookmarkFill: { position: 'absolute' as const, width: 6, height: 9, top: 10, left: 14, backgroundColor: colors.primary },
+  bookmarkButton: { width: 34, height: 34, borderRadius: 17, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.overlay },
   latestRow: { minHeight: 66, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 5, marginHorizontal: 2, borderBottomWidth: 1, borderBottomColor: colors.divider, paddingVertical: 5 }, latestPress: { flex: 1, minWidth: 0, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 9 }, latestImage: { width: 66, height: 50, borderRadius: 10 }, latestCopy: { flex: 1, minWidth: 0 }, latestMeta: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 7 }, readTimeText: { color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 11 }, latestHeadline: { fontFamily: typography.fontFamily.ui, color: colors.tone('#15294E', colors.ink), fontSize: 13, lineHeight: 17, marginTop: 2 },
   skeletonTopics: { flexDirection: 'row' as const, gap: 6 }, topicSkeleton: { height: 79, borderRadius: 17, backgroundColor: colors.placeholder }, featureSkeleton: { height: 186, borderRadius: 21, backgroundColor: colors.placeholder }, latestSkeletons: { gap: 8 }, latestSkeleton: { height: 63, borderRadius: 12, backgroundColor: colors.placeholder }, emptyInline: { paddingHorizontal: 8, paddingVertical: 12, color: colors.secondary, fontFamily: typography.fontFamily.ui, fontSize: 12 },
   searchScreen: { flex: 1, backgroundColor: colors.background }, searchHeader: { minHeight: 58, paddingHorizontal: 16, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 }, searchBack: { width: 36, height: 44, justifyContent: 'center' as const }, searchField: { flex: 1, height: 46, borderRadius: 23, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, paddingHorizontal: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, searchInput: { flex: 1, fontFamily: typography.fontFamily.ui, color: colors.textPrimary, paddingVertical: 0 }, searchResults: { padding: 16, gap: 9 }, searchResult: { flexDirection: 'row' as const, alignItems: 'flex-start' as const, gap: 11, backgroundColor: colors.surface, borderRadius: 15, padding: 10, borderWidth: 1, borderColor: colors.border }, searchResultImage: { width: 82, height: 82, borderRadius: 12 }, searchResultCopy: { flex: 1, minWidth: 0 }, searchCategory: { color: colors.primary, fontSize: 11, fontWeight: '700' as const }, searchHeadline: { color: colors.textPrimary, fontSize: 15, lineHeight: 20, fontWeight: '700' as const, marginTop: 5 }, searchSummary: { color: colors.secondary, fontSize: 13, lineHeight: 18, marginTop: 5 }, retryLink: { color: colors.primary, fontWeight: '700' as const, fontSize: 13, paddingHorizontal: 8, paddingVertical: 10 }, topicFeedTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '800' as const },

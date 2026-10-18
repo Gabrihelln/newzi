@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, PanResponder, Pressable, Text, View } from 'react-native';
+import { Animated, PanResponder, Pressable, Text, View } from 'react-native';
 import { dismissMiniAudio, getAudioProgress, pauseAudio, playAudio, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
 import type { Briefing } from '../types/api';
 import { radius, spacing, typography, useTheme } from '../theme';
+import { EditionCover } from './EditionCover';
 import { Icon } from './Icon';
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
-const cover = require('../../assets/onboarding/new-sunrise.png');
 const CLOSE_SIZE = 26;
 // Half of the close button overlaps the card corner; the rest stays inside the touchable container.
 const CLOSE_OFFSET = CLOSE_SIZE / 2;
@@ -61,7 +61,7 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
     <View style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, minHeight: 94, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, shadowColor: colors.shadow.color, shadowOpacity: .14, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 7 }}>
       <Pressable accessibilityRole="button" accessibilityLabel="Expandir player do resumo" onPress={() => onExpand(session.briefing)}
         style={{ flex: 1, minHeight: 66, flexDirection: 'row', alignItems: 'center' }}>
-        <Image source={cover} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: 58, height: 58, borderRadius: radius.md, marginRight: spacing.md }} />
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ marginRight: spacing.md }}><EditionCover briefing={session.briefing} size={58} compact /></View>
         <View style={{ flex: 1, justifyContent: 'center' }}>
         <Text numberOfLines={1} style={{ color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontWeight: '800', fontSize: 15 }}>Seu resumo diário</Text>
         <Text numberOfLines={1} style={{ color: colors.secondary, fontSize: 12, marginTop: 4 }}>{date} · {clock(playback.position)} / {clock(playback.duration)}</Text>

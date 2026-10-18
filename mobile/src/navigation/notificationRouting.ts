@@ -10,7 +10,7 @@ let pending: PushData | null = null;
 let mainFlowReady = false;
 
 // Screens a Firebase-console push (announcement or promotion) may open with the custom data key `screen`.
-const OPENABLE_SCREENS = new Set(['Subscription', 'NotificationSettings', 'ContentPreferences', 'DailyBriefing', 'Football', 'Search', 'History']);
+const OPENABLE_SCREENS = new Set(['Subscription', 'NotificationSettings', 'ContentPreferences', 'DailyBriefing', 'Football', 'History']);
 
 function target(data: PushData): [string, object] | null {
   if (data.type === 'DAILY_BRIEFING' && data.briefing_id) return ['AudioExpanded', { briefingId: data.briefing_id }];
