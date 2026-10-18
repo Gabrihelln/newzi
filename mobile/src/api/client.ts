@@ -1,7 +1,7 @@
 import { API_BASE_URL, LOGGING_ENABLED, devLog } from '../config/env';
 import { firebaseAuth, getFirebaseIdToken } from '../services/firebaseAuth';
 import { cachedRead } from '../services/offlineCache';
-import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballOverview, FootballStandings, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
+import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballAlerts, FootballFavorites, FootballOverview, FootballRound, FootballStandings, FootballTeam, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
 
 /** What users read when the app cannot reach the server: no technical terms. */
 export const CONNECTION_ERROR_MESSAGE = 'Sem conexão com o Newzi. Verifique sua internet e tente novamente.';
@@ -103,6 +103,11 @@ export const api = {
   subscription: () => apiRequest<Subscription>('/api/v1/me/subscription'),
   uploadAvatar: (imageBase64: string) => apiRequest<{ photo_url: string }>('/api/v1/me/avatar', { method: 'POST', body: JSON.stringify({ image_base64: imageBase64 }) }),
   footballStandings: (code: string) => cached(['football-standings', code], () => apiRequest<FootballStandings>(`/api/v1/me/football/standings/${encodeURIComponent(code)}`)),
+  footballRound: (code: string, matchday?: number) => apiRequest<FootballRound>(`/api/v1/me/football/rounds/${encodeURIComponent(code)}${matchday ? `?matchday=${matchday}` : ''}`),
+  footballTeams: (params: { q?: string; competition?: string }) => apiRequest<{ teams: FootballTeam[] }>(`/api/v1/me/football/teams?q=${encodeURIComponent(params.q || '')}&competition=${encodeURIComponent(params.competition || '')}`),
+  footballFavorites: () => apiRequest<FootballFavorites>('/api/v1/me/football/favorites'),
+  saveFootballFavorites: (body: { team_ids?: number[]; alerts?: Partial<FootballAlerts> }) => apiRequest<FootballFavorites>('/api/v1/me/football/favorites', { method: 'PUT', body: JSON.stringify(body) }),
+  followFootballMatch: (id: number, following: boolean) => apiRequest<{ match_id: number; following: boolean }>(`/api/v1/me/football/matches/${id}/follow`, { method: 'PUT', body: JSON.stringify({ following }) }),
   story: (storyId: string) => cached(['story', storyId], () => apiRequest<{ item: BriefingItem }>(`/api/v1/me/news/${encodeURIComponent(storyId)}`)),
   savedStories: () => apiRequest<{ items: BriefingItem[] }>('/api/v1/me/saved'),
   savedOverview: () => cached(['savedOverview'], () => apiRequest<SavedOverview>('/api/v1/me/saved/overview')),

@@ -33,6 +33,9 @@ class MainApplication : Application(), ReactApplication {
       manager.createNotificationChannel(NotificationChannel("breaking_news", "Notícias urgentes", NotificationManager.IMPORTANCE_HIGH).apply {
         description = "Notícias importantes dos seus temas, com um resumo curto."
       })
+      manager.createNotificationChannel(NotificationChannel("team_alerts", "Seu time", NotificationManager.IMPORTANCE_HIGH).apply {
+        description = "Início dos jogos, gols, resultado final e notícias dos seus times."
+      })
       manager.createNotificationChannel(NotificationChannel("announcements", "Novidades do Newzi", NotificationManager.IMPORTANCE_DEFAULT).apply {
         description = "Recursos novos e avisos importantes sobre o app."
       })

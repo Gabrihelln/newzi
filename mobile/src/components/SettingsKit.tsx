@@ -89,15 +89,15 @@ export function Segmented<T extends string | number>({ options, value, onChange,
 }
 
 /** Pinned to the bottom, only while there are unsaved changes. */
-export function SaveBar({ visible, busy, onSave, error }: { visible: boolean; busy: boolean; onSave: () => void; error?: string }) {
+export function SaveBar({ visible, busy, onSave, error, label = 'Salvar alterações', pending = 'Alterações não salvas' }: { visible: boolean; busy: boolean; onSave: () => void; error?: string; label?: string; pending?: string }) {
   const s = useStyles(makeStyles);
   if (!visible && !error) return null;
   return <View style={s.saveBar}>
     {!!error && <Text accessibilityRole="alert" style={s.saveError}>{error}</Text>}
     {visible && <>
-      <View style={s.pending}><View style={s.pendingDot} /><Text style={s.pendingText}>Alterações não salvas</Text></View>
+      <View style={s.pending}><View style={s.pendingDot} /><Text style={s.pendingText}>{pending}</Text></View>
       <Pressable accessibilityRole="button" accessibilityState={{ busy, disabled: busy }} disabled={busy} onPress={onSave} style={({ pressed }) => [s.save, (pressed || busy) && { opacity: .85 }]}>
-        {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveText}>Salvar alterações</Text>}
+        {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.saveText}>{label}</Text>}
       </Pressable>
     </>}
   </View>;

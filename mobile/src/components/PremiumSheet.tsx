@@ -3,7 +3,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon, type IconName } from './Icon';
 
-export type PremiumFeature = 'briefing_times';
+export type PremiumFeature = 'briefing_times' | 'favorite_teams';
 
 const COPY: Record<PremiumFeature, { icon: IconName; title: string; body: string; perks: string[] }> = {
   briefing_times: {
@@ -11,6 +11,12 @@ const COPY: Record<PremiumFeature, { icon: IconName; title: string; body: string
     title: 'Mais horários de resumo é Premium',
     body: 'No plano Básico você tem 1 horário de resumo por dia. Com o Premium, escolha até 4 horários, do jeito que for melhor para você.',
     perks: ['Até 4 resumos por dia', 'Você escolhe cada horário', 'Todas as vozes e velocidades'],
+  },
+  favorite_teams: {
+    icon: 'ball',
+    title: 'Mais de um time é Premium',
+    body: 'No plano Básico você acompanha 1 time. Com o Premium, siga vários times e receba os jogos, gols e notícias de todos.',
+    perks: ['Até 10 times favoritos', 'Avisos de jogos, gols e resultados', 'Notícias de cada time'],
   },
 };
 

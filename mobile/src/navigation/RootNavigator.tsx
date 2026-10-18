@@ -19,6 +19,8 @@ import { HistoryScreen } from '../components/HistoryScreen';
 import { NotificationSettingsScreen } from '../components/NotificationSettingsScreen';
 import { AppearanceScreen } from '../components/AppearanceScreen';
 import { FootballScreen } from '../components/FootballScreen';
+import { FootballTablesScreen } from '../components/FootballTablesScreen';
+import { FavoriteTeamsScreen } from '../components/FavoriteTeamsScreen';
 import { SubscriptionScreen } from '../components/SubscriptionScreen';
 import { getAudioContext, sameBriefing, subscribeAudio } from '../audio/player';
 import { startContentRevisionMonitor } from '../services/contentRevision';
@@ -33,7 +35,7 @@ import { ContentPreferencesScreen } from '../components/ContentPreferencesScreen
 import { AudioExpandedScreen, DetailScreen, ExploreScreen, SavedContentScreen, SavedScreen, SavedTopicsScreen, TodayScreen } from '../screens/ScreenViews';
 
 export type RootAuthState = 'BOOTING' | 'AUTHENTICATED' | 'UNAUTHENTICATED';
-export type MainStackParamList = { Tabs: undefined; Detail: { item?: BriefingItem; storyId?: string; trackReadingProgress?: boolean; readingProgress?: number }; SavedTopics: undefined; SavedContent: { topic?: SavedTopicSummary }; EditProfile: undefined; ContentPreferences: undefined; DailyBriefing: undefined; SecurityPrivacy: undefined; Subscription: undefined; AudioExpanded: { briefing?: Briefing; briefingId?: string }; History: undefined; TopicFeed: { topic: Topic }; NotificationSettings: undefined; Appearance: undefined; VoiceSettings: undefined; Football: undefined; Account: undefined };
+export type MainStackParamList = { Tabs: undefined; Detail: { item?: BriefingItem; storyId?: string; trackReadingProgress?: boolean; readingProgress?: number }; SavedTopics: undefined; SavedContent: { topic?: SavedTopicSummary }; EditProfile: undefined; ContentPreferences: undefined; DailyBriefing: undefined; SecurityPrivacy: undefined; Subscription: undefined; AudioExpanded: { briefing?: Briefing; briefingId?: string }; History: undefined; TopicFeed: { topic: Topic }; NotificationSettings: undefined; Appearance: undefined; VoiceSettings: undefined; Football: undefined; FootballTables: { code?: string } | undefined; FavoriteTeams: undefined; Account: undefined };
 type MainTabParamList = { Inicio: undefined; Explorar: undefined; Salvos: undefined; Perfil: undefined };
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const OnboardingStack = createNativeStackNavigator();
@@ -198,8 +200,10 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
       {({ navigation }) => <NotificationSettingsScreen onBack={() => navigation.goBack()} />}
     </MainStack.Screen>
     <MainStack.Screen name="Football">
-      {({ navigation }) => <FootballScreen onBack={() => navigation.goBack()} />}
+      {({ navigation }) => <FootballScreen onBack={() => navigation.goBack()} onTables={code => navigation.navigate('FootballTables', { code })} onFavorites={() => navigation.navigate('FavoriteTeams')} />}
     </MainStack.Screen>
+    <MainStack.Screen name="FootballTables">{({ navigation, route }) => <FootballTablesScreen initialCode={route.params?.code} onBack={() => navigation.goBack()} />}</MainStack.Screen>
+    <MainStack.Screen name="FavoriteTeams">{({ navigation }) => <FavoriteTeamsScreen onBack={() => navigation.goBack()} onSubscription={() => navigation.navigate('Subscription')} />}</MainStack.Screen>
     <MainStack.Screen name="Appearance">
       {({ navigation }) => <AppearanceScreen onBack={() => navigation.goBack()} />}
     </MainStack.Screen>

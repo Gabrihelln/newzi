@@ -17,6 +17,8 @@ function target(data: PushData): [string, object] | null {
   // Breaking news, and any console push carrying `story_id`, opens that story.
   if (data.story_id) return ['Detail', { storyId: data.story_id }];
   if (data.screen && OPENABLE_SCREENS.has(data.screen)) return [data.screen, {}];
+  // Team game alerts (kickoff, goal, final) open Esportes; team news carries a story_id (above).
+  if (data.type?.startsWith('TEAM_')) return ['Football', {}];
   return null;
 }
 

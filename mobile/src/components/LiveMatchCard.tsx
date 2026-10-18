@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import type { FootballMatch, FootballOverview } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
+import { TeamCrest } from './FootballParts';
 
 const REFRESH_MS = 60_000;
 const PREVIEW = 4;
@@ -74,12 +75,12 @@ export function LiveMatchCard({ onOpen }: { onOpen: () => void }) {
         </Pressable>}
       </View>
       <View accessibilityLabel={`${match.status === 'PAUSED' ? 'Intervalo' : 'Ao vivo'}: ${match.home} ${match.home_goals ?? 0}, ${match.away} ${match.away_goals ?? 0}`} style={styles.score}>
-        <Team name={match.home} code={match.home_tla} />
+        <Team name={match.home} code={match.home_tla} crest={match.home_crest} />
         <View style={styles.scoreCenter}>
           <Text style={styles.goals}>{match.home_goals ?? 0}<Text style={styles.goalsSep}>  –  </Text>{match.away_goals ?? 0}</Text>
           <LiveBadge paused={match.status === 'PAUSED'} />
         </View>
-        <Team name={match.away} code={match.away_tla} />
+        <Team name={match.away} code={match.away_tla} crest={match.away_crest} />
       </View>
     </View>}
 
@@ -89,7 +90,7 @@ export function LiveMatchCard({ onOpen }: { onOpen: () => void }) {
         <Text style={styles.whenTime}>{timeLabel(item.kickoff)}</Text>
       </View>
       <View style={styles.rowCopy}>
-        <Text numberOfLines={1} style={styles.rowTeams}>{item.home} × {item.away}</Text>
+        <View style={styles.rowLine}><TeamCrest crest={item.home_crest} tla={item.home_tla} name={item.home} size={18} /><Text numberOfLines={1} style={styles.rowTeams}>{item.home} × {item.away}</Text><TeamCrest crest={item.away_crest} tla={item.away_tla} name={item.away} size={18} /></View>
         {!!item.competition && <Text numberOfLines={1} style={styles.rowCompetition}>{item.competition.name}</Text>}
       </View>
     </View>)}
@@ -120,10 +121,10 @@ export function LiveBadge({ paused }: { paused: boolean }) {
   </View>;
 }
 
-function Team({ name, code }: { name: string; code?: string }) {
+function Team({ name, code, crest }: { name: string; code?: string; crest?: string | null }) {
   const styles = useStyles(makeStyles);
   return <View style={styles.team}>
-    <View style={styles.crest}><Text style={styles.crestText}>{tla(name, code)}</Text></View>
+    {crest ? <TeamCrest crest={crest} tla={code} name={name} size={40} /> : <View style={styles.crest}><Text style={styles.crestText}>{tla(name, code)}</Text></View>}
     <Text numberOfLines={1} style={styles.teamName}>{name}</Text>
   </View>;
 }
@@ -161,7 +162,8 @@ const makeStyles = (colors: Palette) => {
     whenDay: { color: colors.secondary, fontFamily: ui, fontSize: 11, fontWeight: '600' as const },
     whenTime: { color: colors.textPrimary, fontFamily: ui, fontSize: 13, fontWeight: '800' as const },
     rowCopy: { flex: 1, minWidth: 0 },
-    rowTeams: { color: colors.textPrimary, fontFamily: ui, fontSize: 13, fontWeight: '700' as const },
+    rowTeams: { flexShrink: 1, color: colors.textPrimary, fontFamily: ui, fontSize: 13, fontWeight: '700' as const },
+    rowLine: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6 },
     rowCompetition: { color: colors.secondary, fontFamily: ui, fontSize: 11, marginTop: 1 },
     scrim: { flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' as const },
     sheet: { backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: 30 },

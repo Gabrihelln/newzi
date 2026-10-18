@@ -1,161 +1,216 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/client';
-import type { FootballCompetition, FootballMatch, FootballOverview, FootballStandings } from '../types/api';
+import type { FootballMatch, FootballOverview, FootballTeam } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
-import { BrandPage, BrandPageHeader } from './ScreenPrimitives';
-import { dayLabel, isLive, LiveBadge, timeLabel } from './LiveMatchCard';
+import { Icon } from './Icon';
+import { CompetitionBadge, TeamCrest } from './FootballParts';
+import { dayLabel, isLive, timeLabel } from './LiveMatchCard';
 
 const REFRESH_MS = 60_000;
-type Tab = 'games' | 'tables';
 
-/** Every upcoming game of the covered competitions, by day, plus each league's table. Opened from Explore. */
-export function FootballScreen({ onBack }: { onBack: () => void }) {
-  const styles = useStyles(makeStyles);
-  const [tab, setTab] = useState<Tab>('games');
+/**
+ * Esportes (opened from Explorar's football card): your teams, the games being played now and the next ones
+ * by day and competition, with every team's crest. The star marks your teams; the bell turns on the alerts of
+ * one game. Tables and favourites have their own screens.
+ */
+export function FootballScreen({ onBack, onTables, onFavorites }: { onBack: () => void; onTables: (code?: string) => void; onFavorites: () => void }) {
+  const s = useStyles(makeStyles);
+  const { colors, statusBar } = useTheme();
   const [data, setData] = useState<FootballOverview | null>(null);
+  const [teams, setTeams] = useState<FootballTeam[]>([]);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let active = true;
-    const load = () => api.football('explore').then(value => { if (active) { setData(value); setFailed(false); } }).catch(() => { if (active) setFailed(true); });
-    void load();
-    const timer = setInterval(() => void load(), REFRESH_MS);
-    return () => { active = false; clearInterval(timer); };
+  const [refreshing, setRefreshing] = useState(false);
+  const [followed, setFollowed] = useState<Set<number>>(() => new Set());
+
+  const load = useCallback(async () => {
+    try {
+      const [overview, favorites] = await Promise.all([api.football('explore'), api.footballFavorites().catch(() => null)]);
+      setData(overview); setFailed(false);
+      if (favorites) { setTeams(favorites.teams); setFollowed(new Set(favorites.followed_matches)); }
+    } catch { setFailed(true); }
+    finally { setRefreshing(false); }
   }, []);
-  const competitions = data?.available ? data.competitions ?? [] : [];
+  // Coming back from Times favoritos shows the new teams at once.
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useEffect(() => { const timer = setInterval(() => void load(), REFRESH_MS); return () => clearInterval(timer); }, [load]);
 
-  return <BrandPage>
-    <BrandPageHeader title="Futebol" subtitle="Próximos jogos e tabelas dos campeonatos." onBack={onBack} />
-    <View accessibilityRole="tablist" style={styles.tabs}>
-      {([['games', 'Jogos'], ['tables', 'Tabelas']] as [Tab, string][]).map(([value, label]) => <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }} onPress={() => setTab(value)}
-        style={[styles.tab, tab === value && styles.tabActive]}><Text style={[styles.tabText, tab === value && styles.tabTextActive]}>{label}</Text></Pressable>)}
-    </View>
-    {!data ? failed ? <Text style={styles.empty}>Não foi possível carregar os jogos agora.</Text> : <ActivityIndicator style={{ marginTop: 30 }} />
-      : !data.available ? <Text style={styles.empty}>Os jogos estão indisponíveis no momento.</Text>
-      : tab === 'games' ? <Games live={data.live ?? []} upcoming={data.upcoming ?? []} competitions={competitions} />
-      : <Tables competitions={competitions.filter(item => item.table !== false)} />}
-  </BrandPage>;
-}
-
-function Chips({ items, selected, onSelect }: { items: { code: string; name: string }[]; selected: string; onSelect: (code: string) => void }) {
-  const styles = useStyles(makeStyles);
-  return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={styles.chipsScroll}>
-    {items.map(item => <Pressable key={item.code} accessibilityRole="button" accessibilityState={{ selected: selected === item.code }} onPress={() => onSelect(item.code)}
-      style={[styles.chip, selected === item.code && styles.chipActive]}><Text style={[styles.chipText, selected === item.code && styles.chipTextActive]}>{item.name}</Text></Pressable>)}
-  </ScrollView>;
-}
-
-function Games({ live, upcoming, competitions }: { live: FootballMatch[]; upcoming: FootballMatch[]; competitions: FootballCompetition[] }) {
-  const styles = useStyles(makeStyles);
-  const [filter, setFilter] = useState('ALL');
-  const keep = (match: FootballMatch) => filter === 'ALL' || match.competition?.code === filter;
+  const favoriteIds = useMemo(() => new Set(teams.map(team => team.id)), [teams]);
+  const live = data?.available ? data.live ?? [] : [];
+  const upcoming = data?.available ? data.upcoming ?? [] : [];
+  const mine = (match: FootballMatch) => favoriteIds.has(match.home_id ?? -1) || favoriteIds.has(match.away_id ?? -1);
+  // Day, then competition (Brasileirão first, as the backend orders them), then kickoff.
   const days = useMemo(() => {
-    const groups: { label: string; matches: FootballMatch[] }[] = [];
-    upcoming.filter(keep).forEach(match => {
+    const out: { label: string; competitions: { code: string; name: string; matches: FootballMatch[] }[] }[] = [];
+    upcoming.slice(0, 60).forEach(match => {
       const label = dayLabel(match.kickoff, true);
-      const last = groups[groups.length - 1];
-      if (last && last.label === label) last.matches.push(match); else groups.push({ label, matches: [match] });
+      let day = out.find(item => item.label === label);
+      if (!day) { day = { label, competitions: [] }; out.push(day); }
+      const code = match.competition?.code || '';
+      let group = day.competitions.find(item => item.code === code);
+      if (!group) { group = { code, name: match.competition?.name || code, matches: [] }; day.competitions.push(group); }
+      group.matches.push(match);
     });
-    return groups;
-  }, [upcoming, filter]); // eslint-disable-line react-hooks/exhaustive-deps
-  const liveNow = live.filter(keep);
-  return <View>
-    <Chips items={[{ code: 'ALL', name: 'Todos' }, ...competitions]} selected={filter} onSelect={setFilter} />
-    {!!liveNow.length && <View style={styles.group}>
-      <Text style={styles.groupTitle}>Ao vivo</Text>
-      {liveNow.map(match => <MatchRow key={match.id} match={match} showCompetition={filter === 'ALL'} />)}
-    </View>}
-    {days.map(day => <View key={day.label} style={styles.group}>
-      <Text style={styles.groupTitle}>{day.label}</Text>
-      {day.matches.map(match => <MatchRow key={match.id} match={match} showCompetition={filter === 'ALL'} />)}
-    </View>)}
-    {!liveNow.length && !days.length && <Text style={styles.empty}>Nenhum jogo nos próximos dias.</Text>}
-  </View>;
+    return out;
+  }, [upcoming]);
+
+  const toggleBell = async (match: FootballMatch) => {
+    if (mine(match)) { Alert.alert('Jogo do seu time', 'Os avisos dos jogos dos seus times já estão ligados. Ajuste em Times favoritos.'); return; }
+    const following = !followed.has(match.id);
+    setFollowed(current => { const next = new Set(current); if (following) next.add(match.id); else next.delete(match.id); return next; });
+    try { await api.followFootballMatch(match.id, following); }
+    catch {
+      setFollowed(current => { const next = new Set(current); if (following) next.delete(match.id); else next.add(match.id); return next; });
+      Alert.alert('Não foi possível ligar o aviso', 'Verifique sua conexão e tente de novo.');
+    }
+  };
+
+  const playing = (team: FootballTeam) => live.find(match => match.home_id === team.id || match.away_id === team.id);
+
+  return <SafeAreaView style={s.safe} edges={['top']}>
+    <StatusBar barStyle={statusBar} backgroundColor={colors.background} />
+    <View style={s.header}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={onBack} hitSlop={8} style={s.headerButton}>
+        <View style={{ transform: [{ rotate: '180deg' }] }}><Icon name="chevron" color={colors.secondary} size={22} /></View>
+      </Pressable>
+      <Text accessibilityRole="header" style={s.title}>Esportes</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Times favoritos e avisos" onPress={onFavorites} hitSlop={8} style={s.headerButton}>
+        <Icon name="settings" color={colors.secondary} size={22} />
+      </Pressable>
+    </View>
+    <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.primary} />}>
+      <View style={s.sectionRow}>
+        <Text style={s.sectionTitle}>Meus times</Text>
+        <Pressable accessibilityRole="button" onPress={onFavorites} hitSlop={8} style={s.link}><Text style={s.linkText}>Editar</Text><Icon name="chevron" color={colors.primary} size={15} /></Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.myTeams}>
+        {teams.map(team => {
+          const match = playing(team);
+          const score = match ? (match.home_id === team.id ? `${match.home_goals ?? 0}–${match.away_goals ?? 0}` : `${match.away_goals ?? 0}–${match.home_goals ?? 0}`) : '';
+          return <Pressable key={team.id} accessibilityRole="button" accessibilityLabel={match ? `${team.name}, ao vivo ${score}` : team.name} onPress={() => onTables(team.competitions[0]?.code)} style={s.myTeam}>
+            <View style={[s.myCrest, match && s.myCrestLive]}><TeamCrest crest={team.crest} tla={team.tla} name={team.name} size={40} /></View>
+            <Text numberOfLines={1} style={[s.myName, match && s.myNameLive]}>{match ? `Ao vivo ${score}` : team.name}</Text>
+          </Pressable>;
+        })}
+        <Pressable accessibilityRole="button" accessibilityLabel="Adicionar time favorito" onPress={onFavorites} style={s.myTeam}>
+          <View style={[s.myCrest, s.addCrest]}><Icon name="plus" color={colors.primary} size={26} /></View>
+          <Text style={s.myName}>Adicionar</Text>
+        </Pressable>
+      </ScrollView>
+
+      {!data ? failed ? <Text style={s.empty}>Não foi possível carregar os jogos agora.</Text> : <ActivityIndicator style={{ marginTop: 30 }} color={colors.primary} />
+        : !data.available ? <Text style={s.empty}>Os jogos estão indisponíveis no momento.</Text> : <>
+          {live.length > 0 && <>
+            <View style={s.sectionRow}>
+              <View style={s.liveTitle}><View style={s.liveDot} /><Text style={s.sectionTitle}>Ao vivo</Text></View>
+              <Text style={s.count}>{live.length} {live.length === 1 ? 'jogo' : 'jogos'}</Text>
+            </View>
+            {live.map(match => <LiveGame key={match.id} match={match} />)}
+          </>}
+
+          <View style={s.sectionRow}>
+            <Text style={s.sectionTitle}>Próximos jogos</Text>
+            <Pressable accessibilityRole="button" onPress={() => onTables()} hitSlop={8} style={s.link}><Text style={s.linkText}>Tabelas</Text><Icon name="chevron" color={colors.primary} size={15} /></Pressable>
+          </View>
+          {!days.length && <Text style={s.empty}>Nenhum jogo nos próximos dias.</Text>}
+          {days.map(day => <View key={day.label}>
+            <Text style={s.dayLabel}>{day.label.toUpperCase()}</Text>
+            {day.competitions.map(group => <View key={group.code} style={s.card}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`${group.name}: tabela e rodada`} onPress={() => onTables(group.code)} style={s.cardHead}>
+                <CompetitionBadge code={group.code} name={group.name} /><Text style={s.cardTitle}>{group.name}</Text>
+              </Pressable>
+              {group.matches.map((match, index) => <UpcomingGame key={match.id} match={match} last={index === group.matches.length - 1}
+                favorites={favoriteIds} bell={followed.has(match.id) || mine(match)} onBell={() => void toggleBell(match)} />)}
+            </View>)}
+          </View>)}
+        </>}
+    </ScrollView>
+  </SafeAreaView>;
 }
 
-function MatchRow({ match, showCompetition }: { match: FootballMatch; showCompetition: boolean }) {
-  const styles = useStyles(makeStyles);
-  const live = isLive(match);
-  return <View style={styles.match} accessibilityLabel={live ? `Ao vivo: ${match.home} ${match.home_goals ?? 0}, ${match.away} ${match.away_goals ?? 0}` : `${match.home} contra ${match.away}, ${timeLabel(match.kickoff)}`}>
-    <View style={styles.matchWhen}>{live ? <LiveBadge paused={match.status === 'PAUSED'} /> : <Text style={styles.matchTime}>{timeLabel(match.kickoff)}</Text>}</View>
-    <View style={styles.matchCopy}>
-      <View style={styles.matchLine}><Text numberOfLines={1} style={styles.matchTeam}>{match.home}</Text>{live && <Text style={styles.matchGoals}>{match.home_goals ?? 0}</Text>}</View>
-      <View style={styles.matchLine}><Text numberOfLines={1} style={styles.matchTeam}>{match.away}</Text>{live && <Text style={styles.matchGoals}>{match.away_goals ?? 0}</Text>}</View>
-      {showCompetition && !!match.competition && <Text style={styles.matchCompetition}>{match.competition.name}</Text>}
+/** A game being played: dark card, big crests, score and the live / half-time badge. */
+function LiveGame({ match }: { match: FootballMatch }) {
+  const s = useStyles(makeStyles);
+  const paused = match.status === 'PAUSED';
+  return <View accessible accessibilityLabel={`${paused ? 'Intervalo' : 'Ao vivo'}: ${match.home} ${match.home_goals ?? 0}, ${match.away} ${match.away_goals ?? 0}`} style={s.live}>
+    <View style={s.liveTop}>
+      <Text numberOfLines={1} style={s.liveCompetition}>{match.competition?.name}{match.matchday ? ` · Rodada ${match.matchday}` : ''}</Text>
+      <View style={[s.liveBadge, paused && s.liveBadgePaused]}><View style={[s.liveBadgeDot, paused && { backgroundColor: '#E2E8F0' }]} /><Text style={s.liveBadgeText}>{paused ? 'INTERVALO' : 'AO VIVO'}</Text></View>
+    </View>
+    <View style={s.liveScore}>
+      <View style={s.liveTeam}><TeamCrest crest={match.home_crest} tla={match.home_tla} name={match.home} size={52} /><Text numberOfLines={1} style={s.liveName}>{match.home}</Text></View>
+      <Text style={s.liveGoals}>{match.home_goals ?? 0}<Text style={s.liveSep}> – </Text>{match.away_goals ?? 0}</Text>
+      <View style={s.liveTeam}><TeamCrest crest={match.away_crest} tla={match.away_tla} name={match.away} size={52} /><Text numberOfLines={1} style={s.liveName}>{match.away}</Text></View>
     </View>
   </View>;
 }
 
-function Tables({ competitions }: { competitions: FootballCompetition[] }) {
-  const styles = useStyles(makeStyles);
+function UpcomingGame({ match, last, favorites, bell, onBell }: { match: FootballMatch; last: boolean; favorites: Set<number>; bell: boolean; onBell: () => void }) {
+  const s = useStyles(makeStyles);
   const { colors } = useTheme();
-  const [code, setCode] = useState(() => competitions.find(item => item.code === 'BSA')?.code || competitions[0]?.code || 'BSA');
-  const [table, setTable] = useState<FootballStandings | null>(null);
-  useEffect(() => {
-    let active = true;
-    setTable(null);
-    api.footballStandings(code).then(value => { if (active) setTable(value); }).catch(() => { if (active) setTable({ available: false, reason: 'ERROR' }); });
-    return () => { active = false; };
-  }, [code]);
-  const options = competitions.length ? competitions : [{ code: 'BSA', name: 'Brasileirão' }];
-  return <View>
-    <Chips items={options} selected={code} onSelect={setCode} />
-    {!table ? <ActivityIndicator style={{ marginTop: 30 }} />
-      : !table.available || !table.groups.length ? <Text style={styles.empty}>Tabela indisponível para este campeonato.</Text>
-      : <>
-        {!!table.matchday && <Text style={styles.matchday}>Rodada {table.matchday}</Text>}
-        {table.groups.map((group, index) => <View key={group.name || index} style={styles.tableCard}>
-          {!!group.name && <Text style={styles.groupTitle}>{group.name}</Text>}
-          <View style={[styles.tableRow, styles.tableHead]}>
-            <Text style={[styles.cellPos, styles.headText]}>#</Text><Text style={[styles.cellTeam, styles.headText]}>Time</Text>
-            {['J', 'V', 'E', 'D', 'SG'].map(label => <Text key={label} style={[styles.cell, styles.headText]}>{label}</Text>)}
-            <Text style={[styles.cellPts, styles.headText]}>P</Text>
-          </View>
-          {group.rows.map(row => <View key={`${row.position}-${row.team}`} style={styles.tableRow} accessibilityLabel={`${row.position}º ${row.team}, ${row.points} pontos em ${row.played} jogos`}>
-            <Text style={[styles.cellPos, row.position <= 4 && { color: colors.primary }]}>{row.position}</Text>
-            <Text numberOfLines={1} style={styles.cellTeam}>{row.team}</Text>
-            {[row.played, row.won, row.draw, row.lost, row.goal_difference].map((value, cell) => <Text key={cell} style={styles.cell}>{value ?? '–'}</Text>)}
-            <Text style={styles.cellPts}>{row.points ?? '–'}</Text>
-          </View>)}
-        </View>)}
-      </>}
+  const line = (name: string, id?: number | null, crest?: string | null, tla?: string) => <View style={s.gameLine}>
+    <TeamCrest crest={crest} tla={tla} name={name} size={22} />
+    <Text numberOfLines={1} style={[s.gameTeam, favorites.has(id ?? -1) && s.gameTeamMine]}>{name}</Text>
+    {favorites.has(id ?? -1) && <Icon name="star" color={colors.sun} size={14} />}
+  </View>;
+  return <View style={[s.game, !last && s.gameDivider]}>
+    <View style={s.gameWhen}><Text style={s.gameTime}>{isLive(match) ? 'AO VIVO' : timeLabel(match.kickoff)}</Text><Text style={s.gameDay}>{dayLabel(match.kickoff).toLowerCase()}</Text></View>
+    <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+      {line(match.home, match.home_id, match.home_crest, match.home_tla)}
+      {line(match.away, match.away_id, match.away_crest, match.away_tla)}
+    </View>
+    <Pressable accessibilityRole="switch" accessibilityState={{ checked: bell }} accessibilityLabel={`Avisos do jogo ${match.home} x ${match.away}`} onPress={onBell} hitSlop={6}
+      style={[s.bell, bell && s.bellOn]}><Icon name="bell" color={bell ? colors.primary : colors.muted} size={20} /></Pressable>
   </View>;
 }
 
-const makeStyles = (colors: Palette) => {
-  const ui = typography.fontFamily.ui;
-  const cell = { width: 26, textAlign: 'center' as const, color: colors.secondary, fontFamily: ui, fontSize: 12 };
-  return {
-    tabs: { flexDirection: 'row' as const, padding: 4, borderRadius: 14, backgroundColor: colors.surfaceTint, marginBottom: 12 },
-    tab: { flex: 1, minHeight: 38, borderRadius: 11, alignItems: 'center' as const, justifyContent: 'center' as const },
-    tabActive: { backgroundColor: colors.surface, shadowColor: colors.shadow.color, shadowOpacity: .08, shadowRadius: 4, elevation: 1 },
-    tabText: { color: colors.secondary, fontFamily: ui, fontSize: 14, fontWeight: '600' as const },
-    tabTextActive: { color: colors.textPrimary, fontWeight: '800' as const },
-    chipsScroll: { marginBottom: 6, marginHorizontal: -4 },
-    chips: { gap: 8, paddingHorizontal: 4, paddingBottom: 6 },
-    chip: { paddingHorizontal: 14, minHeight: 34, justifyContent: 'center' as const, borderRadius: 17, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-    chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    chipText: { color: colors.textPrimary, fontFamily: ui, fontSize: 13, fontWeight: '600' as const },
-    chipTextActive: { color: colors.onPrimary },
-    group: { marginTop: 10, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 },
-    groupTitle: { color: colors.textPrimary, fontFamily: ui, fontSize: 14, fontWeight: '800' as const, textTransform: 'capitalize' as const, marginBottom: 4 },
-    match: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.divider },
-    matchWhen: { width: 68 },
-    matchTime: { color: colors.textPrimary, fontFamily: ui, fontSize: 14, fontWeight: '800' as const },
-    matchCopy: { flex: 1, minWidth: 0, gap: 2 },
-    matchLine: { flexDirection: 'row' as const, alignItems: 'center' as const },
-    matchTeam: { flex: 1, color: colors.textPrimary, fontFamily: ui, fontSize: 14, fontWeight: '600' as const },
-    matchGoals: { color: colors.textPrimary, fontFamily: ui, fontSize: 14, fontWeight: '800' as const, marginLeft: 8 },
-    matchCompetition: { color: colors.secondary, fontFamily: ui, fontSize: 11, marginTop: 2 },
-    matchday: { color: colors.secondary, fontFamily: ui, fontSize: 12, fontWeight: '600' as const, marginTop: 4 },
-    tableCard: { marginTop: 10, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 8 },
-    tableRow: { flexDirection: 'row' as const, alignItems: 'center' as const, minHeight: 34, borderTopWidth: 1, borderTopColor: colors.divider },
-    tableHead: { borderTopWidth: 0, minHeight: 28 },
-    headText: { color: colors.muted, fontWeight: '700' as const, fontSize: 11 },
-    cellPos: { width: 24, color: colors.secondary, fontFamily: ui, fontSize: 12, fontWeight: '800' as const },
-    cellTeam: { flex: 1, minWidth: 0, color: colors.textPrimary, fontFamily: ui, fontSize: 13, fontWeight: '600' as const },
-    cell,
-    cellPts: { ...cell, width: 30, color: colors.textPrimary, fontWeight: '800' as const },
-    empty: { color: colors.secondary, fontFamily: ui, fontSize: 13, textAlign: 'center' as const, marginTop: 24 },
-  };
-};
+const makeStyles = (colors: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
+  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  title: { flex: 1, textAlign: 'center', fontFamily: typography.fontFamily.ui, fontSize: 20, fontWeight: '800', color: colors.ink },
+  content: { paddingHorizontal: 18, paddingBottom: 40 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, marginBottom: 10 },
+  sectionTitle: { fontFamily: typography.fontFamily.ui, fontSize: 21, fontWeight: '800', color: colors.ink },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  linkText: { fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700', color: colors.primary },
+  count: { fontFamily: typography.fontFamily.ui, fontSize: 14, color: colors.secondary },
+  myTeams: { gap: 14, paddingRight: 6 },
+  myTeam: { width: 72, alignItems: 'center', gap: 6 },
+  myCrest: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border },
+  myCrestLive: { borderColor: '#E11D48', borderWidth: 2.5 },
+  addCrest: { borderStyle: 'dashed', borderColor: colors.primary, backgroundColor: colors.surfaceBlue },
+  myName: { fontFamily: typography.fontFamily.ui, fontSize: 12.5, color: colors.secondary, maxWidth: 76, textAlign: 'center' },
+  myNameLive: { color: '#E11D48', fontWeight: '800' },
+  liveTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#E11D48' },
+  live: { borderRadius: 24, padding: 16, marginBottom: 12, backgroundColor: colors.tone('#14306A', colors.inverse) },
+  liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  liveCompetition: { flex: 1, fontFamily: typography.fontFamily.ui, fontSize: 13, color: '#C9D8EE' },
+  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#E11D48' },
+  liveBadgePaused: { backgroundColor: 'rgba(255,255,255,.18)' },
+  liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+  liveBadgeText: { fontFamily: typography.fontFamily.ui, fontSize: 11, fontWeight: '800', color: '#FFFFFF', letterSpacing: .4 },
+  liveScore: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
+  liveTeam: { flex: 1, alignItems: 'center', gap: 8 },
+  liveName: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  liveGoals: { fontFamily: typography.fontFamily.ui, fontSize: 44, fontWeight: '800', color: '#FFFFFF' },
+  liveSep: { color: '#7D95BE', fontSize: 30 },
+  dayLabel: { fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '800', letterSpacing: 1, color: colors.secondary, marginTop: 6, marginBottom: 8 },
+  card: { borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, marginBottom: 12 },
+  cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 34 },
+  cardTitle: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '700', color: colors.body },
+  game: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  gameDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  gameWhen: { width: 56, alignItems: 'center' },
+  gameTime: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800', color: colors.ink },
+  gameDay: { fontFamily: typography.fontFamily.ui, fontSize: 12, color: colors.muted, marginTop: 1 },
+  gameLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  gameTeam: { flexShrink: 1, fontFamily: typography.fontFamily.ui, fontSize: 16, color: colors.ink },
+  gameTeamMine: { fontWeight: '800' },
+  bell: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  bellOn: { backgroundColor: colors.surfaceBlue },
+  empty: { fontFamily: typography.fontFamily.ui, fontSize: 14, color: colors.secondary, textAlign: 'center', marginTop: 20 },
+});

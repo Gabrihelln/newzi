@@ -36,10 +36,17 @@ export type HomeData = { preferences: Preferences; today_briefing: Briefing; lat
 export type AudioSegment = { id: string; position: number; type: 'INTRO' | 'ITEM' | 'OUTRO' | string; briefing_item_id?: string | null; script_text?: string; segment_start_ms?: number | null; segment_end_ms?: number | null };
 export type AudioMetadata = { status: 'NOT_AVAILABLE' | 'PENDING' | 'GENERATING' | 'VALIDATING' | 'READY' | 'FAILED' | 'OFFLINE'; audio_status?: string; selected_voice_id?: string | null; active_voice_id?: string | null; active_audio_variant_id?: string | null; audio_variant_id?: string | null; generation_stage?: string | null; generation_started_at?: string | null; generation_updated_at?: string | null; generation_error_code?: string | null; edition_id?: string; audio_url?: string; duration_ms?: number; audio_duration_ms?: number; size_bytes?: number; mime_type?: string; language?: string; voice?: string; resolved_voice?: string | null; provider?: string; generated_at?: string; asset_version?: string; artifact_id?: string; error_code?: string | null; script_id?: string; segments?: AudioSegment[] };
 export type FootballCompetition = { code: string; name: string; table?: boolean };
-export type FootballMatch = { id: number; kickoff: string; status: string; matchday: number | null; competition?: FootballCompetition; home: string; away: string; home_tla?: string; away_tla?: string; home_goals: number | null; away_goals: number | null };
-export type FootballOverview = { available: true; live: FootballMatch[]; upcoming: FootballMatch[]; competitions: FootballCompetition[] } | { available: false; reason: string };
-export type FootballStandingRow = { position: number; team: string; tla: string; played: number | null; won: number | null; draw: number | null; lost: number | null; goal_difference: number | null; points: number | null };
-export type FootballStandings = { available: true; competition: FootballCompetition; matchday: number | null; groups: { name: string | null; rows: FootballStandingRow[] }[] } | { available: false; reason: string };
+export type FootballMatch = { id: number; kickoff: string; status: string; matchday: number | null; competition?: FootballCompetition; home: string; away: string; home_tla?: string; away_tla?: string; home_goals: number | null; away_goals: number | null;
+  home_id?: number | null; away_id?: number | null; home_crest?: string | null; away_crest?: string | null };
+export type FootballOverview = ({ available: true; live: FootballMatch[]; upcoming: FootballMatch[]; competitions: FootballCompetition[] } | { available: false; reason: string })
+  & { favorite_team_ids?: number[]; followed_match_ids?: number[] };
+export type FootballStandingRow = { position: number; team: string; team_id?: number | null; tla: string; crest?: string | null; played: number | null; won: number | null; draw: number | null; lost: number | null; goal_difference: number | null; points: number | null;
+  form?: ('W' | 'D' | 'L')[]; zone?: 'libertadores' | 'pre_libertadores' | 'sul_americana' | 'relegation' | null };
+export type FootballStandings = { available: true; competition: FootballCompetition; season?: string | null; matchday: number | null; groups: { name: string | null; rows: FootballStandingRow[] }[] } | { available: false; reason: string };
+export type FootballRound = { available: true; competition: FootballCompetition; matchday: number | null; current_matchday: number | null; matchdays: number[]; matches: FootballMatch[] } | { available: false; reason: string };
+export type FootballTeam = { id: number; name: string; tla: string | null; crest: string | null; competitions: FootballCompetition[] };
+export type FootballAlerts = { kickoff: boolean; goals: boolean; final: boolean; news: boolean };
+export type FootballFavorites = { teams: FootballTeam[]; limit: number; alerts: FootballAlerts; followed_matches: number[] };
 export type SubscriptionPlan = { id: string; name: string; price: string; per: string; monthly_equivalent?: string; savings_percent?: number };
 export type Subscription = {
   tier: 'basic' | 'premium'; period: string | null; status: string; expires_at: string | null; will_renew: boolean; payment_issue: boolean;
