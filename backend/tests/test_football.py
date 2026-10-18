@@ -43,7 +43,7 @@ def jobs(repo, uid="fan"):
 def test_favourites_respect_the_plan_and_save_alert_switches(repo):
     from newzi_backend.football_favorites import FavoritesError, favorites, save_favorites
     saved = save_favorites(repo, "fan", {"team_ids": [1783], "alerts": {"goals": False}})
-    assert [team["name"] for team in saved["teams"]] == ["Flamengo"] and saved["teams"][0]["crest"] == "/api/v1/football/crests/1783.png"
+    assert [team["name"] for team in saved["teams"]] == ["Flamengo"] and saved["teams"][0]["crest"] == "/api/v1/football/crests/1783.png?v=2"
     assert saved["limit"] == 1 and saved["alerts"] == {"kickoff": True, "goals": False, "final": True, "news": True}
     with pytest.raises(FavoritesError) as limit:
         save_favorites(repo, "fan", {"team_ids": [1783, 1769]})
@@ -118,7 +118,12 @@ def test_crest_is_downloaded_once_resized_and_served_from_disk(repo, tmp_path, m
     download = lambda url: calls.append(url) or buffer.getvalue()
     path = crest_file(repo, 1783, download=download)
     with Image.open(path) as crest:
-        assert crest.size == (128, 128)
+        assert crest.size == (128, 128) and crest.getchannel("A").getbbox()[0::2] == (0, 128)   # fills the width
+    small = io.BytesIO(); Image.new("RGBA", (70, 70), (0, 0, 0, 0)).save(small, "PNG")
+    padded = Image.open(small).convert("RGBA"); padded.paste((0, 90, 0, 255), (10, 0, 60, 70)); small = io.BytesIO(); padded.save(small, "PNG")
+    tiny = crest_file(repo, 1769, download=lambda url: small.getvalue())
+    with Image.open(tiny) as crest:                                       # a 70 px crest is enlarged to the same height
+        assert crest.getchannel("A").getbbox()[1] == 0 and crest.getchannel("A").getbbox()[3] == 128
     assert crest_file(repo, 1783, download=download) == path and len(calls) == 1
     assert crest_file(repo, 42, download=download) is None
 
@@ -134,5 +139,5 @@ def test_recent_form_and_rounds_come_from_the_season_games():
     service = football.FootballService(fetch=lambda path, params=None: {"matches": season})
     games = service.round_games("BSA")
     assert games["matchday"] == 31 and games["matchdays"] == [21, 29, 30, 31] and [m["id"] for m in games["matches"]] == [3]
-    assert games["matches"][0]["home_crest"] == "/api/v1/football/crests/1783.png"
+    assert games["matches"][0]["home_crest"] == "/api/v1/football/crests/1783.png?v=2"
     assert service.round_games("BSA", 29)["matches"][0]["home_goals"] == 2

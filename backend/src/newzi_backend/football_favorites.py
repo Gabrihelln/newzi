@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from .football import COMPETITIONS, ensure_competition_teams
+from .football import COMPETITIONS, CREST_VERSION, crest_path, ensure_competition_teams
 from .paths import BACKEND_DATA
 from .timeutil import now_iso
 
@@ -34,8 +34,11 @@ def crest_root():
 
 
 def crest_file(repo, team_id, download=None):
-    """The team's official crest, downloaded once from the provider, checked, resized and kept on disk."""
-    path = crest_root() / f"{int(team_id)}.png"
+    """The team's official crest, downloaded once from the provider, checked, resized and kept on disk.
+
+    The provider's images come in different sizes (70 and 200 px) and margins: the transparent margin is cut and
+    the crest is scaled, up or down, to fill the same square, so every crest looks the same size in the app."""
+    path = crest_root() / f"{int(team_id)}.v{CREST_VERSION}.png"
     if path.is_file():
         return path
     row = repo.db.execute("SELECT crest_url FROM football_teams WHERE id=?", (int(team_id),)).fetchone()
@@ -48,7 +51,11 @@ def crest_file(repo, team_id, download=None):
             image = source.convert("RGBA")
     except Exception:
         return None
-    image.thumbnail((CREST_SIZE, CREST_SIZE))
+    box = image.getchannel("A").getbbox()
+    if box:
+        image = image.crop(box)
+    scale = CREST_SIZE / max(image.width, image.height)
+    image = image.resize((max(1, round(image.width * scale)), max(1, round(image.height * scale))), Image.LANCZOS)
     canvas = Image.new("RGBA", (CREST_SIZE, CREST_SIZE), (0, 0, 0, 0))
     canvas.alpha_composite(image, ((CREST_SIZE - image.width) // 2, (CREST_SIZE - image.height) // 2))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,7 +76,7 @@ def _download(url):
 
 def _team_out(row):
     codes = json.loads(row["competitions"] or "[]")
-    return {"id": row["id"], "name": row["name"], "tla": row["tla"], "crest": f"/api/v1/football/crests/{row['id']}.png" if row["crest_url"] else None,
+    return {"id": row["id"], "name": row["name"], "tla": row["tla"], "crest": crest_path({"id": row["id"], "crest": row["crest_url"]}),
             "competitions": [{"code": code, "name": COMPETITIONS.get(code, code)} for code in codes if code in COMPETITIONS]}
 
 

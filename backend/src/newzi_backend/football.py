@@ -167,10 +167,14 @@ def _recent_form(matches, last=3):
     return {team_id: values[-last:] for team_id, values in results.items()}
 
 
+# Bump to redraw every cached crest after a change in how they are drawn; the ?v= also refreshes the app's image cache.
+CREST_VERSION = 2
+
+
 def crest_path(team):
     """Our cached copy of the team's official crest (served by /api/v1/football/crests/{id}.png)."""
     team_id = (team or {}).get("id")
-    return f"/api/v1/football/crests/{team_id}.png" if team_id and (team or {}).get("crest") else None
+    return f"/api/v1/football/crests/{team_id}.png?v={CREST_VERSION}" if team_id and (team or {}).get("crest") else None
 
 
 # The provider's short names for some Brazilian clubs are not how fans call them.

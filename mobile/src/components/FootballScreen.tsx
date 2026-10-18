@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/client';
@@ -130,19 +131,31 @@ export function FootballScreen({ onBack, onTables, onFavorites }: { onBack: () =
   </SafeAreaView>;
 }
 
-/** A game being played: dark card, big crests, score and the live / half-time badge. */
+/** The live card's background (design: 150° gradient, navy to blue; more muted at half-time). */
+const LIVE_GRADIENT = { live: ['#0F2C5C', '#163E80'], paused: ['#13284F', '#1B3566'] };
+
+/** A game being played: dark gradient card, big crests, score and the live / half-time badge. */
 function LiveGame({ match }: { match: FootballMatch }) {
   const s = useStyles(makeStyles);
   const paused = match.status === 'PAUSED';
+  const [from, to] = LIVE_GRADIENT[paused ? 'paused' : 'live'];
+  const team = (name: string, crest?: string | null, tla?: string) => <View style={s.liveTeam}>
+    <View style={s.liveCrest}><TeamCrest crest={crest} tla={tla} name={name} size={48} /></View>
+    <Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={.85} style={s.liveName}>{name}</Text>
+  </View>;
   return <View accessible accessibilityLabel={`${paused ? 'Intervalo' : 'Ao vivo'}: ${match.home} ${match.home_goals ?? 0}, ${match.away} ${match.away_goals ?? 0}`} style={s.live}>
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
+      <Defs><LinearGradient id="live" x1="0.25" y1="0" x2="0.75" y2="1"><Stop offset="0" stopColor={from} /><Stop offset="1" stopColor={to} /></LinearGradient></Defs>
+      <Rect width="100%" height="100%" fill="url(#live)" />
+    </Svg>
     <View style={s.liveTop}>
       <Text numberOfLines={1} style={s.liveCompetition}>{match.competition?.name}{match.matchday ? ` · Rodada ${match.matchday}` : ''}</Text>
       <View style={[s.liveBadge, paused && s.liveBadgePaused]}><View style={[s.liveBadgeDot, paused && { backgroundColor: '#E2E8F0' }]} /><Text style={s.liveBadgeText}>{paused ? 'INTERVALO' : 'AO VIVO'}</Text></View>
     </View>
     <View style={s.liveScore}>
-      <View style={s.liveTeam}><TeamCrest crest={match.home_crest} tla={match.home_tla} name={match.home} size={52} /><Text numberOfLines={1} style={s.liveName}>{match.home}</Text></View>
+      {team(match.home, match.home_crest, match.home_tla)}
       <Text style={s.liveGoals}>{match.home_goals ?? 0}<Text style={s.liveSep}> – </Text>{match.away_goals ?? 0}</Text>
-      <View style={s.liveTeam}><TeamCrest crest={match.away_crest} tla={match.away_tla} name={match.away} size={52} /><Text numberOfLines={1} style={s.liveName}>{match.away}</Text></View>
+      {team(match.away, match.away_crest, match.away_tla)}
     </View>
   </View>;
 }
@@ -186,18 +199,20 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   myNameLive: { color: '#E11D48', fontWeight: '800' },
   liveTitle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#E11D48' },
-  live: { borderRadius: 24, padding: 16, marginBottom: 12, backgroundColor: colors.tone('#14306A', colors.inverse) },
+  live: { borderRadius: 24, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 16, marginBottom: 12, overflow: 'hidden', backgroundColor: '#0F2C5C',
+    shadowColor: '#102B57', shadowOpacity: .45, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 4 },
   liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  liveCompetition: { flex: 1, fontFamily: typography.fontFamily.ui, fontSize: 13, color: '#C9D8EE' },
+  liveCompetition: { flex: 1, fontFamily: typography.fontFamily.ui, fontSize: 12.5, fontWeight: '600', color: '#B9CDE6' },
   liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#E11D48' },
-  liveBadgePaused: { backgroundColor: 'rgba(255,255,255,.18)' },
+  liveBadgePaused: { backgroundColor: '#55719A' },
   liveBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
   liveBadgeText: { fontFamily: typography.fontFamily.ui, fontSize: 11, fontWeight: '800', color: '#FFFFFF', letterSpacing: .4 },
-  liveScore: { flexDirection: 'row', alignItems: 'center', marginTop: 14 },
-  liveTeam: { flex: 1, alignItems: 'center', gap: 8 },
-  liveName: { fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-  liveGoals: { fontFamily: typography.fontFamily.ui, fontSize: 44, fontWeight: '800', color: '#FFFFFF' },
-  liveSep: { color: '#7D95BE', fontSize: 30 },
+  liveScore: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 14 },
+  liveTeam: { width: 108, alignItems: 'center', gap: 8 },
+  liveCrest: { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+  liveName: { width: '100%', textAlign: 'center', fontFamily: typography.fontFamily.ui, fontSize: 13.5, lineHeight: 17, fontWeight: '700', color: '#FFFFFF' },
+  liveGoals: { flex: 1, textAlign: 'center', marginTop: 4, fontFamily: typography.fontFamily.ui, fontSize: 38, fontWeight: '800', letterSpacing: -1, color: '#FFFFFF', fontVariant: ['tabular-nums'] },
+  liveSep: { color: '#6F8DB8', fontSize: 28 },
   dayLabel: { fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '800', letterSpacing: 1, color: colors.secondary, marginTop: 6, marginBottom: 8 },
   card: { borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, marginBottom: 12 },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 34 },

@@ -11,6 +11,10 @@ import { PremiumSheet } from './PremiumSheet';
 import { ScreenState } from './ScreenPrimitives';
 import { Card, IconBox, SaveBar, SectionHeading, SettingsPage, type Tint } from './SettingsKit';
 
+/** Four crests per row that fill the grid exactly (a percentage plus the gaps used to overflow and wrap at three). */
+const GRID_COLUMNS = 4, GRID_GAP = 8;
+const tileWidth = (width: number) => width > 0 ? Math.floor((width - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) : '23%';
+
 const ALERTS: { key: keyof FootballAlerts; title: string; text: string; icon: IconName; tint: Tint }[] = [
   { key: 'kickoff', title: 'Início do jogo', text: 'Quando a bola rolar', icon: 'clock', tint: 'blue' },
   { key: 'goals', title: 'Gols', text: 'A cada gol, com o placar', icon: 'ball', tint: 'green' },
@@ -35,6 +39,7 @@ export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [upsell, setUpsell] = useState(false);
+  const [gridWidth, setGridWidth] = useState(0);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -122,9 +127,10 @@ export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => 
       </View>
       {!grid ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
         : !grid.length ? <Text style={s.empty}>Times indisponíveis para este campeonato agora.</Text>
-        : <View style={s.grid}>{grid.map(team => {
+        : <View style={s.grid} onLayout={event => setGridWidth(event.nativeEvent.layout.width)}>{grid.map(team => {
           const on = ids.includes(team.id);
-          return <Pressable key={team.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={team.name} onPress={() => toggle(team)} style={[s.tile, on && s.tileOn]}>
+          return <Pressable key={team.id} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={team.name} onPress={() => toggle(team)}
+            style={[s.tile, { width: tileWidth(gridWidth) }, on && s.tileOn]}>
             {on && <View style={s.tileCheck}><Icon name="check" color={colors.onPrimary} size={12} /></View>}
             <TeamCrest crest={team.crest} tla={team.tla} name={team.name} size={40} />
             <Text numberOfLines={1} style={[s.tileName, on && { color: colors.primary }]}>{team.name}</Text>
@@ -184,8 +190,8 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   gridTitle: { fontFamily: typography.fontFamily.ui, fontSize: 21, fontWeight: '800', color: colors.ink },
   other: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   otherText: { fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700', color: colors.primary },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tile: { width: '23.5%', minHeight: 96, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP },
+  tile: { minHeight: 96, borderRadius: 18, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 4 },
   tileOn: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.tone('#F2F8FF', colors.surfaceTint) },
   tileCheck: { position: 'absolute', top: 6, right: 6, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary },
   tileName: { fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700', color: colors.ink },
