@@ -26,8 +26,13 @@ class MainApplication : Application(), ReactApplication {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       // One channel per push kind (the backend picks it), so each can be muted in Android settings.
       val manager = getSystemService(NotificationManager::class.java)
-      manager.createNotificationChannel(NotificationChannel("daily_briefing", "Briefing diário", NotificationManager.IMPORTANCE_DEFAULT))
-      manager.createNotificationChannel(NotificationChannel("breaking_news", "Notícias urgentes", NotificationManager.IMPORTANCE_HIGH))
+      // Creating an existing channel again only updates its name and description, never the user's choices.
+      manager.createNotificationChannel(NotificationChannel("daily_briefing", "Resumo diário", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        description = "Avisa quando o seu resumo em áudio do dia fica pronto."
+      })
+      manager.createNotificationChannel(NotificationChannel("breaking_news", "Notícias urgentes", NotificationManager.IMPORTANCE_HIGH).apply {
+        description = "Notícias importantes dos seus temas, no máximo algumas por dia."
+      })
     }
     loadReactNative(this)
   }

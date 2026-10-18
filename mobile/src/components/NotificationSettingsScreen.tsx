@@ -1,107 +1,142 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, Switch, Text, View } from 'react-native';
-import { api } from '../api/client';
-import { requestAndRegisterDevice } from '../push/push';
-import type { NotificationSettings } from '../types/api';
-import { spacing, useTheme } from '../theme';
-import { BrandPage, BrandPageHeader, ScreenState, SettingsCard, SettingsSection } from './ScreenPrimitives';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { api, ClientError } from '../api/client';
+import { checkPushPermission, isPushAllowed, requestAndRegisterDevice, type PushPermissionState } from '../push/push';
+import type { NotificationSettings, NotificationSwitches } from '../types/api';
+import { radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
+import { Icon } from './Icon';
+import { NoticeSwitches, platformName } from './NotificationParts';
+import { BrandPage, BrandPageHeader, ScreenState, SettingsCard } from './ScreenPrimitives';
+
+type Field = keyof NotificationSwitches;
 
 export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
+  const s = useStyles(makeStyles);
   const { colors } = useTheme();
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
-  const [saving, setSaving] = useState(false);
-  const [permission, setPermission] = useState<'UNKNOWN' | 'AUTHORIZED' | 'DENIED' | 'UNAVAILABLE'>('UNKNOWN');
+  const [saving, setSaving] = useState<Partial<Record<Field, boolean>>>({});
+  const [permission, setPermission] = useState<PushPermissionState | null>(null);
+  const [asking, setAsking] = useState(false);
   const [message, setMessage] = useState('');
+  // The values the server confirmed, so a failed save reverts only its own switch.
+  const confirmed = useRef<NotificationSettings | null>(null);
 
   const load = useCallback(async () => {
     setStatus('loading');
     setMessage('');
     try {
-      setSettings(await api.notificationSettings());
+      const loaded = await api.notificationSettings();
+      confirmed.current = loaded;
+      setSettings(loaded);
       setStatus('loaded');
     } catch {
-      setSettings(null);
       setStatus('error');
-      setMessage('Não foi possível carregar suas preferências de notificação.');
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  const refreshPermission = useCallback(() => { checkPushPermission().then(setPermission).catch(() => setPermission('NOT_DETERMINED')); }, []);
 
-  // Each switch saves only its own field: turning the daily briefing off must not silence breaking news.
-  const setEnabled = async (field: keyof Pick<NotificationSettings, 'notifications_enabled' | 'daily_briefing_enabled' | 'breaking_news_enabled'>, enabled: boolean) => {
-    if (!settings || saving) return;
-    setSaving(true);
+  useEffect(() => { void load(); refreshPermission(); }, [load, refreshPermission]);
+  // Coming back from the system settings: show what the person changed there.
+  useEffect(() => {
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') refreshPermission(); });
+    return () => listener.remove();
+  }, [refreshPermission]);
+
+  // Each switch saves on its own, right away: there is no save button.
+  const change = async (field: Field, value: boolean) => {
+    if (!settings || saving[field]) return;
     setMessage('');
-    setSettings({ ...settings, [field]: enabled });
+    setSaving(current => ({ ...current, [field]: true }));
+    setSettings(current => current && { ...current, [field]: value });
     try {
-      const saved = await api.saveNotificationSettings({ [field]: enabled });
-      setSettings(saved);
-    } catch {
-      setSettings(settings);
-      setMessage('Não foi possível salvar esta preferência. Tente novamente.');
+      const saved = await api.saveNotificationSettings({ [field]: value });
+      confirmed.current = saved;
+      setSettings(current => current && { ...current, [field]: saved[field] });
+    } catch (error) {
+      setSettings(current => current && { ...current, [field]: confirmed.current?.[field] ?? !value });
+      setMessage(error instanceof ClientError && error.code === 'RATE_LIMITED'
+        ? 'Muitas mudanças seguidas. Aguarde alguns segundos e tente de novo.'
+        : 'Não foi possível salvar esta escolha. Verifique sua internet e tente de novo.');
     } finally {
-      setSaving(false);
+      setSaving(current => ({ ...current, [field]: false }));
     }
   };
 
-  const requestPermission = async () => {
+  const allowNotifications = async () => {
+    setAsking(true);
     setMessage('');
-    try {
-      const result = await requestAndRegisterDevice();
-      setPermission(result.permission === 'AUTHORIZED' ? 'AUTHORIZED' : result.permission === 'DENIED' ? 'DENIED' : 'UNAVAILABLE');
-      if (!result.device && result.permission !== 'AUTHORIZED') setMessage('Não foi possível registrar as notificações neste aparelho. Verifique a permissão do sistema.');
-    } catch {
-      setPermission('UNAVAILABLE');
-      setMessage('Não foi possível solicitar a permissão agora.');
-    }
+    try { setPermission((await requestAndRegisterDevice()).permission); }
+    catch { setMessage('Não foi possível abrir a permissão agora. Tente pelos ajustes do celular.'); }
+    finally { setAsking(false); }
   };
+
+  const blocked = permission !== null && !isPushAllowed(permission);
+  const daily = settings?.notifications_enabled && settings.daily_briefing_enabled;
+  const breaking = settings?.notifications_enabled && settings.breaking_news_enabled;
 
   return <BrandPage>
-    <BrandPageHeader title="Notificações" subtitle="Escolha quais avisos receber neste aparelho." onBack={onBack} />
-    <SettingsSection title="Avisos do Newzi">
-      <SettingsCard>
-        {status === 'loading' && <ScreenState kind="loading" title="Carregando preferências" />}
-        {status === 'error' && <ScreenState kind="error" title="Preferências indisponíveis" message={message} onRetry={() => void load()} />}
-        {status === 'loaded' && settings && <>
-          <SettingRow title="Receber notificações" description="Desligue para pausar todos os avisos do Newzi." label="Todas as notificações"
-            value={settings.notifications_enabled} disabled={saving} onChange={enabled => void setEnabled('notifications_enabled', enabled)} />
-          <SettingRow title="Resumo diário" description={settings.briefing_time ? `Aviso quando o resumo estiver pronto, por volta das ${settings.briefing_time}.` : 'Aviso quando o seu resumo estiver pronto.'}
-            label="Notificação do resumo diário" value={settings.daily_briefing_enabled} inactive={!settings.notifications_enabled} disabled={saving}
-            onChange={enabled => void setEnabled('daily_briefing_enabled', enabled)} />
-          <SettingRow title="Notícias urgentes" description="Quando vários veículos noticiam algo importante dos seus temas. No máximo 2 por dia, nunca entre 22h e 7h."
-            label="Notificação de notícias urgentes" value={settings.breaking_news_enabled} inactive={!settings.notifications_enabled} disabled={saving}
-            onChange={enabled => void setEnabled('breaking_news_enabled', enabled)} />
-        </>}
+    <BrandPageHeader title="Notificações" onBack={onBack} />
+    {status === 'loading' && <ScreenState kind="loading" title="Carregando suas notificações" />}
+    {status === 'error' && <ScreenState kind="error" title="Notificações indisponíveis" message="Não foi possível carregar suas escolhas. Verifique sua internet." onRetry={() => void load()} />}
+    {status === 'loaded' && settings && <>
+      {blocked
+        ? <View accessibilityRole="summary" style={[s.status, s.statusWarning]}>
+          <View style={[s.statusIcon, { backgroundColor: colors.tone('#FDE7C2', colors.topicOrange.background) }]}><Icon name="bellOff" color={colors.tone('#C27A0E', colors.warning)} size={24} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.statusLabel, { color: colors.warning }]}>{`PERMISSÃO DO ${platformName.toUpperCase()}`}</Text>
+            <Text style={[s.statusTitle, { color: colors.tone('#5A3A06', colors.textPrimary) }]}>{permission === 'NOT_DETERMINED' ? 'Notificações não ativadas' : 'Notificações bloqueadas'}</Text>
+            <Text style={[s.statusText, { color: colors.tone('#6E5326', colors.body) }]}>Suas escolhas abaixo ficam salvas, mas nenhum aviso chega até você liberar no celular.</Text>
+            <Pressable accessibilityRole="button" disabled={asking} onPress={() => void allowNotifications()} style={({ pressed }) => [s.statusButton, (pressed || asking) && { opacity: .75 }]}>
+              <Icon name="settings" color="#FFFFFF" size={16} /><Text style={s.statusButtonText}>{asking ? 'Aguarde…' : 'Ativar permissão'}</Text>
+            </Pressable>
+          </View>
+        </View>
+        : permission !== null && <View accessibilityRole="summary" style={[s.status, settings.notifications_enabled && (daily || breaking) ? s.statusOk : s.statusPaused]}>
+          {settings.notifications_enabled && (daily || breaking)
+            ? <>
+              <View style={[s.statusIcon, { backgroundColor: 'rgba(255,255,255,.18)' }]}><Icon name="shield" color="#FFFFFF" size={24} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.statusLabel, { color: 'rgba(255,255,255,.85)' }]}>NESTE APARELHO</Text>
+                <Text style={[s.statusTitle, { color: '#FFFFFF' }]}>Notificações ativas</Text>
+                <Text style={[s.statusText, { color: 'rgba(255,255,255,.92)' }]}>{daily && breaking ? `Você recebe o resumo${settings.briefing_time ? ` das ${settings.briefing_time}` : ''} e notícias urgentes.`
+                  : daily ? `Você recebe o resumo${settings.briefing_time ? ` das ${settings.briefing_time}` : ''}.` : 'Você recebe as notícias urgentes dos seus temas.'}</Text>
+              </View>
+            </>
+            : <>
+              <View style={[s.statusIcon, { backgroundColor: colors.surfaceBlue }]}><Icon name="bellOff" color={colors.secondary} size={24} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.statusLabel, { color: colors.secondary }]}>NESTE APARELHO</Text>
+                <Text style={s.statusTitle}>{settings.notifications_enabled ? 'Nenhum aviso escolhido' : 'Notificações pausadas'}</Text>
+                <Text style={s.statusText}>{settings.notifications_enabled ? 'Ligue o resumo diário ou as notícias urgentes para receber avisos.' : 'Ligue “Receber notificações” para voltar a receber avisos.'}</Text>
+              </View>
+            </>}
+        </View>}
+
+      <Text accessibilityRole="header" style={s.sectionTitle}>Avisos do Newzi</Text>
+      <Text style={s.sectionText}>Escolha o que pode tocar no seu celular.</Text>
+      <SettingsCard style={s.card}>
+        <NoticeSwitches settings={settings} rules={settings.breaking_news_rules} busy={saving} onChange={(field, value) => void change(field, value)} />
       </SettingsCard>
-    </SettingsSection>
-    <SettingsSection title="Permissão do sistema">
-      <SettingsCard>
-        <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>{permission === 'AUTHORIZED' ? 'Permissão concedida' : permission === 'DENIED' ? 'Permissão negada' : permission === 'UNAVAILABLE' ? 'Permissão indisponível' : 'Verificar neste aparelho'}</Text>
-        <Text style={{ color: colors.secondary, fontSize: 13, lineHeight: 19, marginTop: spacing.xs }}>A preferência do Newzi e a permissão do Android são controles separados.</Text>
-        {permission !== 'AUTHORIZED' && <PressPermissionButton label={permission === 'DENIED' ? 'Tentar novamente' : 'Solicitar permissão'} onPress={() => void requestPermission()} />}
-      </SettingsCard>
-    </SettingsSection>
-    {!!message && status === 'loaded' && <Text accessibilityRole="alert" style={{ color: colors.danger, marginTop: spacing.sm }}>{message}</Text>}
+      {!!message && <Text accessibilityRole="alert" style={s.error}>{message}</Text>}
+    </>}
   </BrandPage>;
 }
 
-function SettingRow({ title, description, label, value, inactive = false, disabled, onChange }: { title: string; description: string; label: string; value: boolean; inactive?: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
-  const { colors } = useTheme();
-  // A specific notice keeps its own value while all notifications are paused, but cannot be changed.
-  const on = value && !inactive;
-  return <View style={{ minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, paddingVertical: spacing.sm, opacity: inactive ? .5 : 1 }}>
-    <View style={{ flex: 1 }}>
-      <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 16 }}>{title}</Text>
-      <Text style={{ color: colors.secondary, fontSize: 13, lineHeight: 18, marginTop: 4 }}>{description}</Text>
-    </View>
-    <Switch accessibilityLabel={label} accessibilityState={{ disabled: disabled || inactive }} disabled={disabled || inactive} value={on} onValueChange={onChange}
-      trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} thumbColor={on ? colors.primary : colors.switchThumbOff} />
-  </View>;
-}
-
-function PressPermissionButton({ label, onPress }: { label: string; onPress: () => void }) {
-  const { colors } = useTheme();
-  return <Pressable accessibilityRole="button" onPress={onPress} style={{ minHeight: 46, justifyContent: 'center', marginTop: spacing.sm }}><Text style={{ color: colors.primary, fontWeight: '700' }}>{label}</Text></Pressable>;
-}
+const makeStyles = (colors: Palette) => StyleSheet.create({
+  status: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, borderRadius: 26, padding: spacing.xl, marginBottom: spacing.xxl },
+  statusOk: { backgroundColor: colors.tone('#1F7FEA', colors.inverse), shadowColor: '#1F7FEA', shadowOpacity: .25, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
+  statusWarning: { backgroundColor: colors.tone('#FFF4E2', colors.warningSurface), borderWidth: 1, borderColor: colors.tone('#F6D9A6', colors.warning) },
+  statusPaused: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  statusIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  statusLabel: { fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700', letterSpacing: .6 },
+  statusTitle: { fontFamily: typography.fontFamily.ui, color: colors.textPrimary, fontSize: 19, fontWeight: '800', marginTop: 2 },
+  statusText: { fontFamily: typography.fontFamily.ui, color: colors.secondary, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  statusButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44, marginTop: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.tone('#E8900F', '#C27A0E') },
+  statusButtonText: { fontFamily: typography.fontFamily.ui, color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
+  sectionTitle: { fontFamily: typography.fontFamily.ui, color: colors.textPrimary, fontSize: 21, fontWeight: '800', marginTop: spacing.md },
+  sectionText: { fontFamily: typography.fontFamily.ui, color: colors.secondary, fontSize: 14, marginTop: 2, marginBottom: spacing.md },
+  card: { paddingVertical: 0, marginBottom: spacing.sm },
+  error: { fontFamily: typography.fontFamily.ui, color: colors.danger, fontSize: 13, lineHeight: 19, marginBottom: spacing.sm },
+});

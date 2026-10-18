@@ -9,7 +9,7 @@ import { useBaseStyles, useTheme } from './src/theme';
 import { applySavedThemePreference } from './src/theme/appearance';
 import { RootNavigator, type RootAuthState } from './src/navigation/RootNavigator';
 import type { User } from './src/types/api';
-import { currentPushToken, listenForPushEvents, registerDeviceIfPermitted } from './src/push/push';
+import { currentPushToken, listenForPushEvents, resetDeviceSync, syncCurrentDevice } from './src/push/push';
 import { openFromNotification } from './src/navigation/notificationRouting';
 import { showPushNotice } from './src/services/appNotices';
 import { devLog } from './src/config/env';
@@ -56,8 +56,14 @@ export default function App() {
   useEffect(() => { try { return listenForPushEvents(openFromNotification, showPushNotice); } catch { return undefined; } }, []);
 
   const signedInUid = authState === 'AUTHENTICATED' ? user?.id : undefined;
+  // Links this phone to the account and keeps the backend in step with the system permission, which people
+  // can change in the phone's settings at any time: checked at sign-in and on every return to the app.
   useEffect(() => {
-    if (signedInUid) registerDeviceIfPermitted().catch(() => devLog('[Push] device-registration:failed'));
+    if (!signedInUid) return;
+    const sync = () => syncCurrentDevice().catch(() => devLog('[Push] device-registration:failed'));
+    void sync();
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') void sync(); });
+    return () => listener.remove();
   }, [signedInUid]);
 
   const acceptSession = useCallback(async (nextUser: User) => {
@@ -101,6 +107,7 @@ export default function App() {
     clearCachedAudio();
     clearOfflineCache();
     try { await api.logout(await currentPushToken()); } catch { /* local logout must always complete */ }
+    resetDeviceSync();
     await logoutFromFirebase().catch(() => undefined);
     bootstrappingUid.current = null;
     setUser(null);

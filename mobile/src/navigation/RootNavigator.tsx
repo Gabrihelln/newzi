@@ -26,7 +26,8 @@ import { AppNotices } from '../components/AppNotices';
 import { BrandPage, BrandPageHeader, ScreenState } from '../components/ScreenPrimitives';
 import { navigationRef, setMainFlowReady } from './notificationRouting';
 import { Icon } from '../components/Icon';
-import { ContentPreferencesScreen, DailyBriefingSettingsScreen, EditProfileScreen, ProfileScreen, SecurityPrivacyScreen } from '../components/ProfileScreen';
+import { DailyBriefingSettingsScreen, EditProfileScreen, ProfileScreen, SecurityPrivacyScreen } from '../components/ProfileScreen';
+import { ContentPreferencesScreen } from '../components/ContentPreferencesScreen';
 import { AudioExpandedScreen, DetailScreen, ExploreScreen, SavedContentScreen, SavedScreen, SavedTopicsScreen, TodayScreen } from '../screens/ScreenViews';
 
 export type RootAuthState = 'BOOTING' | 'AUTHENTICATED' | 'UNAUTHENTICATED';

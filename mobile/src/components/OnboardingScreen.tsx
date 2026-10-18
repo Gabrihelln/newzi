@@ -10,7 +10,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { api, ClientError, CONNECTION_ERROR_MESSAGE } from '../api/client';
 import { pauseAudio } from '../audio/player';
 import { getDeviceTimezone } from '../config/timezone';
-import { requestAndRegisterDevice } from '../push/push';
+import { isPushAllowed, requestAndRegisterDevice, type PushPermissionState } from '../push/push';
+import { NoticeRow } from './NotificationParts';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import type { AudioVoice, AudioVoiceCatalog, ClientConfig, NextBriefing, Preferences, Topic, User } from '../types/api';
@@ -276,7 +277,9 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
   const [catalogLanguage, setCatalogLanguage] = useState('');
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [voicesFailed, setVoicesFailed] = useState(false);
-  const [notifications, setNotifications] = useState<boolean | null>(null);
+  // The notices chosen in step 7 (saved with everything else) and what the system answered when asked.
+  const [notices, setNotices] = useState({ daily: true, breaking: true });
+  const [permission, setPermission] = useState<PushPermissionState | null>(null);
   const [nextBriefing, setNextBriefing] = useState<NextBriefing | null>(null);
   const [completedUser, setCompletedUser] = useState<User | null>(null);
   const searchInput = useRef<TextInput>(null);
@@ -360,10 +363,15 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
     setError('');
     if (!validate(step)) return;
     if (step === 7) {
-      setBusy(true);
-      try { const result = await requestAndRegisterDevice(); setNotifications(result.permission === 'AUTHORIZED' || result.permission === 'PROVISIONAL'); }
-      catch { setNotifications(false); /* A permissão ou o registro não impedem o onboarding. */ }
-      finally { setBusy(false); setReviewing(false); go(8); }
+      // The system prompt only makes sense when some notice is wanted. A refusal never blocks the onboarding:
+      // the choices are saved anyway and the permission can be given later in Profile › Notificações.
+      if (notices.daily || notices.breaking) {
+        setBusy(true);
+        try { setPermission((await requestAndRegisterDevice()).permission); }
+        catch { setPermission('DENIED'); }
+        finally { setBusy(false); }
+      }
+      setReviewing(false); go(8);
       return;
     }
     if (reviewing) { setReviewing(false); go(8); return; }
@@ -382,6 +390,8 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
     try {
       // Everything, the voice included, is saved at once.
       await api.saveOnboarding({ ...prefs, audio_voice_id: prefs.audio_voice_id || null });
+      // The notices follow the account to every phone; a failure here must not undo the onboarding.
+      await api.saveNotificationSettings({ notifications_enabled: notices.daily || notices.breaking, daily_briefing_enabled: notices.daily, breaking_news_enabled: notices.breaking }).catch(() => undefined);
       const user = await api.me();
       setNextBriefing((await api.preferences().catch(() => null))?.next_briefing || null);
       setCompletedUser(user);
@@ -419,9 +429,11 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
   }
 
   const titles = ['', 'Bem-vindo\nao Newzi', 'Escolha o que\nimporta para você', 'Defina seu idioma\ne escopo', 'Escolha o melhor\nhorário', 'Escolha o tamanho\ndo seu resumo', 'Escolha a voz\ndo seu resumo', 'Ative as notificações', 'Tudo certo!'];
-  const subtitles = ['', 'Notícias importantes, todos os dias,\nde forma clara, rápida e no seu ritmo.', 'Selecione quantos temas quiser.', 'Receba notícias em português,\nno cenário global ou nos dois.', 'Receba seu resumo diário\nno momento ideal.', 'Você decide quanto tempo\ntem hoje. A gente se adapta.', 'Toque em ▶ para ouvir uma prévia.', 'Receba um aviso quando seu\nresumo do dia estiver pronto.', 'Confira suas escolhas. Toque em\num item para ajustar.'];
-  const primaryLabel = step === 8 ? busy ? 'Salvando…' : 'Salvar tudo' : busy ? 'Aguarde…' : step === 7 ? 'Ativar' : reviewing ? 'Revisar' : 'Próximo';
-  const centered = step === 1 || step === 5 || step === 7 || step === 8;
+  const subtitles = ['', 'Notícias importantes, todos os dias,\nde forma clara, rápida e no seu ritmo.', 'Selecione quantos temas quiser.', 'Receba notícias em português,\nno cenário global ou nos dois.', 'Receba seu resumo diário\nno momento ideal.', 'Você decide quanto tempo\ntem hoje. A gente se adapta.', 'Toque em ▶ para ouvir uma prévia.', 'Escolha os avisos que quer receber.\nVocê pode mudar depois no Perfil.', 'Confira suas escolhas. Toque em\num item para ajustar.'];
+  const primaryLabel = step === 8 ? busy ? 'Salvando…' : 'Salvar tudo' : busy ? 'Aguarde…' : step === 7 ? (notices.daily || notices.breaking ? 'Ativar' : 'Continuar') : reviewing ? 'Revisar' : 'Próximo';
+  const centered = step === 1 || step === 5 || step === 8;
+  const noticesLabel = !notices.daily && !notices.breaking ? 'Desativados'
+    : `${notices.daily && notices.breaking ? 'Resumo e urgentes' : notices.daily ? 'Resumo diário' : 'Notícias urgentes'}${permission && !isPushAllowed(permission) ? ' · bloqueados no celular' : ''}`;
   const today = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
   return <SafeAreaView style={s.root} edges={['top', 'bottom']}>{statusBar}
@@ -499,15 +511,25 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
           {step === 6 && <VoiceStep catalog={catalog} language={prefs.language} loading={voicesLoading} failed={voicesFailed} selected={prefs.audio_voice_id} onSelect={audio_voice_id => update({ audio_voice_id })} onRetry={() => loadVoices(prefs.language)} />}
 
           {step === 7 && <>
-            <View style={s.lockScreen}><Text style={s.lockDate}>{today}</Text><Text style={s.lockTime}>{prefs.briefing_time}</Text></View>
-            <View accessible accessibilityLabel={`Exemplo de notificação: Seu resumo de hoje está pronto. ${prefs.briefing_size} notícias, ${sizeMinutes(prefs.briefing_size)} minutos${voice ? `, narrado ${voice.gender === 'male' ? 'pelo' : 'pela'} ${voice.name}` : ''}.`} style={s.notification}>
+            {!compact && <View style={s.lockScreen}><Text style={s.lockDate}>{today}</Text><Text style={s.lockTime}>{prefs.briefing_time}</Text></View>}
+            <View accessible accessibilityLabel={`Exemplo de notificação: Seu resumo de hoje está pronto. ${prefs.briefing_size} notícias selecionadas para você, ${sizeMinutes(prefs.briefing_size)} minutos.`} style={[s.notification, !(notices.daily || notices.breaking) && { opacity: .5 }]}>
               <Image source={marks.symbol} resizeMode="contain" style={s.notificationIcon} />
               <View style={s.cardCopy}>
-                <View style={s.notificationMeta}><Text style={s.notificationApp}>NEWZI</Text><Text style={s.notificationWhen}>agora</Text></View>
+                <View style={s.notificationMeta}><Text style={s.notificationApp}>NEWZI</Text><Text style={s.notificationWhen}>{prefs.briefing_time}</Text></View>
                 <Text style={s.notificationTitle}>Seu resumo de hoje está pronto</Text>
-                <Text style={s.notificationText}>{prefs.briefing_size} notícias · {sizeMinutes(prefs.briefing_size)} min{voice ? ` · narrado ${voice.gender === 'male' ? 'pelo' : 'pela'} ${voice.name}` : ''}</Text>
+                <Text style={s.notificationText}>{prefs.briefing_size} notícias selecionadas para você · {sizeMinutes(prefs.briefing_size)} min</Text>
               </View>
             </View>
+            <View style={s.noticeCard}>
+              <NoticeRow kind="daily" title="Resumo diário" label="Aviso do resumo diário" value={notices.daily} onChange={daily => setNotices(current => ({ ...current, daily }))}
+                description={`Quando seu resumo ficar pronto, por volta das ${prefs.briefing_time}.`} />
+              <NoticeRow kind="breaking" title="Notícias urgentes" label="Aviso de notícias urgentes" value={notices.breaking} onChange={breaking => setNotices(current => ({ ...current, breaking }))} last
+                description="Algo importante nos seus temas, com um resumo curto. Até 2 por dia, nunca entre 22h e 7h." />
+            </View>
+            {permission && !isPushAllowed(permission) && <Text style={s.noticeHint}>As notificações estão bloqueadas no celular. Suas escolhas ficam salvas e você pode liberar depois em Perfil › Notificações.</Text>}
+            {(notices.daily || notices.breaking) && !permission && <Pressable accessibilityRole="button" onPress={() => { setNotices({ daily: false, breaking: false }); setReviewing(false); go(8); }} style={s.skip}>
+              <Text style={s.skipText}>Agora não</Text>
+            </Pressable>}
           </>}
 
           {step === 8 && <>
@@ -517,7 +539,7 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
               <SummaryRow icon="clock" label="Horário" value={prefs.briefing_time} onPress={() => edit(4)} />
               <SummaryRow icon="article" label="Tamanho" value={`${sizeLabel(prefs.briefing_size)} · ${prefs.briefing_size} notícias`} onPress={() => edit(5)} />
               <SummaryRow icon="mic" label="Voz" value={voice?.name || 'Voz padrão'} onPress={() => edit(6)} />
-              <SummaryRow icon="bell" label="Avisos" value={notifications ? 'Ativados' : 'Desativados'} onPress={() => edit(7)} last />
+              <SummaryRow icon="bell" label="Avisos" value={noticesLabel} onPress={() => edit(7)} last />
             </View>
             <View style={s.savedHint}><Icon name="checkCircle" color={colors.tone('#16A568', colors.success)} size={14} /><Text style={s.savedHintText}>Tudo fica salvo na sua conta de uma vez.</Text></View>
           </>}
@@ -618,6 +640,10 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   notificationTitle: { fontFamily: typography.fontFamily.ui, fontSize: 14.5, fontWeight: '700', color: colors.tone('#142953', colors.ink), marginTop: 3 },
   notificationText: { fontFamily: typography.fontFamily.ui, fontSize: 12.5, lineHeight: 17, color: colors.tone('#58709A', colors.secondary), marginTop: 2 },
   summary: { backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.divider },
+  noticeCard: { marginTop: 16, paddingHorizontal: 14, backgroundColor: colors.surface, borderRadius: 22, borderWidth: 1, borderColor: colors.divider },
+  noticeHint: { fontFamily: typography.fontFamily.ui, fontSize: 12.5, lineHeight: 18, color: colors.warning, marginTop: 10, textAlign: 'center' },
+  skip: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, marginTop: 4 },
+  skipText: { fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700', color: colors.tone('#55719A', colors.secondary) },
   summaryRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }, summaryBorder: { borderBottomWidth: 1, borderColor: colors.divider },
   summaryLabel: { width: 70, fontFamily: typography.fontFamily.ui, fontSize: 13, color: colors.tone('#5F769B', colors.secondary) },
   summaryValue: { flex: 1, fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '700', color: colors.tone('#19305A', colors.ink), textAlign: 'right' },

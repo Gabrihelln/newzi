@@ -1,7 +1,7 @@
 import { API_BASE_URL, LOGGING_ENABLED, devLog } from '../config/env';
 import { firebaseAuth, getFirebaseIdToken } from '../services/firebaseAuth';
 import { cachedRead } from '../services/offlineCache';
-import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballOverview, FootballStandings, HomeData, Subscription, NotificationSettings, SavedOverview, SavedStoryPage } from '../types/api';
+import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballOverview, FootballStandings, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
 
 /** What users read when the app cannot reach the server: no technical terms. */
 export const CONNECTION_ERROR_MESSAGE = 'Sem conexão com o Newzi. Verifique sua internet e tente novamente.';
@@ -123,5 +123,5 @@ export const api = {
   registerDevice: (body: any) => apiRequest<any>('/api/v1/me/devices', { method: 'POST', body: JSON.stringify(body) }),
   disableDevice: (id: string) => apiRequest<any>(`/api/v1/me/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   notificationSettings: () => apiRequest<NotificationSettings>('/api/v1/me/notification-settings'),
-  saveNotificationSettings: (body: Partial<NotificationSettings>) => apiRequest<NotificationSettings>('/api/v1/me/notification-settings', { method: 'PUT', body: JSON.stringify(body) }),
+  saveNotificationSettings: (body: Partial<NotificationSwitches>) => apiRequest<NotificationSettings>('/api/v1/me/notification-settings', { method: 'PUT', body: JSON.stringify(body) }),
 };

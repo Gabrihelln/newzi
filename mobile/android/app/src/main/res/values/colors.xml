@@ -2,4 +2,6 @@
     <color name="ic_launcher_background">#061E39</color>
     <!-- Window and navigation bar; values-night holds the dark-mode values. -->
     <color name="app_background">#F7FBFF</color>
+    <!-- Accent of the push notifications (small icon and app name). -->
+    <color name="notification_accent">#0268FB</color>
 </resources>

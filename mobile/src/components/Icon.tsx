@@ -2,7 +2,7 @@ import React from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
 
-export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor' | 'trash' | 'flag' | 'layers' | 'mic';
+export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor' | 'trash' | 'flag' | 'layers' | 'mic' | 'shield' | 'bellOff' | 'bolt' | 'info';
 
 export function Icon({ name, color: requested, size = 22 }: { name: IconName; color?: string; size?: number }) {
   const theme = useTheme();
@@ -10,6 +10,10 @@ export function Icon({ name, color: requested, size = 22 }: { name: IconName; co
   const stroke = { stroke: color, strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
   return <Svg width={size} height={size} viewBox="0 0 24 24">
     {name === 'search' && <><Circle cx="10.8" cy="10.8" r="7.2" {...stroke} /><Path d="m16 16 5 5" {...stroke} /></>}
+    {name === 'bellOff' && <><Path d="M8.7 3.9A6 6 0 0 1 18 9c0 3.2.6 5 1.3 6.2M6.3 6.3A6 6 0 0 0 6 9c0 7-3 7-3 9h15" {...stroke} /><Path d="M10 21h4M3 3l18 18" {...stroke} /></>}
+    {name === 'shield' && <><Path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6Z" {...stroke} /><Path d="m8.8 12 2.2 2.2 4.3-4.4" {...stroke} /></>}
+    {name === 'bolt' && <Path d="M13 2.5 4.5 13.5H12l-1 8 8.5-11H12Z" {...stroke} />}
+    {name === 'info' && <><Circle cx="12" cy="12" r="9" {...stroke} /><Path d="M12 11v5.5M12 7.6h.01" {...stroke} /></>}
     {name === 'bell' && <><Path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" {...stroke} /><Path d="M10 21h4" {...stroke} /></>}
     {name === 'chevron' && <Path d="m9 5 7 7-7 7" {...stroke} />}
     {name === 'chevronDown' && <Path d="m5 9 7 7 7-7" {...stroke} />}

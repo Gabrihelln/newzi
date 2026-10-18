@@ -28,7 +28,7 @@ export function AppNotices() {
         borderWidth: 1, borderColor: colors.border, padding: spacing.md, opacity: pressed ? .85 : 1,
         shadowColor: colors.shadow.color, shadowOpacity: .18, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 8 })}>
       <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceBlue, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name={push.data.type === 'DAILY_BRIEFING' ? 'audio' : 'explore'} color={colors.primary} size={20} />
+        <Icon name={push.data.type === 'DAILY_BRIEFING' ? 'audio' : 'bolt'} color={colors.primary} size={20} />
       </View>
       <View style={{ flex: 1 }}>
         <Text numberOfLines={2} style={{ fontFamily: typography.fontFamily.ui, color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>{push.title}</Text>

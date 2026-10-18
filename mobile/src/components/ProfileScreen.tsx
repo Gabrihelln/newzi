@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { updateProfile } from '@react-native-firebase/auth';
 import { resetPasswordWithFirebase, getFirebaseIdToken } from '../services/firebaseAuth';
@@ -8,13 +8,11 @@ import { api } from '../api/client';
 import {typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import { useLogo } from './brand';
-import { buildTopicTree, coverage, isCovered as isTopicCovered, toggleTopic as toggleTopicSelection } from '../services/topicSelection';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
-import type { ClientConfig, Preferences, User } from '../types/api';
+import type { Preferences, User } from '../types/api';
 import { ScreenState } from './ScreenPrimitives';
 import { getDeviceTimezone } from '../config/timezone';
 import { isValidBriefingTime } from '../config/time';
-import { notifyContentChanged } from '../services/contentRevision';
 import { PremiumSheet } from './PremiumSheet';
 import { PREMIUM_OFFERED } from '../config/store';
 import { TimeWheel } from './TimeWheel';
@@ -149,166 +147,6 @@ export function EditProfileScreen({ user, onBack, onSaved }: { user: User | null
   </SecondaryPage>;
 }
 
-function normalizeTopicSearch(value: string) {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
-}
-
-/** Canonical description of what drives briefing content, used to tell whether a save requires a new briefing. */
-const contentProfileKey = (prefs: Pick<Preferences, 'topics' | 'content_scope'>) => prefs.content_scope === 'all' ? 'all' : [...prefs.topics].sort().join('|');
-
-export function ContentPreferencesScreen({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
-  const st = useStyles(makeStyles);
-  const theme = useTheme();
-  const { colors } = theme;
-  const [prefs, setPrefs] = useState<Preferences | null>(null);
-  const [savedProfile, setSavedProfile] = useState('');
-  const [savedDialog, setSavedDialog] = useState<null | { regenerating: boolean }>(null);
-  const [config, setConfig] = useState<ClientConfig | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const load = async () => { setLoading(true); setLoadError(''); try { const [p, c] = await Promise.all([api.preferences(), api.config()]); const loaded = { ...p, content_scope: p.content_scope || 'selected' }; setPrefs(loaded); setSavedProfile(contentProfileKey(loaded)); setConfig(c); } catch { setPrefs(null); setConfig(null); setLoadError('Não foi possível carregar suas preferências.'); } finally { setLoading(false); } };
-  useEffect(() => { void load(); }, []);
-  const topics = useMemo(() => (config?.topics || []).filter(topic => topic.enabled !== false).slice().sort((a, b) => (a.order || 0) - (b.order || 0)), [config]);
-  const topicsByCode = useMemo(() => new Map(topics.map(topic => [topic.code, topic])), [topics]);
-  const childrenByParent = useMemo(() => {
-    const children = new Map<string, typeof topics>();
-    for (const topic of topics) {
-      if (!topic.parent_id) continue;
-      const siblings = children.get(topic.parent_id) || [];
-      siblings.push(topic);
-      children.set(topic.parent_id, siblings);
-    }
-    return children;
-  }, [topics]);
-  const roots = topics.filter(topic => !topic.parent_id);
-  const tree = useMemo(() => buildTopicTree(topics), [topics]);
-  const selectedTopics = prefs?.topics || [];
-  const allContent = prefs?.content_scope === 'all';
-  const normalizedQuery = normalizeTopicSearch(query);
-  const descendantsByCode = useMemo(() => {
-    const descendants = new Map<string, string[]>();
-    for (const topic of topics) for (const ancestor of (topic.path || []).slice(0, -1)) descendants.set(ancestor, [...(descendants.get(ancestor) || []), topic.code]);
-    return descendants;
-  }, [topics]);
-  const isCovered = (code: string) => allContent || isTopicCovered(selectedTopics, code, tree);
-  const subjectCount = topics.length - roots.length;
-  // Exact name/alias matches first ("IA" → Inteligência Artificial), then word prefixes, then substrings.
-  const searchResults = normalizedQuery ? topics.map(topic => {
-    const parentNames = (topic.path || []).slice(0, -1).map(code => topicsByCode.get(code)?.name || '');
-    const primary = [topic.name, topic.code, ...(topic.aliases || [])].map(normalizeTopicSearch);
-    const secondary = [topic.description || '', ...parentNames].map(normalizeTopicSearch);
-    const words = (value: string) => value.split(/[\s_-]+/);
-    const rank = primary.some(value => value === normalizedQuery) ? 0
-      : primary.some(value => words(value).some(word => word.startsWith(normalizedQuery))) ? 1
-      : normalizedQuery.length > 2 && primary.some(value => value.includes(normalizedQuery)) ? 2
-      : normalizedQuery.length > 2 && secondary.some(value => value.includes(normalizedQuery)) ? 3 : -1;
-    return { topic, rank };
-  }).filter(result => result.rank >= 0).sort((a, b) => a.rank - b.rank || (a.topic.depth || 0) - (b.topic.depth || 0) || (a.topic.order || 0) - (b.topic.order || 0)).map(result => result.topic) : [];
-  // Every topic stays selectable. With "follow everything" on, a change starts from all domains (e.g. all but Sports).
-  const toggleTopic = (code: string) => setPrefs(current => current ? { ...current, content_scope: 'selected', topics: toggleTopicSelection(current.content_scope === 'all' ? roots.map(root => root.code) : current.topics, code, tree) } : current);
-  const toggleExpanded = (code: string) => setExpanded(current => { const next = new Set(current); if (next.has(code)) next.delete(code); else next.add(code); return next; });
-  const expandableCodes = topics.filter(topic => (childrenByParent.get(topic.code) || []).length > 0).map(topic => topic.code);
-  const allExpanded = expandableCodes.length > 0 && expandableCodes.every(code => expanded.has(code));
-  const domainSummary = (root: typeof topics[number]) => {
-    const descendants = descendantsByCode.get(root.code) || [];
-    if (!descendants.length) return root.description || 'Assunto';
-    if (allContent || selectedTopics.includes(root.code)) return `Todos os ${descendants.length} assuntos incluídos`;
-    const covered = descendants.filter(isCovered).length;
-    return covered ? `${covered} de ${descendants.length} assuntos selecionados` : `${descendants.length} assuntos`;
-  };
-  const topicPath = (topic: typeof topics[number]) => (topic.path || [topic.code]).map(code => topicsByCode.get(code)?.name || code).join(' › ');
-  const renderTopic = (topic: typeof topics[number], depth = 0, showPath = false): React.ReactNode => {
-    const state = allContent ? 'all' : coverage(selectedTopics, topic.code, tree);
-    const checked = state === 'all';
-    const partial = state === 'some';
-    const children = childrenByParent.get(topic.code) || [];
-    const isExpanded = expanded.has(topic.code) || Boolean(normalizedQuery);
-    const tint = [colors.primary, colors.tone('#8548E6', colors.topicPurple.icon), colors.tone('#10A867', colors.topicGreen.icon), colors.tone('#F39711', colors.topicOrange.icon), colors.tone('#E83E54', colors.topicRed.icon)][Math.max(0, depth) % 5];
-    return <View key={topic.code} style={{ marginLeft: Math.min(depth * 12, 36), borderBottomWidth: 1, borderBottomColor: colors.tone('#EEF3F8', colors.divider) }}>
-      <View style={{ minHeight: showPath ? 72 : 58, flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingRight: 8 }}>
-        <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: partial ? 'mixed' : checked }} onPress={() => toggleTopic(topic.code)} style={{ flex: 1, minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ width: 23, height: 23, borderRadius: 7, borderWidth: 1.5, borderColor: checked || partial ? tint : colors.tone('#C9D6E6', colors.border), backgroundColor: checked ? tint : colors.surface, alignItems: 'center', justifyContent: 'center' }}>{checked ? <Icon name="check" color={colors.onPrimary} size={15} /> : partial ? <View style={{ width: 10, height: 2.5, borderRadius: 2, backgroundColor: tint }} /> : null}</View>
-          <View style={{ flex: 1 }}><Text style={{ color: colors.tone('#17264B', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '700' }}>{topic.name}</Text>{showPath ? <Text numberOfLines={1} style={{ color: colors.tone('#788AA6', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 2 }}>{topicPath(topic)}</Text> : topic.description ? <Text numberOfLines={1} style={{ color: colors.tone('#7184A2', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 2 }}>{topic.description}</Text> : null}</View>
-        </Pressable>
-        {children.length > 0 && !showPath && <Pressable accessibilityRole="button" accessibilityLabel={`${isExpanded ? 'Recolher' : 'Expandir'} ${topic.name}`} onPress={() => toggleExpanded(topic.code)} style={{ minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{isExpanded ? '−' : `+${children.length}`}</Text></Pressable>}
-      </View>
-      {isExpanded && !showPath && children.map(child => renderTopic(child, depth + 1))}
-    </View>;
-  };
-  const save = async () => {
-    if (!prefs) return;
-    if (prefs.content_scope !== 'all' && prefs.topics.length === 0) { setMessage('Selecione ao menos um assunto ou ative “Acompanhar tudo”.'); return; }
-    setBusy(true); setMessage('');
-    // A selected domain already includes its subjects; keep the saved list canonical.
-    const topicsToSave = prefs.topics.filter(code => !(topicsByCode.get(code)?.path || []).slice(0, -1).some(ancestor => prefs.topics.includes(ancestor)));
-    try { const updated = { ...prefs, topics: topicsToSave.length ? topicsToSave : prefs.topics, content_scope: prefs.content_scope || 'selected' }; const saved = await api.savePreferences(updated); const next = { ...updated, ...saved }; setPrefs(next);
-      const profile = contentProfileKey(next); const regenerating = profile !== savedProfile; setSavedProfile(profile);
-      notifyContentChanged(); setSavedDialog({ regenerating }); }
-    catch { setMessage('Não foi possível salvar as preferências.'); }
-    finally { setBusy(false); }
-  };
-  return <SecondaryPage title="Preferências de conteúdo" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando preferências" /> : loadError ? <ScreenState kind="error" title="Preferências indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs || !config ? null : <>
-    <Text style={st.pageIntro}>Escolha os assuntos que você quer acompanhar.</Text>
-    <Text style={[st.helper, { marginTop: -8, marginBottom: 12 }]}>{roots.length} domínios · {subjectCount} assuntos{allContent ? ' · todos incluídos' : selectedTopics.length ? ` · ${topics.filter(topic => isCovered(topic.code)).length} incluídos` : ''}</Text>
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, marginBottom: 14, borderRadius: 18, borderWidth: 1, borderColor: allContent ? colors.tone('#9BC8FF', colors.primary) : colors.tone('#E4EDF7', colors.border), backgroundColor: allContent ? colors.surfaceTint : colors.surface }}>
-      <View style={{ flex: 1, paddingRight: 12 }}><Text style={{ color: colors.tone('#15234A', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' }}>Quero acompanhar tudo</Text><Text style={{ color: colors.tone('#6A7E9E', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 12, lineHeight: 17, marginTop: 3 }}>Segue todos os domínios e assuntos. Desmarque o que não quiser acompanhar.</Text></View>
-      <Switch accessibilityLabel="Quero acompanhar tudo" value={allContent} onValueChange={value => setPrefs(current => current ? { ...current, content_scope: value ? 'all' : 'selected' } : current)} trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} thumbColor={allContent ? colors.primary : colors.surface} />
-    </View>
-    {!allContent && selectedTopics.length > 0 && <View style={{ marginBottom: 14 }}>
-      <Text style={[st.helper, { marginBottom: 8 }]}>Selecionados ({selectedTopics.length}) · toque para remover</Text>
-      {selectedTopics.length > (prefs.briefing_size || 10) && <Text style={[st.helper, { marginBottom: 8 }]}>{selectedTopics.length > 20
-        ? 'Com muitos assuntos, seu resumo pode chegar a 20 notícias; nos dias com mais novidades, alguns assuntos podem ficar de fora.'
-        : `Para incluir todos os seus assuntos, o resumo pode ter mais de ${prefs.briefing_size || 10} notícias (até 20).`}</Text>}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{selectedTopics.map(code => {
-        const topic = topicsByCode.get(code);
-        const parent = topic?.parent_id ? topicsByCode.get(topic.parent_id)?.name : null;
-        return <Pressable key={code} accessibilityRole="button" accessibilityLabel={`Remover ${topic?.name || code}`} onPress={() => toggleTopic(code)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34, paddingLeft: 12, paddingRight: 8, borderRadius: 17, backgroundColor: colors.tone('#E4F1FF', colors.surfaceTint), borderWidth: 1, borderColor: colors.tone('#B7D6FF', colors.primary) }}>
-          <Text style={{ color: colors.tone('#0B4FA8', colors.primary), fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{topic?.name || code}{parent ? <Text style={{ fontWeight: '500', color: colors.tone('#4D73A8', colors.secondary) }}>{` · ${parent}`}</Text> : null}</Text>
-          <Icon name="close" color={colors.tone('#0B4FA8', colors.primary)} size={14} />
-        </Pressable>;
-      })}</View>
-    </View>}
-    <TextInput accessibilityLabel="Buscar assuntos" value={query} onChangeText={setQuery} placeholder="Buscar assunto, tema ou alias" placeholderTextColor={colors.tone('#8192AE', colors.muted)} autoCorrect={false} style={[st.input, { marginBottom: 12 }]} />
-    {allContent && <Text style={[st.helper, { marginBottom: 10 }]}>Sua seleção ficará salva caso você volte a acompanhar assuntos específicos.</Text>}
-    {!normalizedQuery && expandableCodes.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel={allExpanded ? 'Recolher todos os domínios' : 'Expandir todos os domínios'} onPress={() => setExpanded(allExpanded ? new Set() : new Set(expandableCodes))} style={{ alignSelf: 'flex-end', minHeight: 36, justifyContent: 'center', paddingHorizontal: 4, marginBottom: 6 }}><Text style={{ color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{allExpanded ? 'Recolher todos' : 'Expandir todos'}</Text></Pressable>}
-    {normalizedQuery ? searchResults.length ? <View style={{ backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: colors.tone('#E6EEF7', colors.border), paddingHorizontal: 12 }}>{searchResults.map(topic => renderTopic(topic, 0, true))}</View> : <Text style={st.helper}>Nenhum assunto encontrado.</Text> : <View style={{ gap: 10 }}>{roots.map(root => {
-      const descendants = (childrenByParent.get(root.code) || []).length;
-      const rootState = allContent ? 'all' : coverage(selectedTopics, root.code, tree);
-      const directSelected = rootState === 'all';
-      const rootPartial = rootState === 'some';
-      const isExpanded = expanded.has(root.code);
-      return <View key={root.code} style={{ backgroundColor: colors.surface, borderRadius: 18, borderWidth: 1, borderColor: directSelected ? colors.tone('#B7D6FF', colors.primary) : colors.tone('#E6EEF7', colors.border), paddingHorizontal: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: rootPartial ? 'mixed' : directSelected }} onPress={() => toggleTopic(root.code)} style={{ flex: 1, minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View style={{ width: 24, height: 24, borderRadius: 8, borderWidth: 1.5, borderColor: directSelected || rootPartial ? colors.primary : colors.tone('#C9D6E6', colors.border), backgroundColor: directSelected ? colors.primary : colors.surface, alignItems: 'center', justifyContent: 'center' }}>{directSelected ? <Icon name="check" color={colors.onPrimary} size={15} /> : rootPartial ? <View style={{ width: 11, height: 2.5, borderRadius: 2, backgroundColor: colors.primary }} /> : null}</View><View style={{ flex: 1 }}><Text style={{ color: colors.tone('#17264B', colors.ink), fontFamily: typography.fontFamily.ui, fontSize: 15, fontWeight: '800' }}>{root.name}</Text><Text style={{ color: colors.tone('#7184A2', colors.secondary), fontFamily: typography.fontFamily.ui, fontSize: 11, marginTop: 2 }}>{domainSummary(root)}</Text></View>
-          </Pressable>
-          {descendants > 0 && <Pressable accessibilityRole="button" accessibilityLabel={`${isExpanded ? 'Recolher' : 'Expandir'} ${root.name}`} onPress={() => toggleExpanded(root.code)} style={{ minWidth: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.primary, fontFamily: typography.fontFamily.ui, fontSize: 12, fontWeight: '700' }}>{isExpanded ? '−' : `+${descendants}`}</Text></Pressable>}
-        </View>
-        {isExpanded && (childrenByParent.get(root.code) || []).map(child => renderTopic(child, 1))}
-      </View>;
-    })}</View>}
-    {!!message && <Text accessibilityRole="alert" style={st.formMessage}>{message}</Text>}
-    <ActionButton title={busy ? 'Salvando…' : 'Salvar preferências'} disabled={busy} onPress={() => void save()} />
-    <Modal visible={Boolean(savedDialog)} transparent animationType="fade" onRequestClose={() => { setSavedDialog(null); onDone(); }}>
-      <View style={st.dialogBackdrop}>
-        <View accessibilityViewIsModal style={st.dialogCard}>
-          <View style={st.dialogIcon}><Icon name="checkCircle" color={colors.primary} size={30} /></View>
-          <Text style={st.dialogTitle}>Preferências salvas</Text>
-          <Text style={st.dialogBody}>{savedDialog?.regenerating
-            ? 'Estamos preparando um novo resumo em áudio com as suas novas preferências. Normalmente leva menos de um minuto — você será notificado quando ele estiver pronto para ouvir.'
-            : 'Sua tela inicial e o Explorar já foram atualizados com as suas preferências.'}</Text>
-          <ActionButton title="Ir para o início" onPress={() => { setSavedDialog(null); onDone(); }} />
-          <Pressable accessibilityRole="button" onPress={() => setSavedDialog(null)} style={st.dialogSecondary}><Text style={st.dialogSecondaryText}>Continuar editando</Text></Pressable>
-        </View>
-      </View>
-    </Modal>
-  </>}</SecondaryPage>;
-}
-
 export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }: { onBack: () => void; onVoice: () => void; onSubscription: () => void }) {
   const st = useStyles(makeStyles);
   const theme = useTheme();
@@ -336,7 +174,7 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
     <Text style={st.formLabel}>Tamanho</Text><View style={st.choiceLine}>{[5, 10, 15].map(size => <Pressable key={size} accessibilityRole="radio" accessibilityState={{ selected: prefs.briefing_size === size }} onPress={() => setPrefs({ ...prefs, briefing_size: size as Preferences['briefing_size'] })} style={[st.sizeChoice, prefs.briefing_size === size && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.briefing_size === size && { color: colors.primary }]}>{size} notícias</Text></Pressable>)}</View>
     <Text style={st.formLabel}>Idioma e cobertura</Text><View style={st.choiceLine}>{['pt-BR', 'en'].map(language => <Pressable key={language} accessibilityRole="radio" accessibilityState={{ selected: prefs.language === language }} onPress={() => setPrefs({ ...prefs, language })} style={[st.sizeChoice, prefs.language === language && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.language === language && { color: colors.primary }]}>{language === 'pt-BR' ? 'Português' : 'English'}</Text></Pressable>)}</View><View style={st.choiceLine}>{(['LOCAL', 'GLOBAL', 'BOTH'] as const).map(scope => <Pressable key={scope} accessibilityRole="radio" accessibilityState={{ selected: prefs.country_scope === scope }} onPress={() => setPrefs({ ...prefs, country_scope: scope })} style={[st.sizeChoice, prefs.country_scope === scope && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.country_scope === scope && { color: colors.primary }]}>{scope === 'BOTH' ? 'Brasil e global' : scope === 'LOCAL' ? 'Brasil' : 'Global'}</Text></Pressable>)}</View>
     <Pressable accessibilityRole="button" accessibilityLabel={`Voz do resumo: ${selectedVoice}`} onPress={onVoice} style={st.voiceRow}><View style={{ flex: 1 }}><Text style={st.menuTitle}>Voz do resumo</Text><Text style={st.menuSubtitle}>{selectedVoice} · Alterar voz</Text></View><Icon name="chevron" color={colors.tone('#64789C', colors.secondary)} /></Pressable>
-    <View style={st.audioToggle}><Text style={st.menuTitle}>Áudio do resumo</Text><Switch value={prefs.audio_enabled} onValueChange={audio_enabled => setPrefs({ ...prefs, audio_enabled })} trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} thumbColor={prefs.audio_enabled ? colors.primary : colors.surface} /></View>
+    <View style={st.audioToggle}><Text style={st.menuTitle}>Áudio do resumo</Text><Switch accessibilityLabel="Áudio do resumo" value={prefs.audio_enabled} onValueChange={audio_enabled => setPrefs({ ...prefs, audio_enabled })} trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} ios_backgroundColor={colors.switchTrackOff} thumbColor={prefs.audio_enabled ? colors.primary : colors.switchThumbOff} /></View>
     {!!message && <Text accessibilityRole="alert" style={st.formMessage}>{message}</Text>}<ActionButton title={busy ? 'Salvando…' : 'Salvar configurações'} disabled={busy || !isValidBriefingTime(prefs.briefing_time)} onPress={() => void save()} />
     <PremiumSheet feature="briefing_times" visible={upsell} onClose={() => setUpsell(false)} onSeePlans={onSubscription} />
   </>}</SecondaryPage>;

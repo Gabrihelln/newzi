@@ -16,6 +16,9 @@
       android:usesCleartextTraffic="${usesCleartextTraffic}"
       android:supportsRtl="true">
       <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="daily_briefing" tools:replace="android:value" />
+      <!-- Pushes show the one-color Newzi symbol in the status bar (the launcher icon turns into a gray square there), tinted brand blue. -->
+      <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_notification" />
+      <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_accent" tools:replace="android:resource" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
