@@ -2107,6 +2107,8 @@ PODS:
     - ReactNativeDependencies
   - ReactNativeDependencies (0.86.3)
   - RecaptchaInterop (101.0.0)
+  - RNAppleAuthentication (2.5.1):
+    - React-Core
   - RNDeviceInfo (15.0.2):
     - React-Core
   - RNFBApp (26.4.0):
@@ -2400,6 +2402,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - "RNAppleAuthentication (from `../node_modules/@invertase/react-native-apple-authentication`)"
   - RNDeviceInfo (from `../node_modules/react-native-device-info`)
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
@@ -2592,6 +2595,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  RNAppleAuthentication:
+    :path: "../node_modules/@invertase/react-native-apple-authentication"
   RNDeviceInfo:
     :path: "../node_modules/react-native-device-info"
   RNFBApp:
@@ -2711,6 +2716,7 @@ SPEC CHECKSUMS:
   ReactCommon: 02f6a489d5eb4ab79d7deba5cd4434e0ba351a07
   ReactNativeDependencies: 6738e602b46fd24aa453cd58267ec3bb8bf29d27
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  RNAppleAuthentication: a89c9804592b38ed4ab11f0aee68d05ba12ad432
   RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNFBApp: 27a58dd316c5f0099d2694220d30cdb4f6b22a3b
   RNFBAuth: 3fbda1a8aec389052dc0bd2e3710a39e7b52adf3

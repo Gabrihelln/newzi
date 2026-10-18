@@ -15,6 +15,7 @@
     "@tanstack/query-async-storage-persister": "5.104.2",
     "@tanstack/react-query": "5.104.2",
     "@tanstack/react-query-persist-client": "5.104.2",
+    "prop-types": "15.8.1",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-device-info": "15.0.2",

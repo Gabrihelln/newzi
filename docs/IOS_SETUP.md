@@ -297,6 +297,8 @@ rode o esquema `NewsEngineNative`. O simulador usa a API online. Push não funci
 | App abre mas diz que não conecta ao servidor | Teste `https://api.newzi.app/health` no Safari do iPhone; se falhar, veja `systemctl status newzi-api` na VPS. Com `DEV_API_URL` local: backend parado ou fora de `0.0.0.0:8090` |
 | Erro de assinatura | Team não selecionado ou bundle ID já usado em outra conta |
 | Fonte diferente do Android | Etapa 5.1 incompleta |
+| `pod install` quebra com `Unicode Normalization not appropriate for ASCII-8BIT` | Locale do terminal: rode `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install` |
+| Debug não linka: `Undefined symbols … Sealable`/`getDebugName` | `Pods/React-Core-prebuilt` ficou na versão Release (depois de um archive) sem o arquivo `.last_build_configuration`. Em `mobile/ios/Pods`: `printf Release > React-Core-prebuilt/.last_build_configuration` e `node ../../node_modules/react-native/scripts/replace-rncore-version.js -c Debug -r 0.86.3 -p "$PWD"` |
 
 ---
 
@@ -360,7 +362,7 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 ## 10. Outras pendências do projeto (contexto)
 - Backend e worker rodam na VPS em `https://api.newzi.app` (`deploy/` tem nginx e systemd).
 - Android: configuração de produção, build de release assinado, Crashlytics.
-- Login social (Google + Apple) ainda não feito; planejado para depois (ver 5.6).
+- Login social: Google no Android; Google e Apple no iPhone (ver 5.6).
 - Copa do Brasil não está no plano gratuito do football-data.org; a tabela da Libertadores também não.
 
 ---
@@ -419,3 +421,11 @@ O que falta (em andamento primeiro no Android, depois no iOS):
   `generic/platform=iOS`) e `xcodebuild -exportArchive` com `method=app-store-connect`, `destination=upload`,
   `teamID=3253WT48Q3`. Avisos de dSYM do React/Hermes são esperados (frameworks pré-compilados). **A cada novo
   envio, aumentar `CURRENT_PROJECT_VERSION`** (o build); a Apple recusa número repetido.
+
+### 2026-10-18 — login social no iPhone (build local de Debug)
+- `npm ci` e `pod install`: entrou o pod `RNAppleAuthentication` 2.5.1.
+- `@invertase/react-native-apple-authentication` importa `prop-types` só no arquivo do iOS e não declara a
+  dependência; o empacotamento do JS falhava no iPhone. `prop-types` 15.8.1 entrou no `package.json`.
+- O app assinado traz `com.apple.developer.applesignin` e `aps-environment`. Build de Debug instalado no
+  iPhone pelo terminal (`xcodebuild … -destination id=<UDID>` e `xcrun devicectl device install app`).
+- Falta: testar Google, Apple, sair/entrar e excluir conta Apple (5.6, passo 4) e as telas novas vindas do Android.
