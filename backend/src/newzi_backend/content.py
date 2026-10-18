@@ -32,6 +32,14 @@ _ANTICIPATORY_PHRASE = re.compile(
 _MATCHUP = re.compile(r"\b[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'-]+ x [A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'-]+")   # "Botafogo x Chapecoense"; a score ("2 x 0") is not
 
 
+# Coverage that reports how something ended; only this overtakes a preview ("Botafogo vence a Chapecoense").
+_OUTCOME = re.compile(
+    r"\b(?:vence[mu]?|venceram|bate|bateu|derrota|derrotou|empata|empatou|empate|perde|perdeu|goleia|goleou|supera|"
+    r"superou|vitória|elimina|eliminou|eliminad[oa]s?|conquista|conquistou|campeã[oes]?|placar|resultado|"
+    r"beats?|beaten|wins?|won|defeats?|defeated|draws?|drew|loses|lost|thrash(?:es|ed)?|edges?|edged)\b"
+    r"|\b\d+\s*(?:x|a|-)\s*\d+\b", re.I)
+
+
 def is_anticipatory(title):
     return bool(_ANTICIPATORY_PHRASE.search(title or "") or _MATCHUP.search(title or ""))
 # A preview this old is about something that has happened since.
@@ -62,32 +70,39 @@ def _story_names(title):
     return {word.casefold() for word in _NAME.findall(title or "")} - _GENERIC_NAMES
 
 
-def overtaken_stories(contents, briefing_date, now, tz="UTC"):
-    """Ids of stories the briefing must not tell as current: they announce something that has happened.
+def overtaken_reasons(contents, briefing_date, now, tz="UTC"):
+    """{id: why} for stories the briefing must not tell as current: they announce something that has happened.
 
     - A headline framed for a day before the briefing ("neste sábado", "hoje") is about the past.
-    - A preview or live coverage older than ANTICIPATORY_MAX_AGE, or followed by newer coverage
-      naming the same two teams or people ("Botafogo vence a Chapecoense"), is overtaken.
+    - A preview or live coverage older than ANTICIPATORY_MAX_AGE is overtaken, and so is one followed
+      by newer coverage reporting the outcome for the same two teams or people ("Botafogo vence a
+      Chapecoense"); news that only mentions them ("desfalque do Flamengo contra o Bahia") is not an outcome.
     """
     from zoneinfo import ZoneInfo
     zone, day = ZoneInfo(tz or "UTC"), datetime.fromisoformat(briefing_date).date()
     published = {content["id"]: parse(content["published_at"]) for content in contents}
-    names = {content["id"]: _story_names(content["title"]) for content in contents}
-    anticipatory = {content["id"] for content in contents if is_anticipatory(content["title"])}
-    overtaken = set()
-    for content in contents:
-        story_id = content["id"]
-        framed_for = anticipated_day(content["title"], published[story_id].astimezone(zone).date())
+    titles = {content["id"]: content["title"] or "" for content in contents}
+    names = {story_id: _story_names(title) for story_id, title in titles.items()}
+    anticipatory = {story_id for story_id, title in titles.items() if is_anticipatory(title)}
+    outcomes = [story_id for story_id, title in titles.items() if story_id not in anticipatory and _OUTCOME.search(title)]
+    reasons = {}
+    for story_id, title in titles.items():
+        framed_for = anticipated_day(title, published[story_id].astimezone(zone).date())
         if framed_for and framed_for < day:
-            overtaken.add(story_id)
+            reasons[story_id] = "framed for " + framed_for.isoformat()
         elif story_id in anticipatory:
             if now - published[story_id] > ANTICIPATORY_MAX_AGE:
-                overtaken.add(story_id)
-            elif len(names[story_id]) >= 2 and any(
-                    published[other] > published[story_id] and other not in anticipatory and len(names[story_id] & names[other]) >= 2
-                    for other in published):
-                overtaken.add(story_id)
-    return overtaken
+                reasons[story_id] = "preview older than " + str(ANTICIPATORY_MAX_AGE)
+            elif len(names[story_id]) >= 2:
+                outcome = next((other for other in outcomes if published[other] > published[story_id]
+                                and len(names[story_id] & names[other]) >= 2), None)
+                if outcome:
+                    reasons[story_id] = "overtaken by: " + titles[outcome]
+    return reasons
+
+
+def overtaken_stories(contents, briefing_date, now, tz="UTC"):
+    return set(overtaken_reasons(contents, briefing_date, now, tz))
 
 
 def briefing_max_age():

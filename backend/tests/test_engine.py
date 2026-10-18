@@ -156,7 +156,9 @@ def test_a_preview_overtaken_by_the_result_is_left_out(repo):
     index(repo, "result", "metropoles", "Tiquinho marca no início, Botafogo vence a Chapecoense e se afasta do Z4",
           hours_ago=10.5, quality=4.0, topic="SPORTS")
     index(repo, "next", "ge", "Escalação do Bahia contra o Flamengo: time provável e dúvidas", hours_ago=6, topic="SPORTS")
-    assert {item["event_id"] for item in sports_briefing(repo)} == {"result", "next"}   # the coming match stays
+    index(repo, "news", "lance", "Flamengo tem desfalque de última hora para enfrentar o Bahia", hours_ago=2, topic="SPORTS")
+    # The coming match stays: newer news naming both teams is not its result.
+    assert {item["event_id"] for item in sports_briefing(repo)} == {"result", "next", "news"}
 
 
 def test_a_headline_framed_for_a_past_day_is_left_out(repo):
