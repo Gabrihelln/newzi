@@ -111,7 +111,7 @@ def sports_profile_key():
 
 
 def test_a_story_told_yesterday_without_news_is_not_told_again(repo):
-    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense neste sábado", event_id="bota_chape",
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense no Nilton Santos", event_id="bota_chape",
           hours_ago=26, quality=9.0, topic="SPORTS")
     index(repo, "other", "lance", "Seleção é convocada para amistosos", hours_ago=3, topic="SPORTS")
     told_yesterday(repo, sports_profile_key(), "bota_chape", "preview", manual=True)   # onboarding saves are manual editions
@@ -119,7 +119,7 @@ def test_a_story_told_yesterday_without_news_is_not_told_again(repo):
 
 
 def test_a_story_told_yesterday_returns_with_its_latest_coverage(repo):
-    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense neste sábado", event_id="bota_chape",
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense no Nilton Santos", event_id="bota_chape",
           hours_ago=26, quality=9.0, topic="SPORTS")
     index(repo, "result", "lance", "Botafogo vence a Chapecoense por 2 a 0", event_id="bota_chape",
           hours_ago=12, quality=4.0, topic="SPORTS")
@@ -131,7 +131,7 @@ def test_a_story_told_yesterday_returns_with_its_latest_coverage(repo):
 
 def test_what_a_user_heard_is_theirs_even_after_changing_topics(repo):
     from newzi_backend.content import compose
-    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense neste sábado", event_id="bota_chape", hours_ago=26, topic="SPORTS")
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense no Nilton Santos", event_id="bota_chape", hours_ago=26, topic="SPORTS")
     index(repo, "other", "lance", "Seleção é convocada para amistosos", hours_ago=3, topic="SPORTS")
     told_yesterday(repo, "an_older_profile", "bota_chape", "preview")       # told under the user's old topics
     repo.db.execute("UPDATE briefing_editions SET user_id='reader'"); repo.db.commit()
@@ -142,9 +142,34 @@ def test_what_a_user_heard_is_theirs_even_after_changing_topics(repo):
 
 
 def test_an_event_leads_with_its_newest_coverage(repo):
-    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense hoje", event_id="bota_chape", hours_ago=14, quality=9.0, topic="SPORTS")
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense no Nilton Santos", event_id="bota_chape", hours_ago=14, quality=9.0, topic="SPORTS")
     index(repo, "result", "lance", "Botafogo vence a Chapecoense por 2 a 0", event_id="bota_chape", hours_ago=8, quality=4.0, topic="SPORTS")
     assert sports_briefing(repo)[0]["sources"][0]["article_id"] == "result"
+
+
+def test_a_preview_overtaken_by_the_result_is_left_out(repo):
+    # Real Sunday case: the live-coverage piece led the briefing while the result sat in other events.
+    index(repo, "live", "gazeta", "Botafogo x Chapecoense: siga o tempo real do jogo pelo Campeonato Brasileiro",
+          event_id="live", hours_ago=12.5, quality=9.0, topic="SPORTS")
+    index(repo, "watch", "metropoles", "Botafogo x Chapecoense: onde assistir ao jogo pelo Campeonato Brasileiro",
+          event_id="live", hours_ago=12.5, quality=9.0, topic="SPORTS")
+    index(repo, "result", "metropoles", "Tiquinho marca no início, Botafogo vence a Chapecoense e se afasta do Z4",
+          hours_ago=10.5, quality=4.0, topic="SPORTS")
+    index(repo, "next", "ge", "Escalação do Bahia contra o Flamengo: time provável e dúvidas", hours_ago=6, topic="SPORTS")
+    assert {item["event_id"] for item in sports_briefing(repo)} == {"result", "next"}   # the coming match stays
+
+
+def test_a_headline_framed_for_a_past_day_is_left_out(repo):
+    from newzi_backend.content import anticipated_day
+    from datetime import date
+    saturday = date(2026, 10, 17)
+    assert anticipated_day("Primeiro campeonato estadual de 2027 começa neste sábado; entenda", saturday) == saturday
+    assert anticipated_day("Unifacisa e Osasco medem forças nesta segunda pelo NBB", saturday) == date(2026, 10, 19)
+    assert anticipated_day("Final será amanhã no Maracanã", saturday) == date(2026, 10, 18)
+    assert anticipated_day("Botafogo vence a Chapecoense", saturday) is None
+    index(repo, "yesterday", "ge", "Campeonato estadual começa hoje com quatro jogos", hours_ago=30, topic="SPORTS")
+    index(repo, "fresh", "lance", "Seleção é convocada para amistosos", hours_ago=2, topic="SPORTS")
+    assert [item["event_id"] for item in sports_briefing(repo)] == ["fresh"]
 
 
 def test_old_stories_never_fill_a_briefing(repo):

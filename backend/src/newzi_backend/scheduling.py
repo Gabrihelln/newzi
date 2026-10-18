@@ -65,7 +65,7 @@ def user_edition_key(profile, user_id):
 
 class FixtureBriefingGenerator:
     def __init__(self,path=None): self.path=Path(path or (ENGINE_ROOT / "fixtures" / "briefing.json")); self.calls=0
-    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None):
+    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None, tz=None):
         self.calls+=1
         data=json.loads(self.path.read_text(encoding="utf-8")); items=data.get("items",[])[:briefing_size]
         return {"status":"READY" if items else "PARTIAL","generated_at":data.get("generated_at"),"engine_version":"phase_3.3-fixture","items":items}
@@ -73,14 +73,14 @@ class FixtureBriefingGenerator:
 
 class EngineBriefingGenerator:
     def __init__(self, repo=None): self.calls=0; self.repo=repo; self.last_sync=None; self.sync_metrics={}; self.last_phase_durations={}
-    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None):
+    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None, tz=None):
         self.calls+=1
         try:
             from .content import compose
             if self.repo is None: raise GenerationError("CONFIG_ERROR", "content repository unavailable")
             now=datetime.now(timezone.utc)
             self.last_phase_durations.setdefault("CONTENT_REFRESH",0)
-            phase=time.monotonic(); result=compose(self.repo,topics,language,briefing_size,country_scope,now,briefing_date=date,user_id=user_id)
+            phase=time.monotonic(); result=compose(self.repo,topics,language,briefing_size,country_scope,now,briefing_date=date,user_id=user_id,tz=tz)
             self.last_phase_durations["CONTENT_COMPOSITION"]=int((time.monotonic()-phase)*1000)
             return result
         except GenerationError: raise
@@ -344,7 +344,7 @@ class BriefingGenerationWorker:
             self.repo.db.execute("UPDATE manual_refresh_requests SET ingestion_run_id=?,stage='COMPOSITION',updated_at=? WHERE id=?",(ingestion_id,now_iso(),request_id)); self.repo.db.commit()
             from .content import compose
             local_date=datetime.now(ZoneInfo(prefs['timezone'])).date().isoformat()
-            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'])
+            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'],tz=prefs['timezone'])
             if not payload.get('items'):
                 raise GenerationError('NO_ELIGIBLE_CONTENT','fresh ingestion produced no eligible briefing items')
             edition_profile=profile.key()+'_manual_'+request_id
@@ -426,14 +426,14 @@ class BriefingGenerationWorker:
                 if isinstance(self.generator,EngineBriefingGenerator):
                     self._refresh_content_index()
                     self.generator.last_phase_durations['CONTENT_REFRESH']=int((time.monotonic()-refresh_started)*1000)
-                payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope,user_id=job["user_id"])
+                payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope,user_id=job["user_id"],tz=job["timezone"])
                 for phase_name,duration in getattr(self.generator,"last_phase_durations",{}).items():
                     self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],phase_name,int(duration),now_iso()))
                 self.repo.db.commit()
                 if not payload.get("items"):
                     from .content import compose
                     if self.repo.db.execute("SELECT 1 FROM indexed_content LIMIT 1").fetchone():
-                        fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=job["briefing_date"],user_id=job["user_id"])
+                        fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=job["briefing_date"],user_id=job["user_id"],tz=job["timezone"])
                         if fallback.get("items"): payload=fallback
                 eid,generated=self._persist_edition(job,profile,payload,edition_profile_key=edition_key,user_id=job["user_id"])
                 self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],"EDITION_PERSISTENCE",int((time.monotonic()-compose_started)*1000),now_iso())); self.repo.db.commit()

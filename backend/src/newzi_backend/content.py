@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -21,6 +22,72 @@ MAX_SOURCES_PER_ITEM = 5
 DEFAULT_BRIEFING_MAX_AGE_HOURS = 48
 # Within one event, coverage published this close to its newest article counts as its current state.
 LEAD_FRESHNESS_WINDOW = timedelta(hours=3)
+
+
+# Stories written before something happens: previews, live coverage, where to watch, betting tips.
+_ANTICIPATORY_PHRASE = re.compile(
+    r"onde assistir|como assistir|onde ver\b|tempo real|ao vivo|palpites?\b|escalaç|escalac|time provável|prováveis|"
+    r"horário do jogo|pré-jogo|cartola\b|where to watch|how to watch|live stream|\blive:|\bpreview\b|predictions?\b|"
+    r"predicted line-?up|kick-?off time", re.I)
+_MATCHUP = re.compile(r"\b[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'-]+ x [A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'-]+")   # "Botafogo x Chapecoense"; a score ("2 x 0") is not
+
+
+def is_anticipatory(title):
+    return bool(_ANTICIPATORY_PHRASE.search(title or "") or _MATCHUP.search(title or ""))
+# A preview this old is about something that has happened since.
+ANTICIPATORY_MAX_AGE = timedelta(hours=24)
+_WEEKDAYS = {"segunda": 0, "terça": 1, "terca": 1, "quarta": 2, "quinta": 3, "sexta": 4, "sábado": 5, "sabado": 5,
+             "domingo": 6, "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+_DAY_REFERENCE = re.compile(r"\b(?:neste|nesta|este|esta|próximo|próxima|this|on|next)\s+(" + "|".join(_WEEKDAYS) + r")\b"
+                            r"|\b(hoje|amanhã|amanha|today|tonight|tomorrow)\b", re.I)
+_NAME = re.compile(r"\b[A-ZÁÉÍÓÚÂÊÔÃÕÇ][\w'-]{3,}")
+_GENERIC_NAMES = set("veja saiba siga confira entenda como onde quando qual quem campeonato brasileiro brasileirão "
+                     "copa série serie rodada jogo time liga final premier league champions".split())
+
+
+def anticipated_day(title, published_local):
+    """The day a headline is framed for ("começa neste sábado", "hoje"), from its publication date; None without one."""
+    match = _DAY_REFERENCE.search(title or "")
+    if not match:
+        return None
+    word = (match.group(1) or match.group(2)).casefold()
+    if word in ("amanhã", "amanha", "tomorrow"):
+        return published_local + timedelta(days=1)
+    if word in ("hoje", "today", "tonight"):
+        return published_local
+    return published_local + timedelta(days=(_WEEKDAYS[word] - published_local.weekday()) % 7)
+
+
+def _story_names(title):
+    return {word.casefold() for word in _NAME.findall(title or "")} - _GENERIC_NAMES
+
+
+def overtaken_stories(contents, briefing_date, now, tz="UTC"):
+    """Ids of stories the briefing must not tell as current: they announce something that has happened.
+
+    - A headline framed for a day before the briefing ("neste sábado", "hoje") is about the past.
+    - A preview or live coverage older than ANTICIPATORY_MAX_AGE, or followed by newer coverage
+      naming the same two teams or people ("Botafogo vence a Chapecoense"), is overtaken.
+    """
+    from zoneinfo import ZoneInfo
+    zone, day = ZoneInfo(tz or "UTC"), datetime.fromisoformat(briefing_date).date()
+    published = {content["id"]: parse(content["published_at"]) for content in contents}
+    names = {content["id"]: _story_names(content["title"]) for content in contents}
+    anticipatory = {content["id"] for content in contents if is_anticipatory(content["title"])}
+    overtaken = set()
+    for content in contents:
+        story_id = content["id"]
+        framed_for = anticipated_day(content["title"], published[story_id].astimezone(zone).date())
+        if framed_for and framed_for < day:
+            overtaken.add(story_id)
+        elif story_id in anticipatory:
+            if now - published[story_id] > ANTICIPATORY_MAX_AGE:
+                overtaken.add(story_id)
+            elif len(names[story_id]) >= 2 and any(
+                    published[other] > published[story_id] and other not in anticipatory and len(names[story_id] & names[other]) >= 2
+                    for other in published):
+                overtaken.add(story_id)
+    return overtaken
 
 
 def briefing_max_age():
@@ -382,11 +449,11 @@ def primary_taxonomy(tags, interests, registry=None, proximity=None):
             "reason": ("SELECTED_INTEREST", "INTEREST_DESCENDANT", "INTEREST_ANCESTOR", "CLASSIFICATION")[tier]}
 
 
-def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None):
+def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None, tz=None):
     """Select real indexed articles without running an LLM per user or profile.
 
-    ``briefing_date`` is the edition's local date: briefings of earlier dates count as already told,
-    those of ``user_id`` when given.
+    ``briefing_date`` is the edition's date in ``tz``: briefings of earlier dates count as already told,
+    those of ``user_id`` when given, and headlines framed for an earlier day are left out.
     """
     registry = taxonomy()
     interests, unknown = registry.canonicalize(topics)
@@ -410,6 +477,9 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         item = by_id.setdefault(row["id"], {"content": dict(row), "tags": {}})
         if row["taxonomy_id"]:
             item["tags"][row["taxonomy_id"]] = row["score"]
+    # A preview of a match that has been played is not news; nor is "começa neste sábado" on Sunday.
+    for story_id in overtaken_stories([item["content"] for item in by_id.values()], briefing_date, now, tz):
+        del by_id[story_id]
     # Clustering stores one event_id per story covered by several outlets; a briefing tells each story once.
     event_members = {}
     for item in by_id.values():
