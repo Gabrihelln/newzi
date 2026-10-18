@@ -19024,7 +19024,7 @@
    "briefing_time": "07:00",
    "briefing_size": 5,
    "breaking_news_rules": {
-    "max_per_day": 2,
+    "min_sources": 3,
     "quiet_hours": {
      "start": 22,
      "end": 7
@@ -19044,7 +19044,7 @@
    "briefing_time": "07:00",
    "briefing_size": 5,
    "breaking_news_rules": {
-    "max_per_day": 2,
+    "min_sources": 3,
     "quiet_hours": {
      "start": 22,
      "end": 7

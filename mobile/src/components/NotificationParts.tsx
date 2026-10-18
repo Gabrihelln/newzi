@@ -62,9 +62,9 @@ export function NoticeSwitches({ settings, onChange, busy = {}, rules }: {
 }) {
   const s = useStyles(makeStyles);
   const paused = !settings.notifications_enabled;
-  const maxPerDay = rules?.max_per_day ?? 2;
+  const minSources = rules?.min_sources ?? 3;
   const quiet = rules === undefined ? { start: 22, end: 7 } : rules.quiet_hours;
-  const chips: { icon: IconName; label: string }[] = [{ icon: 'bolt', label: `Até ${maxPerDay} por dia` }];
+  const chips: { icon: IconName; label: string }[] = [{ icon: 'layers', label: `${minSources} veículos ou mais` }];
   if (quiet) chips.push({ icon: 'moon', label: `Silêncio ${quiet.start}h–${quiet.end}h` });
   return <>
     <NoticeRow kind="all" title="Receber notificações" description="Desligue para pausar todos os avisos do Newzi." label="Receber notificações"

@@ -31,7 +31,13 @@ class MainApplication : Application(), ReactApplication {
         description = "Avisa quando o seu resumo em áudio do dia fica pronto."
       })
       manager.createNotificationChannel(NotificationChannel("breaking_news", "Notícias urgentes", NotificationManager.IMPORTANCE_HIGH).apply {
-        description = "Notícias importantes dos seus temas, no máximo algumas por dia."
+        description = "Notícias importantes dos seus temas, com um resumo curto."
+      })
+      manager.createNotificationChannel(NotificationChannel("announcements", "Novidades do Newzi", NotificationManager.IMPORTANCE_DEFAULT).apply {
+        description = "Recursos novos e avisos importantes sobre o app."
+      })
+      manager.createNotificationChannel(NotificationChannel("promotions", "Ofertas e promoções", NotificationManager.IMPORTANCE_LOW).apply {
+        description = "Descontos e ofertas do Newzi Premium."
       })
     }
     loadReactNative(this)

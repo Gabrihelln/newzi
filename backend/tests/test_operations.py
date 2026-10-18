@@ -168,9 +168,7 @@ def test_breaking_push_without_a_description_invites_to_read_and_skips_a_story_a
     for row in repo.db.execute("SELECT id FROM indexed_content WHERE event_id='quake'").fetchall():
         repo.db.execute("UPDATE indexed_content SET event_id='quake_v2' WHERE id=?", (row["id"],))
     repo.db.commit()
-    monkey_gap = service.min_gap; service.min_gap = timedelta(0)
     service.run_once(NOW + timedelta(minutes=10), force=True)
-    service.min_gap = monkey_gap
     assert {row["delivery_id"] for row in breaking_jobs(repo)} == {"breaking_quake"}
 
 
@@ -185,7 +183,7 @@ def test_breaking_news_rules_skip_weak_old_and_promotional_events(repo):
     assert BreakingNewsService(repo).detect(NOW) == []
 
 
-def test_breaking_news_respects_quiet_hours_gap_and_daily_cap(repo, monkeypatch):
+def test_breaking_news_respects_quiet_hours_but_has_no_daily_cap(repo, monkeypatch):
     from newzi_backend.breaking import BreakingNewsService, in_quiet_hours
     assert in_quiet_hours(23, (22, 7)) and in_quiet_hours(3, (22, 7)) and not in_quiet_hours(12, (22, 7))
     subscribe(repo, "sleeper", timezone="America/Sao_Paulo")
@@ -195,17 +193,26 @@ def test_breaking_news_respects_quiet_hours_gap_and_daily_cap(repo, monkeypatch)
     assert breaking_jobs(repo) == []
 
     monkeypatch.setenv("BREAKING_QUIET_HOURS", "")
-    monkeypatch.setenv("BREAKING_MAX_PER_DAY", "2")
     service = BreakingNewsService(repo)
     service.run_once(NOW, force=True)
+    # Every breaking story of a followed topic is sent, minutes apart and however many in a day.
     add_event(repo, "second", start_minutes_ago=60, title="Enchente isola cidades do litoral")
-    service.run_once(NOW + timedelta(minutes=30), force=True)       # within the 3 h gap
-    assert {row["delivery_id"] for row in breaking_jobs(repo)} == {"breaking_first"}
+    service.run_once(NOW + timedelta(minutes=5), force=True)
     later = NOW + timedelta(hours=4)
     add_event(repo, "third", start_minutes_ago=-200, title="Apagão atinge três estados do Nordeste")                 # published around ``later``
     add_event(repo, "fourth", start_minutes_ago=-210, title="Incêndio fecha rodovia no interior")
     service.run_once(later, force=True)
-    assert len({row["delivery_id"] for row in breaking_jobs(repo)}) == 2   # daily cap
+    assert {row["delivery_id"] for row in breaking_jobs(repo)} == {"breaking_first", "breaking_second", "breaking_third", "breaking_fourth"}
+
+
+def test_breaking_news_needs_three_outlets_and_only_reaches_followers_of_the_topic(repo):
+    from newzi_backend.breaking import BreakingNewsService
+    subscribe(repo, "football_fan", topics=("SPORTS",))
+    subscribe(repo, "tech_fan", topics=("TECHNOLOGY",))
+    add_event(repo, "derby", sources=3, topic="SPORTS", title="Flamengo vence clássico e assume a liderança")
+    add_event(repo, "rumor", sources=2, topic="SPORTS", title="Técnico pode deixar o clube no fim do ano")
+    BreakingNewsService(repo).run_once(NOW, force=True)
+    assert [(row["user_id"], row["delivery_id"]) for row in breaking_jobs(repo)] == [("football_fan", "breaking_derby")]
 
 
 def test_breaking_push_is_sent_with_its_payload_or_dropped_when_stale(repo):

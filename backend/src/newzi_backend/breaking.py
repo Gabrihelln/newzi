@@ -2,7 +2,7 @@
 
 An event (articles the clustering grouped under one ``event_id``) is breaking when:
 
-- at least BREAKING_MIN_SOURCES distinct sources published it within the last
+- at least BREAKING_MIN_SOURCES (3) distinct sources published it within the last
   BREAKING_WINDOW_MINUTES, and no article of the event is older than that window (a new story,
   not an old one resurfacing);
 - its lead article is news, not a deal, guide, review, roundup, how-to or opinion piece.
@@ -11,11 +11,11 @@ The push carries the lead headline as its title and a short summary of the story
 (``story_summary``); tapping it opens the story.
 
 A user receives it when ``notifications_enabled`` and ``breaking_news_enabled`` are on, the event
-matches their topics and country scope, it is outside their quiet hours (local time), they got
-fewer than BREAKING_MAX_PER_DAY breaking pushes in the last 24 hours and none in the last
-BREAKING_MIN_GAP_MINUTES. Each event, and the same story under a new event id, reaches each user
-at most once; a push still undelivered BREAKING_MAX_DELAY_MINUTES after detection is cancelled
-instead of sent late.
+matches their topics (a followed domain covers its subjects; "follow everything" covers all) and
+country scope, and it is outside their quiet hours (local time). There is no daily cap: every
+breaking story of a followed topic is sent, however many there are in a day. Each event, and the
+same story under a new event id, reaches each user at most once; a push still undelivered
+BREAKING_MAX_DELAY_MINUTES after detection is cancelled instead of sent late.
 """
 import html
 import json
@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 
 from newzi_engine.topic_registry import taxonomy
 
-from .timeutil import iso, parse, utc_now
+from .timeutil import iso, utc_now
 
 NOTIFICATION_TYPE = "BREAKING_NEWS"
 # The engine genre classifier only knows English titles.
@@ -42,9 +42,9 @@ def _env_int(name, default):
 
 
 def breaking_rules():
-    """The limits people see next to the switch ("Até 2 por dia", "Silêncio 22h–7h"), from the same settings the sender uses."""
+    """The rules people see next to the switch ("3 veículos ou mais", "Silêncio 22h–7h"), from the same settings the sender uses."""
     quiet = _quiet_hours(os.getenv("BREAKING_QUIET_HOURS", "22-7"))
-    return {"max_per_day": max(1, _env_int("BREAKING_MAX_PER_DAY", 2)),
+    return {"min_sources": max(2, _env_int("BREAKING_MIN_SOURCES", 3)),
             "quiet_hours": {"start": quiet[0], "end": quiet[1]} if quiet and quiet[0] != quiet[1] else None}
 
 
@@ -117,8 +117,6 @@ class BreakingNewsService:
         self.enabled = os.getenv("BREAKING_NEWS_ENABLED", "true").lower() not in ("0", "false", "no")
         self.min_sources = max(2, _env_int("BREAKING_MIN_SOURCES", 3))
         self.window = timedelta(minutes=max(10, _env_int("BREAKING_WINDOW_MINUTES", 180)))
-        self.max_per_day = max(1, _env_int("BREAKING_MAX_PER_DAY", 2))
-        self.min_gap = timedelta(minutes=max(0, _env_int("BREAKING_MIN_GAP_MINUTES", 180)))
         self.max_delay = timedelta(minutes=max(5, _env_int("BREAKING_MAX_DELAY_MINUTES", 60)))
         self.quiet = _quiet_hours(os.getenv("BREAKING_QUIET_HOURS", "22-7"))
         self.check_interval = max(0, _env_int("BREAKING_CHECK_SECONDS", 300))
@@ -177,20 +175,13 @@ class BreakingNewsService:
         interests = selected | {child for parent in selected for child in registry.descendants(parent)}
         return bool(interests & event["topics"])
 
-    def _within_limits(self, user_id, prefs, now):
+    def _awake(self, prefs, now):
+        """Outside the user's quiet hours, in their own time zone."""
         try:
             local_hour = now.astimezone(ZoneInfo(prefs.get("timezone") or "UTC")).hour
         except Exception:
             local_hour = now.hour
-        if in_quiet_hours(local_hour, self.quiet):
-            return False
-        sent = self.repo.db.execute(
-            """SELECT COUNT(DISTINCT delivery_id) AS events,MAX(created_at) AS latest FROM notification_jobs
-               WHERE user_id=? AND notification_type=? AND created_at>=? AND status<>'CANCELLED'""",
-            (user_id, NOTIFICATION_TYPE, iso(now - timedelta(hours=24)))).fetchone()
-        if sent["events"] >= self.max_per_day:
-            return False
-        return not (sent["latest"] and parse(sent["latest"]) > now - self.min_gap)
+        return not in_quiet_hours(local_hour, self.quiet)
 
     def _already_told(self, user_id, event, now):
         """The same story under another event id (re-clustering, a second wave of coverage) is not news twice."""
@@ -229,7 +220,7 @@ class BreakingNewsService:
                     continue
                 already = self.repo.db.execute("SELECT 1 FROM notification_jobs WHERE user_id=? AND delivery_id=? LIMIT 1",
                                                (user_id, delivery_id)).fetchone()
-                if already or self._already_told(user_id, event, now) or not self._within_limits(user_id, prefs, now):
+                if already or self._already_told(user_id, event, now) or not self._awake(prefs, now):
                     continue
                 payload = json.dumps(self.payload(event, prefs.get("language")), ensure_ascii=False)
                 devices = self.repo.db.execute("SELECT id FROM push_devices WHERE user_id=? AND enabled=1 AND invalidated_at IS NULL",

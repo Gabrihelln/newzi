@@ -34,6 +34,22 @@ Every push also needs `notifications_enabled`. The switches are checked when a j
 
 `NotificationService.enqueue_ready` creates one `DAILY_BRIEFING` job per active device only after the delivery is READY for its selected voice and references a validated audio artifact and narration script for the same edition. The job is unique by delivery, device and notification type. `scheduled_for` uses the delivery's local IANA timezone and `briefing_time`; generation lead time does not move push earlier. A 30-minute late-delivery tolerance admits READY deliveries that finish shortly after the target. `run_once` revalidates the persisted delivery and media file immediately before sending, retries transient failures with bounded backoff and disables invalid tokens. One device failure does not prevent other devices.
 
+## Announcements and promotions (Firebase console)
+
+General announcements ("Novidades do Newzi") and promotions ("Ofertas e promoções") are not sent by the backend and have no switch in the app: every install joins the FCM topics `novidades` and `promocoes` on launch (`mobile/src/push/topics.ts`), so they reach everyone whose phone allows notifications, signed in or not, whatever the in-app switches say. On Android each has its own channel (`announcements`, `promotions`) that people can mute in the system settings.
+
+Apple's App Store Review Guideline 4.5.4 requires explicit opt-in consent, shown in the app, before sending promotional pushes, and a way to opt out. Before sending promotions to iOS users, add that consent (and its opt-out) or limit promotion campaigns to Android.
+
+To send one: Firebase console › Messaging › New campaign › Firebase Notification messages, then
+
+1. write the title and text (free per campaign) and, optionally, an image;
+2. target › **Topic** › `novidades` or `promocoes`;
+3. Additional options › Android notification channel: `announcements` or `promotions`;
+4. Additional options › Custom data (optional), what a tap opens: `type` = `ANNOUNCEMENT` or `PROMOTION`, and one of `screen` (`Subscription`, `NotificationSettings`, `ContentPreferences`, `DailyBriefing`, `Football`, `Search`, `History`), `story_id` (a story) or `url` (an `https://` page). Without them a tap just opens the app;
+5. schedule or send now. To try it first, "Send test message" with one device token.
+
+Quiet hours and frequency are up to whoever sends; nothing limits them automatically.
+
 ## Breaking news
 
 The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks every `BREAKING_CHECK_SECONDS` (5 min) for an event, meaning articles the clustering grouped under one `event_id`, that at least `BREAKING_MIN_SOURCES` (3) distinct sources published within the last `BREAKING_WINDOW_MINUTES` (180). The event qualifies only if none of its articles is older than that window, so an old story gaining coverage does not count, and only if its lead article is news: deals, guides, reviews, roundups, how-tos, explainers and opinion are skipped. On the development data this fired about once every two days.
@@ -41,9 +57,10 @@ The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks ever
 A user gets one `BREAKING_NEWS` job per active device when all of these hold:
 
 - `notifications_enabled` and `breaking_news_enabled` are on;
-- the event matches their topics (or `content_scope=all`) and country scope;
-- their local time is outside `BREAKING_QUIET_HOURS` (`22-7`);
-- they received fewer than `BREAKING_MAX_PER_DAY` (2) breaking pushes in the last 24 h and none in the last `BREAKING_MIN_GAP_MINUTES` (180).
+- the event matches their topics (a followed domain covers its subjects; `content_scope=all` covers everything) and country scope;
+- their local time is outside `BREAKING_QUIET_HOURS` (`22-7`).
+
+There is no daily cap and no minimum gap: every breaking story of a followed topic is sent, however many there are in a day.
 
 Each job stores its title (the lead headline, preferring a Portuguese source), its body and its data in `payload_json`. The body is a short summary of the story taken from the first useful article description (HTML and feed boilerplate removed, a repeated headline dropped, cut at a sentence end); without one it says "Toque para ler a matéria completa no Newzi." The outlets are no longer listed in the body. The data is `type=BREAKING_NEWS`, `event_id`, `story_id` and `url`. Jobs are unique per event and device, and the same story is not sent again under a new event id (re-clustering, a second wave of coverage) within 24 h. They are delivered by the `notifications` role like daily briefings and are cancelled rather than sent once they are older than `BREAKING_MAX_DELAY_MINUTES` (60).
 

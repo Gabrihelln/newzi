@@ -46,7 +46,11 @@ NOTIFICATION_KINDS = {
     "DAILY_BRIEFING": NotificationKind("DAILY_BRIEFING", "daily_briefing_enabled", "daily_briefing", timedelta(hours=3)),
     "BREAKING_NEWS": NotificationKind("BREAKING_NEWS", "breaking_news_enabled", "breaking_news", timedelta(hours=1)),
 }
-SETTING_FIELDS = ("notifications_enabled", "daily_briefing_enabled", "breaking_news_enabled")
+# Announcements and promotions are not here: they are sent from the Firebase console to the FCM topics every
+# phone joins (mobile/src/push/topics.ts), to everyone whose phone allows notifications, with no switch.
+# Every switch and its value for a new account.
+SETTING_DEFAULTS = {"notifications_enabled": True, "daily_briefing_enabled": True, "breaking_news_enabled": False}
+SETTING_FIELDS = tuple(SETTING_DEFAULTS)
 
 
 def notification_kind(data):
@@ -182,8 +186,15 @@ class NotificationService:
 
     def settings(self, user_id):
         row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
-        if not row: self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING",(user_id,1,1,0,now_iso())); self.repo.db.commit(); row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
-        return {"notifications_enabled":bool(row["notifications_enabled"]),"daily_briefing_enabled":bool(row["daily_briefing_enabled"]),"breaking_news_enabled":bool(row["breaking_news_enabled"])}
+        if not row: self._write_settings(user_id,SETTING_DEFAULTS,overwrite=False); row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
+        return {field:bool(row[field]) for field in SETTING_FIELDS}
+
+    def _write_settings(self, user_id, values, overwrite=True):
+        columns=",".join(SETTING_FIELDS); marks=",".join("?" for _ in SETTING_FIELDS)
+        update=",".join(f"{field}=excluded.{field}" for field in SETTING_FIELDS)+",updated_at=excluded.updated_at"
+        self.repo.db.execute(f"INSERT INTO notification_settings(user_id,{columns},updated_at) VALUES(?,{marks},?) ON CONFLICT(user_id) DO "+(f"UPDATE SET {update}" if overwrite else "NOTHING"),
+            (user_id,*[int(bool(values[field])) for field in SETTING_FIELDS],now_iso()))
+        self.repo.db.commit()
 
     def public_settings(self, user_id):
         """The switches plus what the screen shows next to them: the briefing time and size and the breaking-news limits."""
@@ -196,7 +207,8 @@ class NotificationService:
     def save_settings(self, user_id, data):
         if not isinstance(data, dict) or not any(k in data for k in SETTING_FIELDS): raise ValueError("no notification setting to save")
         if any(k in data and not isinstance(data[k], bool) for k in SETTING_FIELDS): raise ValueError("notification settings must be true or false")
-        current=self.settings(user_id); current.update({k:data[k] for k in SETTING_FIELDS if k in data}); t=now_iso(); self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET notifications_enabled=excluded.notifications_enabled,daily_briefing_enabled=excluded.daily_briefing_enabled,breaking_news_enabled=excluded.breaking_news_enabled,updated_at=excluded.updated_at",(user_id,int(current["notifications_enabled"]),int(current["daily_briefing_enabled"]),int(current["breaking_news_enabled"]),t)); self.repo.db.commit(); return self.settings(user_id)
+        current=self.settings(user_id); current.update({k:data[k] for k in SETTING_FIELDS if k in data})
+        self._write_settings(user_id,current); return self.settings(user_id)
 
     def enqueue_ready(self, now=None):
         now = now or datetime.now(timezone.utc); created=0

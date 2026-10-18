@@ -524,7 +524,7 @@ export function OnboardingScreen({ onDone }: { onDone: (user: User) => void }) {
               <NoticeRow kind="daily" title="Resumo diário" label="Aviso do resumo diário" value={notices.daily} onChange={daily => setNotices(current => ({ ...current, daily }))}
                 description={`Quando seu resumo ficar pronto, por volta das ${prefs.briefing_time}.`} />
               <NoticeRow kind="breaking" title="Notícias urgentes" label="Aviso de notícias urgentes" value={notices.breaking} onChange={breaking => setNotices(current => ({ ...current, breaking }))} last
-                description="Algo importante nos seus temas, com um resumo curto. Até 2 por dia, nunca entre 22h e 7h." />
+                description="Quando 3 ou mais veículos noticiam algo dos seus temas, com um resumo curto. Nunca entre 22h e 7h." />
             </View>
             {permission && !isPushAllowed(permission) && <Text style={s.noticeHint}>As notificações estão bloqueadas no celular. Suas escolhas ficam salvas e você pode liberar depois em Perfil › Notificações.</Text>}
             {(notices.daily || notices.breaking) && !permission && <Pressable accessibilityRole="button" onPress={() => { setNotices({ daily: false, breaking: false }); setReviewing(false); go(8); }} style={s.skip}>

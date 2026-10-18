@@ -94,11 +94,11 @@ def test_switch_turned_off_after_queueing_cancels_the_push(repo):
 
 def test_settings_show_briefing_time_and_breaking_rules_and_reject_bad_values(repo, monkeypatch):
     from newzi_backend.notifications import NotificationService
-    monkeypatch.setenv("BREAKING_MAX_PER_DAY", "3"); monkeypatch.setenv("BREAKING_QUIET_HOURS", "23-6")
+    monkeypatch.setenv("BREAKING_QUIET_HOURS", "23-6")
     service = NotificationService(repo, provider=RecordingProvider())
     settings = service.public_settings("u1")
     assert settings["briefing_time"] == "06:00" and settings["briefing_size"] == 10 and settings["active_devices"] == 0
-    assert settings["breaking_news_rules"] == {"max_per_day": 3, "quiet_hours": {"start": 23, "end": 6}}
+    assert settings["breaking_news_rules"] == {"min_sources": 3, "quiet_hours": {"start": 23, "end": 6}}
     for bad in ({}, {"daily_briefing_enabled": "no"}, {"unknown": True}):
         with pytest.raises(ValueError):
             service.save_settings("u1", bad)
@@ -225,3 +225,4 @@ def test_flipping_switches_while_testing_is_not_rate_limited(repo):
     service.notification_settings("u1")
     for index in range(20):
         assert service.notification_settings("u1", {"notifications_enabled": index % 2 == 1})["notifications_enabled"] == (index % 2 == 1)
+

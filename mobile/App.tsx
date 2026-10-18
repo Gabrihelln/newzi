@@ -10,6 +10,7 @@ import { applySavedThemePreference } from './src/theme/appearance';
 import { RootNavigator, type RootAuthState } from './src/navigation/RootNavigator';
 import type { User } from './src/types/api';
 import { currentPushToken, listenForPushEvents, resetDeviceSync, syncCurrentDevice } from './src/push/push';
+import { joinPushTopics } from './src/push/topics';
 import { openFromNotification } from './src/navigation/notificationRouting';
 import { devLog } from './src/config/env';
 import { getDeviceTimezone } from './src/config/timezone';
@@ -53,6 +54,8 @@ export default function App() {
   }, [syncDeviceTimezone]);
 
   useEffect(() => { try { return listenForPushEvents(openFromNotification); } catch { return undefined; } }, []);
+  // Announcements and promotions reach every phone that allows notifications, signed in or not.
+  useEffect(() => { joinPushTopics().catch(() => devLog('[Push] topics:failed')); }, []);
 
   const signedInUid = authState === 'AUTHENTICATED' ? user?.id : undefined;
   // Links this phone to the account and keeps the backend in step with the system permission, which people
