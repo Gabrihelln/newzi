@@ -31,12 +31,52 @@ class DevelopmentPushProvider(PushProvider):
         return PushResult(True, "dev_message_" + uuid.uuid4().hex)
 
 
-# Android channels the app creates (MainApplication.kt); users can mute each kind separately.
-ANDROID_CHANNELS = {"BREAKING_NEWS": "breaking_news"}
+@dataclass(frozen=True)
+class NotificationKind:
+    """One kind of push the app receives: the switch that allows it, its Android channel and how long it stays useful."""
+    type: str
+    setting: str
+    channel: str
+    ttl: timedelta
+
+
+# Every push the backend sends. The app routes taps by ``data.type`` (notificationRouting.ts) and creates
+# one Android channel per kind (MainApplication.kt), so people can mute each kind in the system settings too.
+NOTIFICATION_KINDS = {
+    "DAILY_BRIEFING": NotificationKind("DAILY_BRIEFING", "daily_briefing_enabled", "daily_briefing", timedelta(hours=3)),
+    "BREAKING_NEWS": NotificationKind("BREAKING_NEWS", "breaking_news_enabled", "breaking_news", timedelta(hours=1)),
+}
+SETTING_FIELDS = ("notifications_enabled", "daily_briefing_enabled", "breaking_news_enabled")
+
+
+def notification_kind(data):
+    return NOTIFICATION_KINDS.get(str((data or {}).get("type")), NOTIFICATION_KINDS["DAILY_BRIEFING"])
 
 
 def android_channel(data):
-    return ANDROID_CHANNELS.get(str((data or {}).get("type")), "daily_briefing")
+    return notification_kind(data).channel
+
+
+def wants(settings, notification_type):
+    """Whether the user's switches allow this kind of push: the main switch and the kind's own."""
+    kind = NOTIFICATION_KINDS.get(notification_type)
+    return bool(kind and settings.get("notifications_enabled") and settings.get(kind.setting))
+
+
+def _minutes(duration_ms):
+    return max(1, round((duration_ms or 0) / 60000))
+
+
+def daily_briefing_message(delivery_id, item_count=None, duration_ms=None, language="pt-BR"):
+    english = str(language or "").lower().startswith("en")
+    parts = []
+    if item_count:
+        parts.append(f"{item_count} {'stories picked for you' if english else 'notícias selecionadas para você'}")
+    if duration_ms:
+        parts.append(f"{_minutes(duration_ms)} min")
+    body = " · ".join(parts) or ("Your daily briefing is ready to start your day." if english else "Seu resumo diário está pronto para começar o dia.")
+    return {"title": "Your briefing is ready" if english else "Seu resumo de hoje está pronto", "body": body,
+            "data": {"type": "DAILY_BRIEFING", "briefing_id": delivery_id, "delivery_id": delivery_id}}
 
 
 class FCMPushProvider(PushProvider):
@@ -65,12 +105,20 @@ class FCMPushProvider(PushProvider):
             from firebase_admin import exceptions
         except Exception:
             return PushResult(False, failure_reason="FCM_NOT_CONFIGURED", retryable=False)
+        data = dict(data or {}); image = data.pop("image", None); kind = notification_kind(data)
+        # A tag per briefing or story: a resend replaces the notification already on screen instead of stacking a copy.
+        tag = str(data.get("delivery_id") or data.get("event_id") or kind.type.lower())[:64]
+        ttl = int(kind.ttl.total_seconds())
         message = messaging.Message(
             token=token,
             notification=messaging.Notification(title=title, body=body),
             data={str(k): str(v) for k, v in data.items()},
-            android=messaging.AndroidConfig(priority="high", notification=messaging.AndroidNotification(channel_id=android_channel(data))),
-            apns=messaging.APNSConfig(payload=messaging.APNSPayload(aps=messaging.Aps(sound="default"))))
+            android=messaging.AndroidConfig(priority="high", ttl=ttl, collapse_key=tag, notification=messaging.AndroidNotification(
+                channel_id=kind.channel, tag=tag, image=image, default_sound=True)),
+            apns=messaging.APNSConfig(
+                headers={"apns-collapse-id": tag, "apns-expiration": str(int(time.time()) + ttl),
+                         "apns-priority": "10", "apns-push-type": "alert"},
+                payload=messaging.APNSPayload(aps=messaging.Aps(sound="default", thread_id=kind.channel, mutable_content=bool(image)))))
         try:
             return PushResult(True, messaging.send(message))
         except (messaging.UnregisteredError, messaging.SenderIdMismatchError):
@@ -108,8 +156,20 @@ class NotificationService:
             # so it now belongs to the authenticated user. The previous owner's queued pushes must not reach it.
             self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',last_error='device reassigned to another user',updated_at=? WHERE device_id=? AND user_id<>? AND status IN ('PENDING','RUNNING')", (t, did, user_id))
             self._event("device_reassigned", device_id=did)
-        if existing: self.repo.db.execute("UPDATE push_devices SET user_id=?,platform=?,device_identifier=?,app_version=?,locale=?,timezone=?,enabled=1,updated_at=?,last_seen_at=?,invalidated_at=NULL WHERE id=?", (user_id,platform,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),t,t,did))
-        else: self.repo.db.execute("INSERT INTO push_devices(id,user_id,platform,push_token,device_identifier,app_version,locale,timezone,enabled,created_at,updated_at,last_seen_at,invalidated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (did,user_id,platform,token,data.get("device_identifier"),data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),1,t,t,t,None))
+        # The app reports the system permission on every launch: a phone where notifications are blocked stays
+        # linked to the account but gets no pushes until the permission comes back.
+        permitted = str(data.get("permission") or "AUTHORIZED").upper() not in {"DENIED", "NOT_DETERMINED"}
+        identifier = str(data.get("device_identifier") or "").strip() or None
+        if existing: self.repo.db.execute("UPDATE push_devices SET user_id=?,platform=?,device_identifier=?,app_version=?,locale=?,timezone=?,enabled=?,updated_at=?,last_seen_at=?,invalidated_at=NULL WHERE id=?", (user_id,platform,identifier,data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),int(permitted),t,t,did))
+        else: self.repo.db.execute("INSERT INTO push_devices(id,user_id,platform,push_token,device_identifier,app_version,locale,timezone,enabled,created_at,updated_at,last_seen_at,invalidated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (did,user_id,platform,token,identifier,data.get("app_version"),data.get("locale"),data.get("timezone","America/Sao_Paulo"),int(permitted),t,t,t,None))
+        if identifier:
+            # The same phone with a new token (reinstall, token rotation): retire the old rows so one push never arrives twice.
+            stale = [row["id"] for row in self.repo.db.execute("SELECT id FROM push_devices WHERE user_id=? AND device_identifier=? AND id<>? AND enabled=1", (user_id, identifier, did))]
+            for old in stale:
+                self.repo.db.execute("UPDATE push_devices SET enabled=0,invalidated_at=?,updated_at=? WHERE id=?", (t, t, old))
+                self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',last_error='device replaced by a newer token',updated_at=? WHERE device_id=? AND status='PENDING'", (t, old))
+        if not permitted:
+            self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',last_error='notifications blocked on the device',updated_at=? WHERE device_id=? AND status='PENDING'", (t, did))
         self.repo.db.commit(); return self.public_device(self.repo.db.execute("SELECT * FROM push_devices WHERE id=?", (did,)).fetchone())
 
     @staticmethod
@@ -125,8 +185,18 @@ class NotificationService:
         if not row: self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING",(user_id,1,1,0,now_iso())); self.repo.db.commit(); row=self.repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?",(user_id,)).fetchone()
         return {"notifications_enabled":bool(row["notifications_enabled"]),"daily_briefing_enabled":bool(row["daily_briefing_enabled"]),"breaking_news_enabled":bool(row["breaking_news_enabled"])}
 
+    def public_settings(self, user_id):
+        """The switches plus what the screen shows next to them: the briefing time and size and the breaking-news limits."""
+        from .breaking import breaking_rules
+        prefs = self.repo.db.execute("SELECT briefing_time,briefing_size FROM user_preferences WHERE user_id=?", (user_id,)).fetchone()
+        devices = self.repo.db.execute("SELECT COUNT(*) FROM push_devices WHERE user_id=? AND enabled=1 AND invalidated_at IS NULL", (user_id,)).fetchone()[0]
+        return {**self.settings(user_id), "briefing_time": prefs["briefing_time"] if prefs else None, "briefing_size": prefs["briefing_size"] if prefs else None,
+                "breaking_news_rules": breaking_rules(), "active_devices": devices}
+
     def save_settings(self, user_id, data):
-        current=self.settings(user_id); current.update({k:bool(data[k]) for k in ("notifications_enabled","daily_briefing_enabled","breaking_news_enabled") if k in data}); t=now_iso(); self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET notifications_enabled=excluded.notifications_enabled,daily_briefing_enabled=excluded.daily_briefing_enabled,breaking_news_enabled=excluded.breaking_news_enabled,updated_at=excluded.updated_at",(user_id,int(current["notifications_enabled"]),int(current["daily_briefing_enabled"]),int(current["breaking_news_enabled"]),t)); self.repo.db.commit(); return self.settings(user_id)
+        if not isinstance(data, dict) or not any(k in data for k in SETTING_FIELDS): raise ValueError("no notification setting to save")
+        if any(k in data and not isinstance(data[k], bool) for k in SETTING_FIELDS): raise ValueError("notification settings must be true or false")
+        current=self.settings(user_id); current.update({k:data[k] for k in SETTING_FIELDS if k in data}); t=now_iso(); self.repo.db.execute("INSERT INTO notification_settings(user_id,notifications_enabled,daily_briefing_enabled,breaking_news_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET notifications_enabled=excluded.notifications_enabled,daily_briefing_enabled=excluded.daily_briefing_enabled,breaking_news_enabled=excluded.breaking_news_enabled,updated_at=excluded.updated_at",(user_id,int(current["notifications_enabled"]),int(current["daily_briefing_enabled"]),int(current["breaking_news_enabled"]),t)); self.repo.db.commit(); return self.settings(user_id)
 
     def enqueue_ready(self, now=None):
         now = now or datetime.now(timezone.utc); created=0
@@ -155,6 +225,10 @@ class NotificationService:
             # Logged-out, invalidated or reassigned device: never deliver this user's briefing to it.
             self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='device disabled or reassigned' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
             return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
+        if not wants(self.settings(job["user_id"]),job["notification_type"]):
+            # The user turned this kind of notice off after it was queued.
+            self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='turned off in the notification settings' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
+            return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
         if job["notification_type"]=="BREAKING_NEWS":
             message=json.loads(job["payload_json"] or "null")
             if not message or parse(job["scheduled_for"])<now-self.breaking_max_delay:
@@ -172,7 +246,10 @@ class NotificationService:
             if not ready or not artifact or not os.path.isfile(artifact["storage_path"]):
                 self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='delivery audio is no longer READY' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
                 return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
-            title,body,data="Seu resumo está pronto","Seu resumo diário está pronto para começar o dia.",{"type":"DAILY_BRIEFING","briefing_id":job["delivery_id"],"delivery_id":job["delivery_id"]}
+            info=self.repo.db.execute("""SELECT e.item_count,e.language,a.duration_ms FROM user_briefing_deliveries d
+                JOIN briefing_editions e ON e.id=d.edition_id LEFT JOIN audio_artifacts a ON a.id=d.audio_artifact_id WHERE d.id=?""",(job["delivery_id"],)).fetchone()
+            message=daily_briefing_message(job["delivery_id"],info["item_count"] if info else None,info["duration_ms"] if info else None,info["language"] if info else "pt-BR")
+            title,body,data=message["title"],message["body"],message["data"]
         claimed=self.repo.db.execute("UPDATE notification_jobs SET status='RUNNING',attempt_count=attempt_count+1,updated_at=? WHERE id=? AND status='PENDING'",(now_iso(),job["id"])); self.repo.db.commit()
         if claimed.rowcount!=1:
             # Another worker claimed it between the read and this update.

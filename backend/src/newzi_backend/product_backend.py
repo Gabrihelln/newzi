@@ -523,6 +523,8 @@ class ProductService:
         else:
             self.identity=LocalIdentityProvider(self.repo)
         self.rate_limiter=LocalAuthRateLimiter()
+        # Switches save one tap at a time: a person flipping them while testing must not hit the 10/min auth limit.
+        self.settings_limiter=LocalAuthRateLimiter(limit=60)
         from .audio import AudioService
         self.audio = AudioService(self.repo)
         from .notifications import NotificationService
@@ -625,8 +627,11 @@ class ProductService:
     def preferences_updated(self, uid, previous, current, onboarding=False):
         from .scheduling import BriefingProfile
         previous=previous or {}
-        old_profile=BriefingProfile.from_preferences(previous).key() if previous.get("topics") else None
-        new_profile=BriefingProfile.from_preferences(current).key() if current.get("topics") else None
+        # Following everything has no topic list but is still a profile: changing its language, size or
+        # coverage must also build a new briefing.
+        has_profile=lambda prefs: bool(prefs.get("topics")) or prefs.get("content_scope")=="all"
+        old_profile=BriefingProfile.from_preferences(previous).key() if has_profile(previous) else None
+        new_profile=BriefingProfile.from_preferences(current).key() if has_profile(current) else None
         if onboarding:
             return self.scheduler.schedule_user_now(uid)
         if old_profile!=new_profile:
@@ -649,8 +654,9 @@ class ProductService:
         return self.notifications.register_device(uid,data)
 
     def notification_settings(self, uid, data=None):
-        if not self.rate_limiter.allow("notification-settings:"+uid): raise ApiError("RATE_LIMITED","too many requests",429)
-        return self.notifications.settings(uid) if data is None else self.notifications.save_settings(uid,data)
+        if not self.settings_limiter.allow("notification-settings:"+uid): raise ApiError("RATE_LIMITED","too many requests",429)
+        if data is not None: self.notifications.save_settings(uid,data)
+        return self.notifications.public_settings(uid)
 
     # ------------------------------------------------------------- articles and saved items
     def article_feedback(self, uid, story_id, rating=None, update=False):

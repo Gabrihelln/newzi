@@ -19020,7 +19020,17 @@
   "body": {
    "notifications_enabled": true,
    "daily_briefing_enabled": true,
-   "breaking_news_enabled": false
+   "breaking_news_enabled": false,
+   "briefing_time": "07:00",
+   "briefing_size": 5,
+   "breaking_news_rules": {
+    "max_per_day": 2,
+    "quiet_hours": {
+     "start": 22,
+     "end": 7
+    }
+   },
+   "active_devices": 0
   }
  },
  {
@@ -19030,7 +19040,17 @@
   "body": {
    "notifications_enabled": true,
    "daily_briefing_enabled": false,
-   "breaking_news_enabled": false
+   "breaking_news_enabled": false,
+   "briefing_time": "07:00",
+   "briefing_size": 5,
+   "breaking_news_rules": {
+    "max_per_day": 2,
+    "quiet_hours": {
+     "start": 22,
+     "end": 7
+    }
+   },
+   "active_devices": 0
   }
  },
  {

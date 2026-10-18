@@ -7,12 +7,17 @@ An event (articles the clustering grouped under one ``event_id``) is breaking wh
   not an old one resurfacing);
 - its lead article is news, not a deal, guide, review, roundup, how-to or opinion piece.
 
+The push carries the lead headline as its title and a short summary of the story as its body
+(``story_summary``); tapping it opens the story.
+
 A user receives it when ``notifications_enabled`` and ``breaking_news_enabled`` are on, the event
 matches their topics and country scope, it is outside their quiet hours (local time), they got
 fewer than BREAKING_MAX_PER_DAY breaking pushes in the last 24 hours and none in the last
-BREAKING_MIN_GAP_MINUTES. Each event reaches each device at most once; a push still undelivered
-BREAKING_MAX_DELAY_MINUTES after detection is cancelled instead of sent late.
+BREAKING_MIN_GAP_MINUTES. Each event, and the same story under a new event id, reaches each user
+at most once; a push still undelivered BREAKING_MAX_DELAY_MINUTES after detection is cancelled
+instead of sent late.
 """
+import html
 import json
 import os
 import re
@@ -34,6 +39,53 @@ _NOT_NEWS_PT = re.compile(r"^(como|veja como|por que|entenda|guia|review|anális
 
 def _env_int(name, default):
     return int(os.getenv(name, str(default)))
+
+
+def breaking_rules():
+    """The limits people see next to the switch ("Até 2 por dia", "Silêncio 22h–7h"), from the same settings the sender uses."""
+    quiet = _quiet_hours(os.getenv("BREAKING_QUIET_HOURS", "22-7"))
+    return {"max_per_day": max(1, _env_int("BREAKING_MAX_PER_DAY", 2)),
+            "quiet_hours": {"start": quiet[0], "end": quiet[1]} if quiet and quiet[0] != quiet[1] else None}
+
+
+SUMMARY_LIMIT = 160
+_TAGS = re.compile(r"<[^>]+>")
+# Feed boilerplate that is not part of the story ("The post X appeared first on Y", "Leia mais", "[…]").
+_BOILERPLATE = re.compile(r"(the post .+ appeared first on .+$|\b(leia|saiba|veja) mais\b.*$|continue lendo.*$|\[(…|\.\.\.)\]\s*$)", re.IGNORECASE)
+
+
+def _clean(text):
+    text = html.unescape(_TAGS.sub(" ", str(text or "")))
+    text = _BOILERPLATE.sub("", re.sub(r"\s+", " ", text)).strip(" -–—|")
+    return text.strip()
+
+
+def _fold(text):
+    return re.sub(r"[^\w]+", " ", (text or "").lower()).strip()
+
+
+def story_summary(title, descriptions, limit=SUMMARY_LIMIT):
+    """A short summary of the story for the notification body, from the first useful article description.
+
+    Skips descriptions that only repeat the headline, drops a repeated headline at the start, and cuts at a
+    sentence end when one fits (otherwise at a word, with an ellipsis). ``None`` when no article has one.
+    """
+    headline = _fold(title)
+    for raw in descriptions:
+        text = _clean(raw)
+        if title and text.lower().startswith(title.strip().lower()):
+            text = text[len(title.strip()):].lstrip(" .:-–—")
+        folded = _fold(text)
+        if len(folded) < 30 or folded == headline or (headline and headline.startswith(folded)):
+            continue
+        if len(text) <= limit:
+            return text
+        cut = text[:limit + 1]
+        sentence = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+        if sentence >= limit * 0.55:
+            return cut[:sentence + 1]
+        return cut[:cut.rfind(" ")].rstrip(" ,;:-–—") + "…"
+    return None
 
 
 def _quiet_hours(value):
@@ -84,7 +136,7 @@ class BreakingNewsService:
         for candidate in candidates:
             event_id = candidate["event_id"]
             articles = self.repo.db.execute(
-                """SELECT id,title,description,url,source_name,source_id,source_country,source_language,published_at,quality_score
+                """SELECT id,title,description,url,image_url,source_name,source_id,source_country,source_language,published_at,quality_score
                    FROM indexed_content WHERE event_id=? AND published_at IS NOT NULL ORDER BY published_at,id""", (event_id,)).fetchall()
             if not articles or articles[0]["published_at"] < lower:
                 continue  # the story started before the window: an old event gaining coverage
@@ -95,7 +147,9 @@ class BreakingNewsService:
             marks = ",".join("?" for _ in articles)
             topics = {row[0] for row in self.repo.db.execute(
                 f"SELECT DISTINCT taxonomy_id FROM content_taxonomy WHERE content_id IN ({marks})", tuple(row["id"] for row in articles))}
-            events.append({"event_id": event_id, "lead": dict(lead), "detected_at": iso(now),
+            # The other articles feed the notification summary when the lead has no usable description.
+            ranked = sorted(articles, key=lambda row: (not str(row["source_language"] or "").startswith("pt"), -(row["quality_score"] or 0)))
+            events.append({"event_id": event_id, "lead": dict(lead), "detected_at": iso(now), "articles": [dict(row) for row in ranked],
                            "source_count": len({row["source_id"] for row in articles}),
                            "countries": {row["source_country"] for row in articles}, "topics": topics})
         return events
@@ -138,17 +192,32 @@ class BreakingNewsService:
             return False
         return not (sent["latest"] and parse(sent["latest"]) > now - self.min_gap)
 
+    def _already_told(self, user_id, event, now):
+        """The same story under another event id (re-clustering, a second wave of coverage) is not news twice."""
+        story_ids = {row["id"] for row in event.get("articles", [])} | {event["lead"]["id"]}
+        headline = _fold(event["lead"]["title"])
+        for row in self.repo.db.execute(
+                "SELECT DISTINCT payload_json FROM notification_jobs WHERE user_id=? AND notification_type=? AND created_at>=? AND payload_json IS NOT NULL",
+                (user_id, NOTIFICATION_TYPE, iso(now - timedelta(hours=24)))):
+            sent = json.loads(row["payload_json"])
+            if sent["data"].get("story_id") in story_ids or _fold(sent.get("title")) == headline:
+                return True
+        return False
+
     @staticmethod
     def payload(event, language):
-        lead = event["lead"]; others = event["source_count"] - 1
-        headline = (lead["title"] or "").strip()
-        title = headline if len(headline) <= 110 else headline[:107].rstrip() + "..."
-        if language and language.lower().startswith("en"):
-            body = f"{lead['source_name']} and {others} other outlets are covering this story."
-        else:
-            body = f"{lead['source_name']} e mais {others} veículos estão cobrindo esta notícia."
-        return {"title": title, "body": body,
-                "data": {"type": NOTIFICATION_TYPE, "event_id": event["event_id"], "story_id": lead["id"], "url": lead["url"]}}
+        """Headline as the title and a short summary of the story as the body; a tap opens the story."""
+        lead = event["lead"]; english = bool(language and language.lower().startswith("en"))
+        headline = re.sub(r"\s+", " ", lead["title"] or "").strip()
+        title = headline if len(headline) <= 110 else headline[:107].rstrip() + "…"
+        others = [row["description"] for row in event.get("articles", []) if row["id"] != lead["id"]]
+        body = story_summary(headline, [lead.get("description"), *others]) or (
+            "Tap to read the full story on Newzi." if english else "Toque para ler a matéria completa no Newzi.")
+        data = {"type": NOTIFICATION_TYPE, "event_id": event["event_id"], "story_id": lead["id"], "url": lead["url"]}
+        image = lead.get("image_url")
+        if image and str(image).startswith("https://"):
+            data["image"] = image
+        return {"title": title, "body": body, "data": data}
 
     def enqueue(self, events, now=None):
         now = now or utc_now(); created = 0; users = set()
@@ -160,7 +229,7 @@ class BreakingNewsService:
                     continue
                 already = self.repo.db.execute("SELECT 1 FROM notification_jobs WHERE user_id=? AND delivery_id=? LIMIT 1",
                                                (user_id, delivery_id)).fetchone()
-                if already or not self._within_limits(user_id, prefs, now):
+                if already or self._already_told(user_id, event, now) or not self._within_limits(user_id, prefs, now):
                     continue
                 payload = json.dumps(self.payload(event, prefs.get("language")), ensure_ascii=False)
                 devices = self.repo.db.execute("SELECT id FROM push_devices WHERE user_id=? AND enabled=1 AND invalidated_at IS NULL",

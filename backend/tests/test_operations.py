@@ -98,12 +98,12 @@ def test_worker_health_endpoint_is_503_without_workers():
 
 # ---------------------------------------------------------------- breaking news
 def add_article(repo, article_id, event_id, source, minutes_ago, title="Terremoto atinge capital e deixa feridos",
-                topic="TECHNOLOGY", country="BR"):
+                topic="TECHNOLOGY", country="BR", description="Tremor de magnitude 6,1 derrubou prédios no centro e a Defesa Civil confirmou 40 feridos."):
     from newzi_backend.timeutil import iso
     published = iso(NOW - timedelta(minutes=minutes_ago))
     repo.db.execute("""INSERT INTO indexed_content(id,content_hash,title,description,url,source_name,source_id,source_country,source_language,
         published_at,indexed_at,enrichment_mode,quality_score,event_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (article_id, "h_" + article_id, title, "Descrição.", "https://news.example/" + article_id, source.title(), source,
+                    (article_id, "h_" + article_id, title, description, "https://news.example/" + article_id, source.title(), source,
                      country, "pt-BR", published, published, "test", 5.0, event_id))
     repo.db.execute("INSERT INTO content_taxonomy(content_id,taxonomy_id,score) VALUES(?,?,?)", (article_id, topic, 8.0))
     repo.db.commit()
@@ -139,11 +139,39 @@ def test_breaking_news_reaches_matching_opted_in_users_once(repo):
     assert result["events"] == 1
     assert {row["user_id"] for row in breaking_jobs(repo)} == {"fan", "night_owl"}
     payload = json.loads(breaking_jobs(repo, "fan")[0]["payload_json"])
-    assert payload["title"].startswith("Terremoto") and "mais 2 veículos" in payload["body"]
+    assert payload["title"].startswith("Terremoto") and payload["body"].startswith("Tremor de magnitude 6,1")
+    assert "veículos" not in payload["body"]
     assert payload["data"] == {"type": "BREAKING_NEWS", "event_id": "quake", "story_id": payload["data"]["story_id"],
                                "url": payload["data"]["url"]}
     service.run_once(NOW + timedelta(minutes=5), force=True)
     assert len(breaking_jobs(repo)) == 2
+
+
+def test_breaking_summary_is_a_short_clean_story_summary():
+    from newzi_backend.breaking import story_summary
+    title = "Terremoto atinge capital"
+    assert story_summary(title, ["Terremoto atinge capital", "<p>Terremoto atinge capital. Tremor de 6,1 derrubou pr&eacute;dios no centro.</p> Leia mais"])         == "Tremor de 6,1 derrubou prédios no centro."
+    long = "Primeira frase do texto explica o que aconteceu na cidade durante a manhã de hoje com muitos detalhes. " * 3
+    summary = story_summary(title, [long])
+    assert len(summary) <= 160 and summary.endswith(".")
+    assert story_summary(title, ["Curto.", None, ""]) is None
+
+
+def test_breaking_push_without_a_description_invites_to_read_and_skips_a_story_already_told(repo):
+    from newzi_backend.breaking import BreakingNewsService
+    subscribe(repo, "fan")
+    add_event(repo, "quake", description="")
+    service = BreakingNewsService(repo)
+    service.run_once(NOW, force=True)
+    assert json.loads(breaking_jobs(repo, "fan")[0]["payload_json"])["body"] == "Toque para ler a matéria completa no Newzi."
+    # Re-clustering gives the same story a new event id: it is not sent again.
+    for row in repo.db.execute("SELECT id FROM indexed_content WHERE event_id='quake'").fetchall():
+        repo.db.execute("UPDATE indexed_content SET event_id='quake_v2' WHERE id=?", (row["id"],))
+    repo.db.commit()
+    monkey_gap = service.min_gap; service.min_gap = timedelta(0)
+    service.run_once(NOW + timedelta(minutes=10), force=True)
+    service.min_gap = monkey_gap
+    assert {row["delivery_id"] for row in breaking_jobs(repo)} == {"breaking_quake"}
 
 
 def test_breaking_news_rules_skip_weak_old_and_promotional_events(repo):
@@ -170,12 +198,12 @@ def test_breaking_news_respects_quiet_hours_gap_and_daily_cap(repo, monkeypatch)
     monkeypatch.setenv("BREAKING_MAX_PER_DAY", "2")
     service = BreakingNewsService(repo)
     service.run_once(NOW, force=True)
-    add_event(repo, "second", start_minutes_ago=60)
+    add_event(repo, "second", start_minutes_ago=60, title="Enchente isola cidades do litoral")
     service.run_once(NOW + timedelta(minutes=30), force=True)       # within the 3 h gap
     assert {row["delivery_id"] for row in breaking_jobs(repo)} == {"breaking_first"}
     later = NOW + timedelta(hours=4)
-    add_event(repo, "third", start_minutes_ago=-200)                 # published around ``later``
-    add_event(repo, "fourth", start_minutes_ago=-210)
+    add_event(repo, "third", start_minutes_ago=-200, title="Apagão atinge três estados do Nordeste")                 # published around ``later``
+    add_event(repo, "fourth", start_minutes_ago=-210, title="Incêndio fecha rodovia no interior")
     service.run_once(later, force=True)
     assert len({row["delivery_id"] for row in breaking_jobs(repo)}) == 2   # daily cap
 
