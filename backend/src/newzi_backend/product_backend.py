@@ -151,7 +151,12 @@ class ProductRepository:
 
     def get_user(self, uid):
         row=self.db.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone(); return dict(row) if row else None
-    def ensure_firebase_user(self, firebase_uid, email, display_name=""):
+    def ensure_firebase_user(self, firebase_uid, email, display_name="", account_exists=None):
+        """The user row of a verified Firebase account, created on its first request.
+
+        ``account_exists(firebase_uid)`` tells whether another Firebase account still exists; it decides
+        whether a row holding this e-mail belongs to an account deleted outside the app.
+        """
         existing = self.db.execute("SELECT * FROM users WHERE firebase_uid=? OR id=?", (firebase_uid, firebase_uid)).fetchone()
         t = now_iso()
         if existing:
@@ -162,9 +167,24 @@ class ProductRepository:
                 self.db.commit()
             if not self.get_preferences(existing["id"]): self.save_preferences(existing["id"], {})
             return dict(existing) if wanted == (existing["firebase_uid"], existing["email"], existing["display_name"]) else self.get_user(existing["id"])
-        self.db.execute("INSERT INTO users(id,firebase_uid,email,display_name,language,timezone,created_at,updated_at,status,onboarding_status) VALUES(?,?,?,?,?,?,?,?,?,?)", (firebase_uid, firebase_uid, email or "", display_name or "", self.config.default_language, self.config.default_timezone, t, t, "ACTIVE", "NOT_STARTED"))
-        self.db.commit(); self.save_preferences(firebase_uid, {})
-        return self.get_user(firebase_uid)
+        # An account deleted in the Firebase console keeps its row here; the same e-mail signing up
+        # again gets a new UID and would hit the unique e-mail forever. That row and its data go.
+        holder = self.db.execute("SELECT id,firebase_uid FROM users WHERE email=? AND email<>''", (email or "",)).fetchone()
+        if holder and account_exists and not account_exists(holder["firebase_uid"] or holder["id"]):
+            log.info("[Backend Auth] stale_account_removed=true")
+            self.delete_user(holder["id"])
+        # The app's first screen sends several requests at once; the ones that lose the race to
+        # create the row use it instead of failing on the unique UID.
+        self.db.execute("INSERT INTO users(id,firebase_uid,email,display_name,language,timezone,created_at,updated_at,status,onboarding_status) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING", (firebase_uid, firebase_uid, email or "", display_name or "", self.config.default_language, self.config.default_timezone, t, t, "ACTIVE", "NOT_STARTED"))
+        self.db.commit()
+        created = self.db.execute("SELECT * FROM users WHERE firebase_uid=? OR id=?", (firebase_uid, firebase_uid)).fetchone()
+        if not created:
+            # The e-mail belongs to another live account (it cannot under Firebase's one-account-per-
+            # e-mail rule, but never attach one person's data to another).
+            log.warning("[Backend Auth] user_row_conflict=true reason=EMAIL_IN_USE")
+            return None
+        if not self.get_preferences(created["id"]): self.save_preferences(created["id"], {})
+        return dict(created)
     @staticmethod
     def public_user(user):
         if not user: return None

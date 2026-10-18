@@ -195,3 +195,41 @@ def test_firebase_verification_is_cached_briefly(repo):
     provider.cache_seconds = 0
     provider.resolve("token-b"); provider.resolve("token-b")
     assert calls == ["token-a", "token-b", "token-b"]
+
+
+# ---------------------------------------------------------------- Firebase user rows
+def test_simultaneous_first_requests_share_one_user_row(repo):
+    # The app's first screen sends several requests at once; none may fail on the unique UID.
+    for round_number in range(5):
+        uid = f"new-user-{round_number}"
+        barrier, results, errors = threading.Barrier(6), [], []
+
+        def first_request():
+            try:
+                barrier.wait()
+                results.append(repo.ensure_firebase_user(uid, f"{uid}@x", "Nova")["id"])
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                repo.close_thread_connection()
+        threads = [threading.Thread(target=first_request) for _ in range(6)]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        assert not errors and results == [uid] * 6
+        assert repo.db.execute("SELECT COUNT(*) FROM users WHERE firebase_uid=?", (uid,)).fetchone()[0] == 1
+        assert repo.get_preferences(uid) is not None
+
+
+def test_an_account_recreated_with_the_same_email_starts_clean(repo):
+    # Deleted in the Firebase console: the old row stays here, and the new UID needs its e-mail.
+    repo.ensure_firebase_user("old-uid", "teste@x.com", "Antigo")
+    repo.save_preferences("old-uid", {"topics": ["SPORTS"]})
+    user = repo.ensure_firebase_user("new-uid", "teste@x.com", "Novo", account_exists=lambda uid: uid != "old-uid")
+    assert user["id"] == "new-uid" and repo.get_user("old-uid") is None
+    assert repo.get_preferences("new-uid")["topics"] != ["SPORTS"]
+
+
+def test_a_live_account_never_loses_its_email_to_another(repo):
+    repo.ensure_firebase_user("owner", "dono@x.com", "Dono")
+    assert repo.ensure_firebase_user("other", "dono@x.com", "Outro", account_exists=lambda uid: True) is None
+    assert repo.get_user("owner")["email"] == "dono@x.com" and repo.get_user("other") is None

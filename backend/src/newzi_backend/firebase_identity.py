@@ -68,7 +68,7 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
         decoded = self._cached(key)
         if decoded is not None:
             self.last_verify_reason = None
-            user = self.repo.ensure_firebase_user(decoded["uid"], decoded.get("email") or "", decoded.get("name") or "")
+            user = self.repo.ensure_firebase_user(decoded["uid"], decoded.get("email") or "", decoded.get("name") or "", self.account_exists)
             return Identity(user) if user else None
         try:
             # Firebase issues tokens using its own clock. A small leeway avoids
@@ -94,8 +94,19 @@ class FirebaseAdminIdentityProvider(IdentityProvider):
         self.last_verify_reason = None
         self._remember(key, {**decoded, "uid": uid})
         log.info("[Backend Auth] firebase_token_verified=true uid_present=true")
-        user = self.repo.ensure_firebase_user(uid, decoded.get("email") or "", decoded.get("name") or "")
+        user = self.repo.ensure_firebase_user(uid, decoded.get("email") or "", decoded.get("name") or "", self.account_exists)
         return Identity(user) if user else None
+
+    def account_exists(self, uid):
+        """False only when Firebase says the account is gone; any other failure keeps the data."""
+        try:
+            self.auth.get_user(uid)
+            return True
+        except self.auth.UserNotFoundError:
+            return False
+        except Exception as exc:
+            log.warning("[Backend Auth] account_lookup_failed exception=%s", type(exc).__name__)
+            return True
 
     def delete_user(self, uid):
         try:
