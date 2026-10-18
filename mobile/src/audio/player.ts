@@ -1,4 +1,4 @@
-import { NativeModules } from 'react-native';
+import { Image, NativeModules } from 'react-native';
 import type { OnBufferData, OnLoadData, OnPlaybackStateChangedData, OnProgressData, VideoRef } from 'react-native-video';
 import { api } from '../api/client';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
@@ -72,6 +72,22 @@ export function briefingAudioTitle(briefing: Briefing | null | undefined) {
 
 /** Album-style artwork of the notification: the edition's cover. */
 export const briefingArtwork = (briefing: Briefing | null | undefined) => briefing?.date ? editionArtworkUrl(briefing) : undefined;
+
+const reachableArtwork = new Set<string>();
+
+/**
+ * The artwork only when it actually loads. On Android, react-native-video gives up registering the media
+ * notification when the artwork request fails (a 404, no connection), leaving a bare "Preparing playback"
+ * notification; without artwork the notification still shows its title and controls.
+ */
+async function verifiedArtwork(url?: string) {
+  if (!url) return undefined;
+  if (reachableArtwork.has(url)) return url;
+  const timeout = new Promise<boolean>(resolve => setTimeout(() => resolve(false), 4000));
+  const ok = await Promise.race([Image.prefetch(url).catch(() => false), timeout]);
+  if (ok) reachableArtwork.add(url);
+  return ok ? url : undefined;
+}
 
 function update(patch: Partial<PlaybackState>) {
   state = { ...state, ...patch };
@@ -237,12 +253,12 @@ export async function loadAudio(url: string, title = 'Resumo do dia', artwork?: 
   loadingUrl = url;
   update({ buffering: true });
   loadingPromise = (async () => {
-    const resolved = await resolveSource(url);
+    const [resolved, cover] = await Promise.all([resolveSource(url), verifiedArtwork(artwork)]);
     const saved = await cache().getPosition?.(url).catch(() => 0) || 0;
     audioContext = null;
     contextListeners.forEach(listener => listener(null));
     update({ position: 0, duration: 0, playing: false, paused: false, ended: false, loaded: false, started: false });
-    await openSource(url, resolved, title, { startAt: saved }, artwork);
+    await openSource(url, resolved, title, { startAt: saved }, cover);
   })();
   try { await loadingPromise; }
   catch (error) { update({ buffering: false, loaded: false }); throw error; }
@@ -316,7 +332,7 @@ export async function switchAudioVariant(url: string, briefing: Briefing, metada
   const run = ++variantSwitchRun;
   const oldUrl = currentUrl;
   try {
-    const resolved = await resolveSource(url);
+    const [resolved, cover] = await Promise.all([resolveSource(url), verifiedArtwork(briefingArtwork(briefing))]);
     if (run !== variantSwitchRun || currentUrl !== oldUrl || audioContext !== existingContext) return;
     const ratio = state.duration > 0 ? Math.max(0, Math.min(1, state.position / state.duration)) : 0;
     const wasPlaying = state.playing;
@@ -324,7 +340,7 @@ export async function switchAudioVariant(url: string, briefing: Briefing, metada
     readyVoiceVariant = null;
     contextListeners.forEach(listener => listener(audioContext));
     update({ playing: false, buffering: true });
-    await openSource(url, resolved, briefingAudioTitle(briefing), { startRatio: ratio, resumePlaying: wasPlaying && ratio < 1 }, briefingArtwork(briefing));
+    await openSource(url, resolved, briefingAudioTitle(briefing), { startRatio: ratio, resumePlaying: wasPlaying && ratio < 1 }, cover);
     persistBriefingProgress(state.position, state.duration, true);
   } catch {
     // Keep the previous context when the variant cannot be loaded; the user can retry from the player.
