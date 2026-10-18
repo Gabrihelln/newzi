@@ -11,7 +11,6 @@ import { RootNavigator, type RootAuthState } from './src/navigation/RootNavigato
 import type { User } from './src/types/api';
 import { currentPushToken, listenForPushEvents, resetDeviceSync, syncCurrentDevice } from './src/push/push';
 import { openFromNotification } from './src/navigation/notificationRouting';
-import { showPushNotice } from './src/services/appNotices';
 import { devLog } from './src/config/env';
 import { getDeviceTimezone } from './src/config/timezone';
 
@@ -53,7 +52,7 @@ export default function App() {
     return () => listener.remove();
   }, [syncDeviceTimezone]);
 
-  useEffect(() => { try { return listenForPushEvents(openFromNotification, showPushNotice); } catch { return undefined; } }, []);
+  useEffect(() => { try { return listenForPushEvents(openFromNotification); } catch { return undefined; } }, []);
 
   const signedInUid = authState === 'AUTHENTICATED' ? user?.id : undefined;
   // Links this phone to the account and keeps the backend in step with the system permission, which people

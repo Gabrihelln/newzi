@@ -22,7 +22,6 @@ import { SubscriptionScreen } from '../components/SubscriptionScreen';
 import { getAudioContext, sameBriefing, subscribeAudio } from '../audio/player';
 import { startContentRevisionMonitor } from '../services/contentRevision';
 import { SearchScreen, TopicFeedScreen } from '../components/HomeScreen';
-import { AppNotices } from '../components/AppNotices';
 import { BrandPage, BrandPageHeader, ScreenState } from '../components/ScreenPrimitives';
 import { navigationRef, setMainFlowReady } from './notificationRouting';
 import { Icon } from '../components/Icon';
@@ -197,7 +196,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
     <MainStack.Screen name="Account">
       {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onEditProfile={() => navigation.navigate('EditProfile')} onAccountDeleted={onLogout} />}
     </MainStack.Screen>
-  </MainStack.Navigator><AppNotices /></>;
+  </MainStack.Navigator></>;
 }
 /** Screen backgrounds during transitions follow the app theme (no white flash in dark mode). */
 function navigationTheme(theme: ReturnType<typeof useTheme>): NavigationTheme {

@@ -2,7 +2,6 @@ import { QueryClient } from '@tanstack/react-query';
 import { persistQueryClient } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { createMMKV } from 'react-native-mmkv';
-import { setOffline } from './appNotices';
 
 // The last answer of each main read (home, history, saved items, briefings and their audio metadata)
 // is kept on the device, so the app still opens with the latest briefing - and its downloaded audio -
@@ -29,18 +28,15 @@ const ready = restored.catch(() => undefined);
 
 const CONNECTIVITY_ERRORS = new Set(['BACKEND_UNREACHABLE', 'TIMEOUT']);
 
-/** Fetch fresh data, falling back to the saved copy (and flagging offline) when the network fails. */
+/** Fetch fresh data, falling back to the saved copy when the network fails. */
 export async function cachedRead<T>(key: readonly unknown[], fetcher: () => Promise<T>): Promise<T> {
   await ready;
   try {
-    const data = await queryClient.fetchQuery({ queryKey: key, queryFn: fetcher, staleTime: 0 });
-    setOffline(false);
-    return data;
+    return await queryClient.fetchQuery({ queryKey: key, queryFn: fetcher, staleTime: 0 });
   } catch (error) {
     const code = (error as { code?: string } | null)?.code;
     const saved = code && CONNECTIVITY_ERRORS.has(code) ? queryClient.getQueryData<T>(key) : undefined;
     if (saved === undefined) throw error;
-    setOffline(true);
     return saved;
   }
 }
@@ -49,5 +45,4 @@ export async function cachedRead<T>(key: readonly unknown[], fetcher: () => Prom
 export function clearOfflineCache() {
   queryClient.clear();
   storage.clearAll();
-  setOffline(false);
 }

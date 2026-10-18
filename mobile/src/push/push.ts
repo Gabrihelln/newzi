@@ -1,10 +1,9 @@
 import { Linking, PermissionsAndroid, Platform } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
-import { AuthorizationStatus, getInitialNotification, getMessaging, getToken, hasPermission, onMessage, onNotificationOpenedApp, onTokenRefresh, requestPermission, type RemoteMessage } from '@react-native-firebase/messaging';
+import { AuthorizationStatus, getInitialNotification, getMessaging, getToken, hasPermission, onNotificationOpenedApp, onTokenRefresh, requestPermission, type RemoteMessage } from '@react-native-firebase/messaging';
 import { api } from '../api/client';
 
 export type PushPermissionState = 'AUTHORIZED' | 'PROVISIONAL' | 'DENIED' | 'NOT_DETERMINED';
-export type ForegroundPush = { title: string; body: string; data: Record<string, string> };
 
 export const isPushAllowed = (permission: PushPermissionState) => permission === 'AUTHORIZED' || permission === 'PROVISIONAL';
 
@@ -83,17 +82,13 @@ export async function requestAndRegisterDevice() {
 }
 
 /**
- * Taps on a notification (app in the background or closed) go to `onOpened`. A push that arrives
- * while the app is open is not shown by the system, so it goes to `onForeground` for an in-app notice.
+ * Taps on a notification (app in the background or closed) go to `onOpened`. A push that arrives while
+ * the app is open is not shown by the system, and the app shows nothing for it either.
  */
-export function listenForPushEvents(onOpened: (data: Record<string, string>) => void, onForeground?: (push: ForegroundPush) => void) {
+export function listenForPushEvents(onOpened: (data: Record<string, string>) => void) {
   const messagingInstance = getMessaging();
   const unsubscribeRefresh = onTokenRefresh(messagingInstance, () => { syncCurrentDevice(undefined, true).catch(() => undefined); });
   const unsubscribeOpened = onNotificationOpenedApp(messagingInstance, (message: RemoteMessage) => { if (message.data) onOpened(message.data as Record<string, string>); });
-  const unsubscribeForeground = onMessage(messagingInstance, async (message: RemoteMessage) => {
-    const title = message.notification?.title;
-    if (title && onForeground) onForeground({ title, body: message.notification?.body || '', data: (message.data || {}) as Record<string, string> });
-  });
   getInitialNotification(messagingInstance).then((message: RemoteMessage | null) => { if (message?.data) onOpened(message.data as Record<string, string>); }).catch(() => undefined);
-  return () => { unsubscribeRefresh(); unsubscribeOpened(); unsubscribeForeground(); };
+  return () => { unsubscribeRefresh(); unsubscribeOpened(); };
 }
