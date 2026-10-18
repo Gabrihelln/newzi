@@ -57,6 +57,18 @@ async def logout(request: Request, uid: str = Depends(current_user)):
     return await call(request, service.logout, uid, service.bearer_token(request.headers.get("authorization")), body.get("push_token"))
 
 
+@router.get("/api/v1/covers/edition.png")
+async def edition_cover(request: Request, period: str = "morning", day: str = "", items: int = 0, minutes: int = 0):
+    """Cover art of a daily edition for the media notification and the lock screen (see covers.py).
+
+    Public because the system loads artwork without the user's token; it only carries the period, the day and
+    two numbers, all validated."""
+    from ...covers import parse_cover_request, render_cover
+    from starlette.concurrency import run_in_threadpool
+    image = await run_in_threadpool(render_cover, *parse_cover_request(period, day, items, minutes))
+    return Response(image, media_type="image/png", headers={"Cache-Control": "public, max-age=604800, immutable", "X-Content-Type-Options": "nosniff"})
+
+
 @router.get("/api/v1/avatars/{name}")
 async def avatar(name: str):
     """Profile photos: public like any profile picture, behind a random file name."""

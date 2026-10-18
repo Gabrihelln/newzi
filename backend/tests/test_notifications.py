@@ -246,3 +246,14 @@ def test_profile_photo_is_resized_served_by_a_random_name_and_removed_with_the_a
             avatars.save_avatar(repo, "u1", bad)
     avatars.delete_avatar_file(repo.get_user("u1"))
     assert avatars.avatar_path(second.rsplit("/", 1)[1]) is None
+
+
+def test_edition_cover_is_a_png_and_rejects_free_form_input():
+    import io
+    from PIL import Image
+    from newzi_backend.covers import parse_cover_request, render_cover
+    with Image.open(io.BytesIO(render_cover(*parse_cover_request("night", "2026-10-18", "10", "3")))) as cover:
+        assert cover.format == "PNG" and cover.size == (512, 512)
+    for bad in (("dawn", "2026-10-18", 10, 3), ("morning", "ontem", 10, 3), ("morning", "2026-10-18", 999, 3), ("morning", "2026-10-18", 10, -1)):
+        with pytest.raises(ValueError):
+            parse_cover_request(*bad)
