@@ -1,22 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Pressable, SafeAreaView, ScrollView, StatusBar, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
-import { updateProfile } from '@react-native-firebase/auth';
-import { changePasswordWithFirebase, friendlyFirebaseAuthError, getFirebaseIdToken, hasPasswordSignIn } from '../services/firebaseAuth';
+import { changePasswordWithFirebase, friendlyFirebaseAuthError, hasPasswordSignIn } from '../services/firebaseAuth';
 import { isStrongEnough, passwordChecks } from '../services/passwordRules';
-import { api } from '../api/client';
 import {typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import { useLogo } from './brand';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
-import type { Preferences, User } from '../types/api';
-import { ScreenState } from './ScreenPrimitives';
-import { getDeviceTimezone } from '../config/timezone';
-import { isValidBriefingTime } from '../config/time';
-import { PremiumSheet } from './PremiumSheet';
+import type { User } from '../types/api';
 import { PREMIUM_OFFERED } from '../config/store';
-import { TimeWheel } from './TimeWheel';
 
 const newTablet = require('../../assets/onboarding/new-tablet.png');
 const fallbackAvatar = require('../../assets/onboarding/new-waving.png');
@@ -117,68 +109,6 @@ export function ProfileScreen({ user, onNavigate, onSearch, onLogout }: ProfileS
       <Pressable accessibilityRole="button" accessibilityLabel="Sair da conta" onPress={onLogout} style={({ pressed }) => [st.logout, pressed && { opacity: .7 }]}><Text style={st.logoutText}>Sair da conta</Text></Pressable>
     </ScrollView>
   </SafeAreaView>;
-}
-
-export function EditProfileScreen({ user, onBack, onSaved }: { user: User | null; onBack: () => void; onSaved: (user: User) => void }) {
-  const st = useStyles(makeStyles);
-  const theme = useTheme();
-  const { colors } = theme;
-  const [name, setName] = useState(user?.display_name || firebaseAuth.currentUser?.displayName || '');
-  const [photoUrl, setPhotoUrl] = useState(firebaseAuth.currentUser?.photoURL || '');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const save = async () => {
-    const firebaseUser = firebaseAuth.currentUser;
-    if (!firebaseUser || !name.trim()) { setMessage('Informe seu nome para continuar.'); return; }
-    if (photoUrl && !/^https?:\/\//i.test(photoUrl.trim())) { setMessage('O link da foto deve começar com http:// ou https://.'); return; }
-    setBusy(true); setMessage('');
-    try {
-      await updateProfile(firebaseUser, { displayName: name.trim(), photoURL: photoUrl.trim() || null });
-      await getFirebaseIdToken(true);
-      const updated = await api.me() as User;
-      onSaved(updated); setMessage('Perfil atualizado.');
-    } catch { setMessage('Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.'); }
-    finally { setBusy(false); }
-  };
-  return <SecondaryPage title="Editar perfil" onBack={onBack}>
-    <Text style={st.formLabel}>Nome completo</Text><TextInput accessibilityLabel="Nome completo" value={name} onChangeText={setName} placeholder="Seu nome" placeholderTextColor={colors.tone('#8192AE', colors.muted)} style={st.input} />
-    <Text style={st.formLabel}>E-mail</Text><View style={[st.input, st.readonly]}><Text style={st.readonlyText}>{user?.email || firebaseAuth.currentUser?.email || 'E-mail indisponível'}</Text></View>
-    <Text style={st.formLabel}>Foto de perfil</Text><TextInput accessibilityLabel="Link da foto de perfil" value={photoUrl} onChangeText={setPhotoUrl} autoCapitalize="none" keyboardType="url" placeholder="https://…" placeholderTextColor={colors.tone('#8192AE', colors.muted)} style={st.input} /><Text style={st.helper}>Cole o link de uma imagem. Ainda não é possível enviar fotos do aparelho.</Text>
-    {!!message && <Text style={st.formMessage}>{message}</Text>}<ActionButton title={busy ? 'Salvando…' : 'Salvar alterações'} disabled={busy} onPress={() => void save()} />
-  </SecondaryPage>;
-}
-
-export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }: { onBack: () => void; onVoice: () => void; onSubscription: () => void }) {
-  const st = useStyles(makeStyles);
-  const theme = useTheme();
-  const { colors } = theme;
-  const [prefs, setPrefs] = useState<Preferences | null>(null); const [voices, setVoices] = useState<{ id: string; name: string }[]>([]); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [loading, setLoading] = useState(true); const [loadError, setLoadError] = useState(''); const [timeError, setTimeError] = useState('');
-  const timezone = getDeviceTimezone();
-  const [premium, setPremium] = useState(false); const [upsell, setUpsell] = useState(false);
-  // The saved time: a new one only says "amanhã" when the user actually changed it.
-  const initialTime = useRef('');
-  useEffect(() => { if (PREMIUM_OFFERED) api.subscription().then(plan => setPremium(plan.tier === 'premium')).catch(() => undefined); }, []);
-  // Extra briefing times are Premium; Básico readers see what Premium offers. The extra times themselves arrive with purchases.
-  const addTime = () => premium ? setMessage('Os horários extras do Premium chegam em uma próxima versão.') : setUpsell(true);
-  const load = async () => { setLoading(true); setLoadError(''); try { const [p, catalog] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] }))]); setPrefs({ ...p, timezone }); initialTime.current = p.briefing_time; setVoices(catalog.voices); } catch { setPrefs(null); setLoadError('Não foi possível carregar suas configurações.'); } finally { setLoading(false); } };
-  useEffect(() => { void load(); }, []);
-  // The voice is chosen on its own screen: show it when coming back, and never save this screen's stale copy over it.
-  useFocusEffect(useCallback(() => { api.preferences().then(saved => setPrefs(current => current ? { ...current, audio_voice_id: saved.audio_voice_id } : current)).catch(() => undefined); }, []));
-  const save = async () => { if (!prefs) return; if (!isValidBriefingTime(prefs.briefing_time)) { setTimeError('Use um horário válido entre 00:00 e 23:59.'); return; } setBusy(true); setMessage(''); setTimeError(''); const updated = { ...prefs, timezone }; const { briefing_time, briefing_size, language, country_scope, audio_enabled } = updated; try { const saved = await api.savePreferences({ briefing_time, timezone, briefing_size, language, country_scope, audio_enabled }); setPrefs({ ...updated, next_briefing: saved?.next_briefing }); setMessage(saved?.next_briefing?.day === 'TOMORROW' && briefing_time !== initialTime.current ? `Configurações salvas. O resumo de hoje já foi feito; o próximo chega amanhã às ${briefing_time}.` : 'Configurações salvas.'); initialTime.current = briefing_time; } catch { setMessage('Não foi possível salvar as configurações.'); } finally { setBusy(false); } };
-  const selectedVoice = voices.find(voice => voice.id === prefs?.audio_voice_id)?.name || 'Voz padrão';
-  return <SecondaryPage title="Resumo diário" onBack={onBack}>{loading ? <ScreenState kind="loading" title="Carregando configurações" /> : loadError ? <ScreenState kind="error" title="Configurações indisponíveis" message={loadError} onRetry={() => void load()} /> : !prefs ? null : <>
-    <Text style={st.pageIntro}>Ajuste quando o resumo chega e como prefere ouvi-lo.</Text>
-    <Text style={st.formLabel}>Horário de entrega</Text><View style={st.timeCard}><TimeWheel value={prefs.briefing_time} onChange={briefing_time => { setPrefs({ ...prefs, briefing_time }); setTimeError(''); }} /></View>
-    {!!timeError && <Text accessibilityRole="alert" style={st.helper}>{timeError}</Text>}
-    {PREMIUM_OFFERED && <Pressable accessibilityRole="button" accessibilityLabel="Adicionar outro horário de resumo. Recurso Premium" onPress={addTime} style={st.addTimeRow}><Icon name="clock" color={colors.primary} size={19} /><Text style={st.addTimeText}>Adicionar outro horário</Text><View style={st.premiumTag}><Text style={st.premiumTagText}>PREMIUM</Text></View></Pressable>}
-    <Text style={st.formLabel}>Fuso horário</Text><InfoCard label="Automático pelo aparelho" value={timezone} />
-    <Text style={st.formLabel}>Tamanho</Text><View style={st.choiceLine}>{[5, 10, 15].map(size => <Pressable key={size} accessibilityRole="radio" accessibilityState={{ selected: prefs.briefing_size === size }} onPress={() => setPrefs({ ...prefs, briefing_size: size as Preferences['briefing_size'] })} style={[st.sizeChoice, prefs.briefing_size === size && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.briefing_size === size && { color: colors.primary }]}>{size} notícias</Text></Pressable>)}</View>
-    <Text style={st.formLabel}>Idioma e cobertura</Text><View style={st.choiceLine}>{['pt-BR', 'en'].map(language => <Pressable key={language} accessibilityRole="radio" accessibilityState={{ selected: prefs.language === language }} onPress={() => setPrefs({ ...prefs, language })} style={[st.sizeChoice, prefs.language === language && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.language === language && { color: colors.primary }]}>{language === 'pt-BR' ? 'Português' : 'English'}</Text></Pressable>)}</View><View style={st.choiceLine}>{(['LOCAL', 'GLOBAL', 'BOTH'] as const).map(scope => <Pressable key={scope} accessibilityRole="radio" accessibilityState={{ selected: prefs.country_scope === scope }} onPress={() => setPrefs({ ...prefs, country_scope: scope })} style={[st.sizeChoice, prefs.country_scope === scope && st.sizeChoiceActive]}><Text style={[st.sizeChoiceText, prefs.country_scope === scope && { color: colors.primary }]}>{scope === 'BOTH' ? 'Brasil e global' : scope === 'LOCAL' ? 'Brasil' : 'Global'}</Text></Pressable>)}</View>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Voz do resumo: ${selectedVoice}`} onPress={onVoice} style={st.voiceRow}><View style={{ flex: 1 }}><Text style={st.menuTitle}>Voz do resumo</Text><Text style={st.menuSubtitle}>{selectedVoice} · Alterar voz</Text></View><Icon name="chevron" color={colors.tone('#64789C', colors.secondary)} /></Pressable>
-    <View style={st.audioToggle}><Text style={st.menuTitle}>Áudio do resumo</Text><Switch accessibilityLabel="Áudio do resumo" value={prefs.audio_enabled} onValueChange={audio_enabled => setPrefs({ ...prefs, audio_enabled })} trackColor={{ false: colors.switchTrackOff, true: colors.switchTrackOn }} ios_backgroundColor={colors.switchTrackOff} thumbColor={prefs.audio_enabled ? colors.primary : colors.switchThumbOff} /></View>
-    {!!message && <Text accessibilityRole="alert" style={st.formMessage}>{message}</Text>}<ActionButton title={busy ? 'Salvando…' : 'Salvar configurações'} disabled={busy || !isValidBriefingTime(prefs.briefing_time)} onPress={() => void save()} />
-    <PremiumSheet feature="briefing_times" visible={upsell} onClose={() => setUpsell(false)} onSeePlans={onSubscription} />
-  </>}</SecondaryPage>;
 }
 
 export function SecurityPrivacyScreen({ onBack }: { onBack: () => void }) {

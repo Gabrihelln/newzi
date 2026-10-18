@@ -322,6 +322,12 @@ def _per_user_editions(db):
     db.execute("CREATE INDEX IF NOT EXISTS idx_briefing_editions_user ON briefing_editions(user_id,edition_date)")
 
 
+def _user_avatars(db):
+    """The profile photo uploaded from the app (see avatars.py)."""
+    if "avatar_file" not in set(db.table_columns("users")):
+        db.execute("ALTER TABLE users ADD COLUMN avatar_file TEXT")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -330,6 +336,7 @@ MIGRATIONS = [
     ("0005_worker_heartbeats_and_push_payloads", _worker_heartbeats_and_push_payloads),
     ("0006_subscriptions", _subscriptions),
     ("0007_per_user_editions", _per_user_editions),
+    ("0008_user_avatars", _user_avatars),
 ]
 
 

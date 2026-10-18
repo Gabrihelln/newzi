@@ -20,6 +20,12 @@ async def delete_account(request: Request, uid: str = Depends(current_user)):
     return Response(status_code=204)
 
 
+@router.post("/avatar")
+async def upload_avatar(request: Request, uid: str = Depends(current_user)):
+    """Editar perfil › Trocar foto: a base64 image, stored resized; returns its public URL path."""
+    return await call(request, service_of(request).upload_avatar, uid, await json_body(request))
+
+
 @router.get("/preferences")
 async def preferences(request: Request, uid: str = Depends(current_user)):
     return await call(request, service_of(request).preferences, uid)

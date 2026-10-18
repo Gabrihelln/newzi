@@ -226,3 +226,23 @@ def test_flipping_switches_while_testing_is_not_rate_limited(repo):
     for index in range(20):
         assert service.notification_settings("u1", {"notifications_enabled": index % 2 == 1})["notifications_enabled"] == (index % 2 == 1)
 
+
+
+def test_profile_photo_is_resized_served_by_a_random_name_and_removed_with_the_account(repo, tmp_path, monkeypatch):
+    import base64, io
+    from PIL import Image
+    from newzi_backend import avatars
+    monkeypatch.setenv("AVATAR_STORAGE_ROOT", str(tmp_path))
+    buffer = io.BytesIO(); Image.new("RGB", (1200, 800), "red").save(buffer, "PNG")
+    url = avatars.save_avatar(repo, "u1", base64.b64encode(buffer.getvalue()).decode())
+    name = url.rsplit("/", 1)[1]
+    with Image.open(avatars.avatar_path(name)) as stored:
+        assert stored.format == "JPEG" and max(stored.size) == 512
+    second = avatars.save_avatar(repo, "u1", base64.b64encode(buffer.getvalue()).decode())
+    assert avatars.avatar_path(name) is None and avatars.photo_url(repo.get_user("u1")) == second
+    assert avatars.avatar_path("../product_backend.sqlite3") is None
+    for bad in ("not base64!", base64.b64encode(b"plain text").decode(), ""):
+        with pytest.raises(ValueError):
+            avatars.save_avatar(repo, "u1", bad)
+    avatars.delete_avatar_file(repo.get_user("u1"))
+    assert avatars.avatar_path(second.rsplit("/", 1)[1]) is None

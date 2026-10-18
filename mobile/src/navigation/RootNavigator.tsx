@@ -25,7 +25,9 @@ import { SearchScreen, TopicFeedScreen } from '../components/HomeScreen';
 import { BrandPage, BrandPageHeader, ScreenState } from '../components/ScreenPrimitives';
 import { navigationRef, setMainFlowReady } from './notificationRouting';
 import { Icon } from '../components/Icon';
-import { DailyBriefingSettingsScreen, EditProfileScreen, ProfileScreen, SecurityPrivacyScreen } from '../components/ProfileScreen';
+import { ProfileScreen, SecurityPrivacyScreen } from '../components/ProfileScreen';
+import { DailyBriefingSettingsScreen } from '../components/DailyBriefingSettingsScreen';
+import { EditProfileScreen } from '../components/EditProfileScreen';
 import { ContentPreferencesScreen } from '../components/ContentPreferencesScreen';
 import { AudioExpandedScreen, DetailScreen, ExploreScreen, SavedContentScreen, SavedScreen, SavedTopicsScreen, TodayScreen } from '../screens/ScreenViews';
 

@@ -22,6 +22,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>NSCameraUsageDescription</key>
+	<string>O Newzi usa a câmera para você tirar a foto do seu perfil.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>O Newzi abre suas fotos para você escolher a foto do seu perfil.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

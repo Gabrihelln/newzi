@@ -101,6 +101,7 @@ export const api = {
   // scope 'explore': the Explore card, for everyone; default: only for people who follow football.
   football: (scope?: 'explore') => cached(['football-v2', scope || 'followed'], () => apiRequest<FootballOverview>(`/api/v1/me/football${scope ? `?scope=${scope}` : ''}`)),
   subscription: () => apiRequest<Subscription>('/api/v1/me/subscription'),
+  uploadAvatar: (imageBase64: string) => apiRequest<{ photo_url: string }>('/api/v1/me/avatar', { method: 'POST', body: JSON.stringify({ image_base64: imageBase64 }) }),
   footballStandings: (code: string) => cached(['football-standings', code], () => apiRequest<FootballStandings>(`/api/v1/me/football/standings/${encodeURIComponent(code)}`)),
   story: (storyId: string) => cached(['story', storyId], () => apiRequest<{ item: BriefingItem }>(`/api/v1/me/news/${encodeURIComponent(storyId)}`)),
   savedStories: () => apiRequest<{ items: BriefingItem[] }>('/api/v1/me/saved'),

@@ -7,6 +7,8 @@ export type User = {
   timezone?: string;
   status?: 'ACTIVE' | 'DISABLED';
   onboarding_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  /** Uploaded profile photo, a path on the API (/api/v1/avatars/…). */
+  photo_url?: string | null;
 };
 
 export type Session = { token: string; expires_at: string };

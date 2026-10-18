@@ -1,7 +1,8 @@
 """Health, catalog and local-identity routes."""
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 
+from ...product_backend import not_found
 from ..deps import call, client_key, created, current_user, json_body, service_of
 
 router = APIRouter()
@@ -54,6 +55,16 @@ async def logout(request: Request, uid: str = Depends(current_user)):
     service = service_of(request)
     body = await json_body(request)
     return await call(request, service.logout, uid, service.bearer_token(request.headers.get("authorization")), body.get("push_token"))
+
+
+@router.get("/api/v1/avatars/{name}")
+async def avatar(name: str):
+    """Profile photos: public like any profile picture, behind a random file name."""
+    from ...avatars import avatar_path
+    path = avatar_path(name)
+    if not path:
+        raise not_found("avatar not found")
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"})
 
 
 @router.get("/api/v1/articles/{article_id}/image")

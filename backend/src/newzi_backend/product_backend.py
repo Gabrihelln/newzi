@@ -188,7 +188,10 @@ class ProductRepository:
     @staticmethod
     def public_user(user):
         if not user: return None
-        return {k:user.get(k) for k in ("id","email","display_name","language","timezone","created_at","updated_at","status","onboarding_status") if k in user}
+        out={k:user.get(k) for k in ("id","email","display_name","language","timezone","created_at","updated_at","status","onboarding_status") if k in user}
+        from .avatars import photo_url
+        if photo_url(user): out["photo_url"]=photo_url(user)
+        return out
     @staticmethod
     def _preferences_from_row(row):
         out=dict(row); out["topics"]=list(taxonomy().canonicalize(json.loads(out.pop("topics_json")))[0]); out["audio_enabled"]=bool(out["audio_enabled"]); out.setdefault("content_scope", "selected"); return out
@@ -580,6 +583,8 @@ class ProductService:
         # Local data first: if the identity provider then fails, the client retries with the same
         # token, which recreates an empty user row that the retry deletes again.
         user=self.repo.get_user(uid); self.repo.delete_user(uid)
+        from .avatars import delete_avatar_file
+        delete_avatar_file(user)
         self.identity.delete_user((user or {}).get("firebase_uid") or uid)
         log.info("[Backend Auth] account_deleted=true")
 
@@ -648,6 +653,11 @@ class ProductService:
                 return {"scheduled":result.get("status") in ("PENDING","GENERATING"),"audio_status":result.get("status"),"delivery_id":delivery["id"]}
             return self.scheduler.schedule_user_now(uid)
         return {"scheduled":False,"reason":"NO_PIPELINE_CHANGE"}
+
+    def upload_avatar(self, uid, data):
+        if not self.rate_limiter.allow("avatar:"+uid): raise ApiError("RATE_LIMITED","too many requests",429)
+        from .avatars import save_avatar
+        return {"photo_url":save_avatar(self.repo,uid,(data or {}).get("image_base64"))}
 
     def register_device(self, uid, data):
         if not self.rate_limiter.allow("device:"+uid): raise ApiError("RATE_LIMITED","too many requests",429)
