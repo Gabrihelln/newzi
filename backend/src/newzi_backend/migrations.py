@@ -64,7 +64,7 @@ BASELINE_TABLES = {
     "briefing_editions": ([
         ("id", "TEXT PRIMARY KEY"), ("profile_key", "TEXT NOT NULL"), ("edition_date", "TEXT NOT NULL"), ("language", "TEXT NOT NULL"),
         ("status", "TEXT NOT NULL"), ("generated_at", "TEXT"), ("item_count", "INTEGER NOT NULL DEFAULT 0"), ("engine_version", "TEXT"),
-        ("created_at", "TEXT NOT NULL"),
+        ("created_at", "TEXT NOT NULL"), ("user_id", "TEXT"),
     ], ["UNIQUE(profile_key,edition_date)"]),
     "briefing_edition_items": ([
         ("id", "TEXT PRIMARY KEY"), ("edition_id", "TEXT NOT NULL"), ("position", "INTEGER NOT NULL"), ("event_id", "TEXT"),
@@ -315,6 +315,13 @@ def _subscriptions(db):
                "updated_at TEXT NOT NULL)")
 
 
+def _per_user_editions(db):
+    """Each user gets an edition composed at their own briefing time (editions were shared by profile)."""
+    if "user_id" not in set(db.table_columns("briefing_editions")):
+        db.execute("ALTER TABLE briefing_editions ADD COLUMN user_id TEXT")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_briefing_editions_user ON briefing_editions(user_id,edition_date)")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -322,6 +329,7 @@ MIGRATIONS = [
     ("0004_canonical_timestamps", _canonical_timestamps),
     ("0005_worker_heartbeats_and_push_payloads", _worker_heartbeats_and_push_payloads),
     ("0006_subscriptions", _subscriptions),
+    ("0007_per_user_editions", _per_user_editions),
 ]
 
 

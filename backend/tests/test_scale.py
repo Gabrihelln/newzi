@@ -70,7 +70,9 @@ def test_delivery_worker_batches_audio_and_push_without_waiting_for_refresh(repo
     assert refresh_started.is_set() and time.monotonic() - started < 60, "the cycle must not wait for news collection"
     assert result["news_refresh"]["status"] == "STARTED"
     assert result["generation"]["jobs_completed"] == 3
-    assert result["generation"]["edition_generation_count"] == 1, "users with the same profile share one edition"
+    assert result["generation"]["edition_generation_count"] == 3, "every user gets an edition composed at their own time"
+    owners = [row[0] for row in repo.db.execute("SELECT user_id FROM briefing_editions ORDER BY user_id")]
+    assert owners == ["user0", "user1", "user2"]
     assert result["audio"]["jobs_completed"] >= 1
     statuses = {row[0] for row in repo.db.execute("SELECT audio_status FROM user_briefing_deliveries")}
     assert statuses == {"READY"}

@@ -86,6 +86,73 @@ def test_compose_tells_each_event_once_and_credits_every_outlet(repo):
     assert len(items[1]["sources"]) == 1
 
 
+def told_yesterday(repo, profile_key, event_id, article_id, hours_ago=25, manual=False):
+    """An earlier briefing of this profile that told ``event_id`` through ``article_id``."""
+    import json
+    from newzi_backend.timeutil import iso
+    edition_id = "edition_" + article_id
+    told = iso(NOW - timedelta(hours=hours_ago))
+    repo.db.execute("INSERT INTO briefing_editions(id,profile_key,edition_date,language,status,generated_at,item_count,created_at) VALUES(?,?,?,?,?,?,?,?)",
+                    (edition_id, profile_key + ("_manual_x" if manual else ""), (NOW - timedelta(days=1)).date().isoformat(),
+                     "pt-BR", "READY", told, 1, told))
+    repo.db.execute("INSERT INTO briefing_edition_items(id,edition_id,position,event_id,sources_json,created_at) VALUES(?,?,?,?,?,?)",
+                    ("item_" + article_id, edition_id, 1, event_id, json.dumps([{"article_id": article_id}]), told))
+    repo.db.commit()
+
+
+def sports_briefing(repo):
+    from newzi_backend.content import compose
+    return compose(repo, ["SPORTS"], "pt-BR", 5, now=NOW, briefing_date=NOW.date().isoformat())["items"]
+
+
+def sports_profile_key():
+    from newzi_backend.scheduling import BriefingProfile
+    return BriefingProfile(("SPORTS",), "pt-BR", 5, "BOTH").key()
+
+
+def test_a_story_told_yesterday_without_news_is_not_told_again(repo):
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense neste sábado", event_id="bota_chape",
+          hours_ago=26, quality=9.0, topic="SPORTS")
+    index(repo, "other", "lance", "Seleção é convocada para amistosos", hours_ago=3, topic="SPORTS")
+    told_yesterday(repo, sports_profile_key(), "bota_chape", "preview", manual=True)   # onboarding saves are manual editions
+    assert [item["event_id"] for item in sports_briefing(repo)] == ["other"]
+
+
+def test_a_story_told_yesterday_returns_with_its_latest_coverage(repo):
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense neste sábado", event_id="bota_chape",
+          hours_ago=26, quality=9.0, topic="SPORTS")
+    index(repo, "result", "lance", "Botafogo vence a Chapecoense por 2 a 0", event_id="bota_chape",
+          hours_ago=12, quality=4.0, topic="SPORTS")
+    told_yesterday(repo, sports_profile_key(), "bota_chape", "preview")
+    items = sports_briefing(repo)
+    assert [item["event_id"] for item in items] == ["bota_chape"]
+    assert items[0]["headline"] == "Botafogo vence a Chapecoense por 2 a 0" and "EVENT_UPDATE" in items[0]["warnings"]
+
+
+def test_what_a_user_heard_is_theirs_even_after_changing_topics(repo):
+    from newzi_backend.content import compose
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense neste sábado", event_id="bota_chape", hours_ago=26, topic="SPORTS")
+    index(repo, "other", "lance", "Seleção é convocada para amistosos", hours_ago=3, topic="SPORTS")
+    told_yesterday(repo, "an_older_profile", "bota_chape", "preview")       # told under the user's old topics
+    repo.db.execute("UPDATE briefing_editions SET user_id='reader'"); repo.db.commit()
+    briefing = lambda user: [item["event_id"] for item in compose(repo, ["SPORTS"], "pt-BR", 5, now=NOW,
+                                                                   briefing_date=NOW.date().isoformat(), user_id=user)["items"]]
+    assert briefing("reader") == ["other"]
+    assert briefing("someone_else") == ["other", "bota_chape"]                # another user never heard it
+
+
+def test_an_event_leads_with_its_newest_coverage(repo):
+    index(repo, "preview", "ge", "Botafogo recebe a Chapecoense hoje", event_id="bota_chape", hours_ago=14, quality=9.0, topic="SPORTS")
+    index(repo, "result", "lance", "Botafogo vence a Chapecoense por 2 a 0", event_id="bota_chape", hours_ago=8, quality=4.0, topic="SPORTS")
+    assert sports_briefing(repo)[0]["sources"][0]["article_id"] == "result"
+
+
+def test_old_stories_never_fill_a_briefing(repo):
+    index(repo, "old", "ge", "Botafogo anuncia novo técnico", hours_ago=24 * 5, topic="SPORTS")
+    index(repo, "recent", "lance", "Seleção é convocada para amistosos", hours_ago=30, topic="SPORTS")
+    assert [item["event_id"] for item in sports_briefing(repo)] == ["recent"]
+
+
 def test_recluster_splits_an_over_merged_event(repo):
     from newzi_backend.content import recluster_content
     index(repo, "g1", "verge", "Google releases Gemini 4 Argon, its most powerful AI model", event_id="blob")

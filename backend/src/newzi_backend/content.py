@@ -1,6 +1,7 @@
 """Reusable article index and deterministic, source-grounded profile composition."""
 import hashlib
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -15,6 +16,55 @@ INDEX_VERSION = "content-index-v1"
 MAX_EXPANDED_BRIEFING_SIZE = 20
 # Outlets listed for one story: the chosen article plus others covering the same event.
 MAX_SOURCES_PER_ITEM = 5
+# A daily briefing tells what is new: older stories only fill a topic's gap inside this window
+# (it used to be 30 days, which let last week's previews of games and votes come back).
+DEFAULT_BRIEFING_MAX_AGE_HOURS = 48
+# Within one event, coverage published this close to its newest article counts as its current state.
+LEAD_FRESHNESS_WINDOW = timedelta(hours=3)
+
+
+def briefing_max_age():
+    return timedelta(hours=max(12, int(os.getenv("BRIEFING_MAX_AGE_HOURS", DEFAULT_BRIEFING_MAX_AGE_HOURS))))
+
+
+def _told_at(repo, profile_key, briefing_date, now, user_id=None):
+    """When earlier briefings last told each event or article (manual refreshes included).
+
+    With a user, that user's own briefings, whatever profile they had then (editions delivered
+    before editions became per-user count through the user's deliveries); without one, the profile's.
+    """
+    told = {}
+    if user_id:
+        owner = "(e.user_id=? OR e.id IN (SELECT edition_id FROM user_briefing_deliveries WHERE user_id=?))"
+        owner_params = (user_id, user_id)
+    else:
+        owner = "(e.profile_key=? OR e.profile_key LIKE ?)"
+        owner_params = (profile_key, profile_key + "_manual_%")
+    for row in repo.db.execute("""SELECT i.event_id,i.sources_json,e.generated_at FROM briefing_edition_items i
+        JOIN briefing_editions e ON e.id=i.edition_id
+        WHERE """ + owner + " AND e.edition_date>=? AND e.edition_date<?",
+        (*owner_params, (now - timedelta(days=7)).date().isoformat(), briefing_date)):
+        if not row["generated_at"]:
+            continue
+        moment = parse(row["generated_at"])
+        keys = [row["event_id"]] + [source.get("article_id") for source in json.loads(row["sources_json"] or "[]")]
+        for key in filter(None, keys):
+            told[key] = max(told.get(key, moment), moment)
+    return told
+
+
+def _event_lead(members, language, since=None):
+    """The article that tells an event's latest state: its newest coverage (after ``since`` when given),
+    the briefing's language and the best outlet breaking near-ties.
+
+    A preview ("the match is tonight") and the result clustered into one event must lead with the result.
+    """
+    pool = [member for member in members if since is None or parse(member["published_at"]) > since] or members
+    newest = max(parse(member["published_at"]) for member in pool)
+    current = [member for member in pool if parse(member["published_at"]) >= newest - LEAD_FRESHNESS_WINDOW]
+    same = [member for member in current
+            if str(member["source_language"] or "").split("-")[0].lower() == language.split("-")[0].lower()]
+    return max(same or current, key=lambda member: (member["quality_score"], member["published_at"], member["id"]))
 
 
 def classification_registry_hash(registry=None):
@@ -332,11 +382,16 @@ def primary_taxonomy(tags, interests, registry=None, proximity=None):
             "reason": ("SELECTED_INTEREST", "INTEREST_DESCENDANT", "INTEREST_ANCESTOR", "CLASSIFICATION")[tier]}
 
 
-def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None):
-    """Select real indexed articles without running an LLM per user or profile."""
+def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None):
+    """Select real indexed articles without running an LLM per user or profile.
+
+    ``briefing_date`` is the edition's local date: briefings of earlier dates count as already told,
+    those of ``user_id`` when given.
+    """
     registry = taxonomy()
     interests, unknown = registry.canonicalize(topics)
     now = now or datetime.now(timezone.utc)
+    briefing_date = briefing_date or now.date().isoformat()
     exact = set(interests)
     descendants = {child for node in exact for child in registry.descendants(node)}
     ancestors = {parent for node in exact for parent in registry.ancestors(node)}
@@ -346,7 +401,8 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
                          for node_id in registry.nodes}
     rows = repo.db.execute("""SELECT c.*, t.taxonomy_id, t.score FROM indexed_content c
         LEFT JOIN content_taxonomy t ON t.content_id=c.id
-        WHERE c.published_at>=? ORDER BY c.published_at DESC""", (iso(now-timedelta(days=30)),)).fetchall()
+        WHERE c.published_at>=? AND c.published_at<=? ORDER BY c.published_at DESC""",
+        (iso(now-briefing_max_age()), iso(now+timedelta(hours=1)))).fetchall()  # feeds' clocks run a little fast
     by_id = {}
     for row in rows:
         if not _scope_allowed(row["source_country"], country_scope):
@@ -359,16 +415,18 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     for item in by_id.values():
         event_members.setdefault(item["content"]["event_id"] or item["content"]["id"], []).append(item["content"])
     ranked = []
-    previous_events = set()
-    # Editions are shared by profile, so repetition is measured at profile level.
     from .scheduling import BriefingProfile
     profile_key = BriefingProfile(tuple(interests), language, briefing_size, country_scope).key()
-    for row in repo.db.execute("""SELECT i.event_id,i.sources_json FROM briefing_edition_items i
-        JOIN briefing_editions e ON e.id=i.edition_id WHERE e.profile_key=? AND e.edition_date>=?""",
-        (profile_key, (now-timedelta(days=7)).date().isoformat())):
-        if row["event_id"]:
-            previous_events.add(row["event_id"])
-        previous_events.update(source.get("article_id") for source in json.loads(row["sources_json"] or "[]") if source.get("article_id"))
+    told_at = _told_at(repo, profile_key, briefing_date, now, user_id)
+    # An event told before comes back only with coverage published after it was told (a match
+    # previewed yesterday returns with its result); otherwise yesterday's news is not news.
+    event_told, event_lead = {}, {}
+    for event_id, members in event_members.items():
+        told = [told_at[key] for key in (event_id, *(member["id"] for member in members)) if key in told_at]
+        event_told[event_id] = max(told) if told else None
+        event_lead[event_id] = _event_lead(members, language, since=event_told[event_id])
+    def has_update(event_id):
+        return any(parse(member["published_at"]) > event_told[event_id] for member in event_members[event_id])
     for item in by_id.values():
         content, tags = item["content"], item["tags"]
         published = parse(content["published_at"])
@@ -400,11 +458,14 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         interest_matches = sorted({interest for node_id in tags for interest in covered_interests.get(node_id, ())})
         primary_matches = covered_interests.get(primary["id"], ()) if primary else ()
         coverage_interest = max(primary_matches, key=lambda node: (len(registry.ancestors(node)), node), default=None)
+        told = event_told[event_id] is not None
         ranked.append({"score": score, "level": level, "content": content, "tags": tags, "event_id": event_id,
-                       "reused": content["id"] in previous_events or event_id in previous_events,
+                       "stale": told and not has_update(event_id), "update": told and has_update(event_id),
                        "primary": primary, "interest_matches": interest_matches,
                        "coverage_interest": coverage_interest})
     ranked.sort(key=lambda candidate: (-candidate["score"], candidate["content"]["id"]))
+    # Stories already told with nothing new are left out; they return only if nothing else is left.
+    ranked = [candidate for candidate in ranked if not candidate["stale"]] or ranked
     selected, sources_seen, topics_seen, interests_seen, events_seen = [], {}, {}, set(), set()
     remaining = ranked[:]
     max_size = max(briefing_size, MAX_EXPANDED_BRIEFING_SIZE)
@@ -417,7 +478,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
             return (candidate["score"] + (16 if new_interests else 0)
                     - 7 * min(4, topics_seen.get(topic_id, 0))
                     - 5 * min(4, sources_seen.get(source_id, 0))
-                    - (60 if candidate["reused"] else 0))
+                    - (60 if candidate["stale"] else 0))
         # Coverage first: every chosen interest with a matching story gets a slot before
         # high-volume topics fill the rest; `remaining` is score-ordered, so this is that interest's best story.
         uncovered = [value for value in remaining if value["coverage_interest"] and value["coverage_interest"] not in interests_seen
@@ -432,10 +493,11 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
             comparable = [value for value in remaining if value["score"] >= remaining[0]["score"] - 20]
             candidate = max(comparable, key=lambda value: (editorial_score(value), value["score"], value["content"]["id"]))
         remaining.remove(candidate)
-        level, content = candidate["level"], candidate["content"]
-        event_id = candidate["event_id"]
+        level, event_id = candidate["level"], candidate["event_id"]
         if event_id in events_seen:
             continue
+        # The event is told through its latest coverage, whichever of its articles ranked it.
+        content = event_lead[event_id]
         source_id = content["source_id"]
         sources_seen[source_id] = sources_seen.get(source_id, 0) + 1
         primary = candidate["primary"]
@@ -451,8 +513,10 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         # The level carries this candidate's own age (EXTENDED_ = older than 24h).
         if level.startswith("EXTENDED_"):
             warnings.append("FALLBACK_NO_FRESH_CONTENT_FOR_TOPIC")
-        if candidate["reused"]:
+        if candidate["stale"]:
             warnings.append("FALLBACK_RECENT_EVENT_REUSE")
+        if candidate["update"]:
+            warnings.append("EVENT_UPDATE")
         # The chosen story leads; other outlets covering the same event follow, best first.
         others, publishers_listed = [], {content["source_id"]}
         for member in sorted(event_members[event_id], key=lambda value: (-value["quality_score"], value["id"])):

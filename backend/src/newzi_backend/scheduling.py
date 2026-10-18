@@ -58,9 +58,14 @@ def _elapsed_ms(started, finished):
         return None
 
 
+def user_edition_key(profile, user_id):
+    """Edition key of one user's scheduled briefing: the profile says what to select, the user owns the edition."""
+    return profile.key()+"_user_"+user_id
+
+
 class FixtureBriefingGenerator:
     def __init__(self,path=None): self.path=Path(path or (ENGINE_ROOT / "fixtures" / "briefing.json")); self.calls=0
-    def generate(self, topics, language, briefing_size, date, country_scope="BOTH"):
+    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None):
         self.calls+=1
         data=json.loads(self.path.read_text(encoding="utf-8")); items=data.get("items",[])[:briefing_size]
         return {"status":"READY" if items else "PARTIAL","generated_at":data.get("generated_at"),"engine_version":"phase_3.3-fixture","items":items}
@@ -68,14 +73,14 @@ class FixtureBriefingGenerator:
 
 class EngineBriefingGenerator:
     def __init__(self, repo=None): self.calls=0; self.repo=repo; self.last_sync=None; self.sync_metrics={}; self.last_phase_durations={}
-    def generate(self, topics, language, briefing_size, date, country_scope="BOTH"):
+    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None):
         self.calls+=1
         try:
             from .content import compose
             if self.repo is None: raise GenerationError("CONFIG_ERROR", "content repository unavailable")
             now=datetime.now(timezone.utc)
             self.last_phase_durations.setdefault("CONTENT_REFRESH",0)
-            phase=time.monotonic(); result=compose(self.repo,topics,language,briefing_size,country_scope,now)
+            phase=time.monotonic(); result=compose(self.repo,topics,language,briefing_size,country_scope,now,briefing_date=date,user_id=user_id)
             self.last_phase_durations["CONTENT_COMPOSITION"]=int((time.monotonic()-phase)*1000)
             return result
         except GenerationError: raise
@@ -339,11 +344,11 @@ class BriefingGenerationWorker:
             self.repo.db.execute("UPDATE manual_refresh_requests SET ingestion_run_id=?,stage='COMPOSITION',updated_at=? WHERE id=?",(ingestion_id,now_iso(),request_id)); self.repo.db.commit()
             from .content import compose
             local_date=datetime.now(ZoneInfo(prefs['timezone'])).date().isoformat()
-            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope)
+            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'])
             if not payload.get('items'):
                 raise GenerationError('NO_ELIGIBLE_CONTENT','fresh ingestion produced no eligible briefing items')
             edition_profile=profile.key()+'_manual_'+request_id
-            edition_id,_=self._persist_edition({'briefing_date':local_date},profile,payload,edition_profile_key=edition_profile,generation_reason='MANUAL_REFRESH',ingestion_run_id=ingestion_id,generation_id=request_id)
+            edition_id,_=self._persist_edition({'briefing_date':local_date},profile,payload,edition_profile_key=edition_profile,generation_reason='MANUAL_REFRESH',ingestion_run_id=ingestion_id,generation_id=request_id,user_id=request['user_id'])
             voice=self.audio_service.effective_voice(prefs.get('audio_voice_id'),profile.language) if self.audio_service and self.repo.config.audio_enabled else None
             self.repo.db.execute("UPDATE manual_refresh_requests SET edition_id=?,selected_voice_id=?,stage=?,status=?,updated_at=? WHERE id=?",
                 (edition_id,voice,'AUDIO_QUEUED' if voice else 'CONTENT_READY','GENERATING' if voice else 'FAILED',now_iso(),request_id)); self.repo.db.commit()
@@ -384,11 +389,11 @@ class BriefingGenerationWorker:
             elif metadata.get('status')=='FAILED':
                 self.repo.db.execute("UPDATE manual_refresh_requests SET status='FAILED',stage='FAILED_FINAL',error_code=?,error_message=?,updated_at=?,finished_at=? WHERE id=?",(metadata.get('error_code') or 'TTS_FAILED','Audio generation failed; consult audio diagnostics.',now,now,row['id']))
         self.repo.db.commit()
-    def _persist_edition(self, job, profile, payload, edition_profile_key=None, generation_reason='SCHEDULED', ingestion_run_id=None, generation_id=None):
+    def _persist_edition(self, job, profile, payload, edition_profile_key=None, generation_reason='SCHEDULED', ingestion_run_id=None, generation_id=None, user_id=None):
         edition_profile_key=edition_profile_key or profile.key()
         existing=self.repo.db.execute("SELECT * FROM briefing_editions WHERE profile_key=? AND edition_date=?",(edition_profile_key,job["briefing_date"])).fetchone()
         if existing and existing["status"]=="READY": return existing["id"],False
-        eid=existing["id"] if existing else "edition_"+uuid.uuid4().hex; t=now_iso(); items=payload.get("items",[]); status="READY" if len(items)>=MINIMUM_DELIVERABLE_ITEMS else ("PARTIAL" if items else "FAILED"); self.repo.db.execute("INSERT INTO briefing_editions(id,profile_key,edition_date,language,status,generated_at,item_count,engine_version,created_at) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,generated_at=excluded.generated_at,item_count=excluded.item_count,engine_version=excluded.engine_version,created_at=excluded.created_at",(eid,edition_profile_key,job["briefing_date"],profile.language,status,payload.get("generated_at",t),len(items),payload.get("engine_version","phase_4.2"),t)); self.repo.db.execute("DELETE FROM briefing_edition_items WHERE edition_id=?",(eid,))
+        eid=existing["id"] if existing else "edition_"+uuid.uuid4().hex; t=now_iso(); items=payload.get("items",[]); status="READY" if len(items)>=MINIMUM_DELIVERABLE_ITEMS else ("PARTIAL" if items else "FAILED"); self.repo.db.execute("INSERT INTO briefing_editions(id,profile_key,edition_date,language,status,generated_at,item_count,engine_version,created_at,user_id) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,generated_at=excluded.generated_at,item_count=excluded.item_count,engine_version=excluded.engine_version,created_at=excluded.created_at,user_id=excluded.user_id",(eid,edition_profile_key,job["briefing_date"],profile.language,status,payload.get("generated_at",t),len(items),payload.get("engine_version","phase_4.2"),t,user_id)); self.repo.db.execute("DELETE FROM briefing_edition_items WHERE edition_id=?",(eid,))
         for pos,item in enumerate(items,1):
             warnings=list(item.get("warnings",[])); warnings.append("__summary_provider__:"+item.get("summary_provider",item.get("provenance",{}).get("summary_provider","ollama")))
             self.repo.db.execute("""INSERT INTO briefing_edition_items
@@ -410,7 +415,10 @@ class BriefingGenerationWorker:
         if not job: return result
         total_started=time.monotonic()
         try:
-            prefs=self.repo.get_preferences(job["user_id"]); profile=BriefingProfile.from_preferences(prefs); existing=self.repo.db.execute("SELECT id FROM briefing_editions WHERE profile_key=? AND edition_date=? AND status='READY'",(profile.key(),job["briefing_date"])).fetchone()
+            prefs=self.repo.get_preferences(job["user_id"]); profile=BriefingProfile.from_preferences(prefs)
+            # Every user gets an edition composed at their own briefing time, never one built hours earlier for someone else.
+            edition_key=user_edition_key(profile,job["user_id"])
+            existing=self.repo.db.execute("SELECT id FROM briefing_editions WHERE profile_key=? AND edition_date=? AND status='READY'",(edition_key,job["briefing_date"])).fetchone()
             if existing: eid=existing["id"]; generated=False
             else:
                 compose_started=time.monotonic()
@@ -418,16 +426,16 @@ class BriefingGenerationWorker:
                 if isinstance(self.generator,EngineBriefingGenerator):
                     self._refresh_content_index()
                     self.generator.last_phase_durations['CONTENT_REFRESH']=int((time.monotonic()-refresh_started)*1000)
-                payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope)
+                payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope,user_id=job["user_id"])
                 for phase_name,duration in getattr(self.generator,"last_phase_durations",{}).items():
                     self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],phase_name,int(duration),now_iso()))
                 self.repo.db.commit()
                 if not payload.get("items"):
                     from .content import compose
                     if self.repo.db.execute("SELECT 1 FROM indexed_content LIMIT 1").fetchone():
-                        fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope)
+                        fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=job["briefing_date"],user_id=job["user_id"])
                         if fallback.get("items"): payload=fallback
-                eid,generated=self._persist_edition(job,profile,payload)
+                eid,generated=self._persist_edition(job,profile,payload,edition_profile_key=edition_key,user_id=job["user_id"])
                 self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],"EDITION_PERSISTENCE",int((time.monotonic()-compose_started)*1000),now_iso())); self.repo.db.commit()
             edition=self.repo.db.execute("SELECT status,item_count FROM briefing_editions WHERE id=?",(eid,)).fetchone()
             if not edition or edition["status"]!="READY" or int(edition["item_count"] or 0)<MINIMUM_DELIVERABLE_ITEMS:
