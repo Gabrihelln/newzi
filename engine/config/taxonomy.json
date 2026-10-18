@@ -103,7 +103,20 @@
         "tiktok": 3,
         "youtube": 3,
         "internet": 3,
-        "pc": 3
+        "pc": 3,
+        "robotáxi": 6,
+        "robotáxis": 6,
+        "robotaxi": 6,
+        "robotaxis": 6,
+        "carro autônomo": 6,
+        "carros autônomos": 6,
+        "veículo autônomo": 6,
+        "veículos autônomos": 6,
+        "sem condutor": 5,
+        "sem motorista": 5,
+        "self-driving": 6,
+        "driverless": 6,
+        "autonomous vehicle": 6
       }
     },
     {
@@ -742,7 +755,18 @@
         "clube": 4,
         "clubes": 4,
         "partida": 4,
-        "treino": 4
+        "treino": 4,
+        "nfl": 5,
+        "mlb": 5,
+        "nhl": 5,
+        "ufc": 5,
+        "super bowl": 6,
+        "escalações": 4,
+        "prováveis escalações": 6,
+        "baseball": 5,
+        "american football": 5,
+        "touchdown": 5,
+        "quarterback": 5
       }
     },
     {
@@ -3136,7 +3160,9 @@
       "active": true,
       "display_order": 143,
       "terms": {
-        "basquete": 3
+        "basquete": 3,
+        "nba": 5,
+        "basketball": 5
       }
     },
     {
@@ -3150,7 +3176,13 @@
       "active": true,
       "display_order": 144,
       "terms": {
-        "tênis": 5
+        "tênis": 5,
+        "wta": 5,
+        "atp": 5,
+        "tennis": 5,
+        "roland garros": 6,
+        "wimbledon": 6,
+        "grand slam": 4
       }
     },
     {
@@ -4604,7 +4636,39 @@
       "active": true,
       "display_order": 251,
       "terms": {
-        "futebol internacional": 5
+        "futebol internacional": 5,
+        "premier league": 6,
+        "laliga": 6,
+        "la liga": 6,
+        "champions league": 6,
+        "liga dos campeões": 6,
+        "europa league": 6,
+        "bundesliga": 6,
+        "ligue 1": 5,
+        "campeonato inglês": 6,
+        "campeonato espanhol": 6,
+        "campeonato italiano": 6,
+        "campeonato alemão": 6,
+        "campeonato francês": 6,
+        "real madrid": 5,
+        "atlético de madrid": 6,
+        "manchester city": 5,
+        "manchester united": 5,
+        "nottingham forest": 6,
+        "tottenham": 5,
+        "arsenal": 4,
+        "chelsea": 4,
+        "liverpool": 3,
+        "barcelona": 3,
+        "sevilla": 3,
+        "juventus": 5,
+        "inter de milão": 6,
+        "bayern de munique": 6,
+        "bayern munich": 6,
+        "psg": 5,
+        "paris saint-germain": 6,
+        "borussia dortmund": 6,
+        "benfica": 4
       }
     },
     {

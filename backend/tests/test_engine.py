@@ -314,7 +314,55 @@ CLASSIFIED_HEADLINES = [
     ("Bolsa Família com reajuste começa a ser pago amanhã; confira o calendário", ["economy"],
      "POLITICAS_PUBLICAS", {"FINANCE"}),
     ("Áudio: Dia Nacional da Vacinação é comemorado neste sábado", ["politics"], None, {"CONGRESSO_NACIONAL"}),
+    ("Nottingham Forest x Arsenal: onde assistir ao vivo, horário e transmissão", ["politics", "brazil"],
+     "FUTEBOL_INTERNACIONAL", {"POLITICS"}),
+    ("Ajax x PSV: onde assistir ao vivo, horário e transmissão", ["politics", "brazil"], "SPORTS", {"POLITICS"}),
+    ("Britain's Kartal misses out on maiden WTA 1000 title in Wuhan", ["sports"], "TENIS", set()),
+    ("NFL London LIVE! Jaguars face rival Texans at Wembley", ["world"], "SPORTS", set()),
+    ("Community starts up GoFundMe for 7-year-old Oregon school shooting survivor", ["world"], None, {"EDUCATION", "ESCOLAS"}),
+    ("A “tempestade perfeita” no acesso dos jovens à habitação", ["world"], None, {"METEOROLOGIA"}),
+    ("Croácia: Euronews faz primeira viagem em robotáxi sem condutor da Europa", ["world"], "TECHNOLOGY", {"TURISMO"}),
+    ("Paris tem carros queimados e vidros estilhaçados após protestos se transformarem em tumulto", ["world"],
+     None, {"AUTOMOVEIS"}),
 ]
+
+
+def test_a_passing_mention_in_the_description_is_not_a_second_topic():
+    from types import SimpleNamespace
+    from newzi_engine.processors.classify import classify_for_index
+    article = SimpleNamespace(title="Mega-Sena sorteia R$ 170 milhões acumulados neste domingo",
+                              description="As apostas podem ser feitas nas lotéricas, pelo aplicativo ou pela internet.",
+                              source_tags=["brazil"], categories=[])
+    result = classify_for_index(article, ["brazil"])
+    assert result["primary"] == "SOCIEDADE_BRASILEIRA"
+    assert "TECHNOLOGY" not in {tag for tag, _ in result["tags"]}
+
+
+def test_an_unclassified_article_takes_the_topics_of_its_story(repo):
+    from newzi_backend.content import compose
+    index(repo, "ge_match", "ge", "Real Madrid x Sevilla em LaLiga: onde assistir", event_id="match", topic="FUTEBOL")
+    index(repo, "jp_match", "jovem_pan", "Real Madrid x Sevilla: onde assistir ao vivo", event_id="match", topic="POLITICS",
+          hours_ago=0.5)
+    repo.db.execute("UPDATE indexed_content SET classification_reason=? WHERE id=?", ("CLASSIFIED", "ge_match"))
+    repo.db.execute("UPDATE indexed_content SET classification_reason=? WHERE id=?", ("NO_SIGNAL_FALLBACK", "jp_match"))
+    index(repo, "senado", "folha", "Senado aprova reforma do setor elétrico", topic="POLITICS")
+    repo.db.commit()
+    items = compose(repo, ["POLITICS"], "pt-BR", 5, now=NOW, briefing_date=NOW.date().isoformat())["items"]
+    match = [item for item in items if "Sevilla" in item["headline"]]
+    assert not any(item["user_interest_matches"] for item in match)
+
+
+def test_a_weak_secondary_topic_does_not_reach_a_reader(repo):
+    from newzi_backend.content import compose
+    index(repo, "lottery", "g1", "Mega-Sena sorteia R$ 170 milhões neste domingo", topic="SOCIEDADE_BRASILEIRA")
+    repo.db.execute("UPDATE content_taxonomy SET score=14 WHERE content_id='lottery'")
+    repo.db.execute("INSERT INTO content_taxonomy(content_id,taxonomy_id,score) VALUES('lottery','TECHNOLOGY',5)")
+    index(repo, "chip", "verge", "Nvidia lança novo chip para data centers", topic="TECHNOLOGY")
+    repo.db.commit()
+    items = compose(repo, ["TECHNOLOGY"], "pt-BR", 5, now=NOW, briefing_date=NOW.date().isoformat())["items"]
+    lottery = [item for item in items if "Mega-Sena" in item["headline"]]
+    assert not any(item["user_interest_matches"] for item in lottery)
+    assert any(item["user_interest_matches"] for item in items if "Nvidia" in item["headline"])
 
 
 def test_headlines_land_in_their_topic():

@@ -1,4 +1,4 @@
-CLASSIFIER_VERSION = "topic-classifier-v5"
+CLASSIFIER_VERSION = "topic-classifier-v6"
 import re
 from functools import lru_cache
 from ..utils.text import normalize_title
@@ -10,6 +10,7 @@ MIN_CLASSIFICATION_CONFIDENCE = 0.35
 MIN_TAG_SCORE = 4.0
 RELATIVE_TAG_SCORE = 0.4
 FALLBACK_TAG_SCORE = 4.0
+SECONDARY_DESCRIPTION_SHARE = 0.5
 
 def classification_terms():
     return {node_id: node.get("terms", {}) for node_id, node in taxonomy().nodes.items() if node.get("active", True)}
@@ -75,6 +76,14 @@ _NON_MILITARY_CONTEXT = re.compile(r"\b(hacker|hackers|ciberataque|cyberattack|c
 # Evidence that a war-related story really is about education/culture/entertainment.
 _CULTURE_ACTION = re.compile(r"\b(exhibition|exposicao|museum exhibit|festival|film festival|premiere|estreia|album|concert|concerto|show de|book launch|lancamento do livro|novel|romance|box office|bilheteria|oscar|emmy|grammy|series finale|documentary|documentario|peca teatral|bienal|curadoria|curator)\b")
 _GUARDED_DOMAINS = ("EDUCATION", "CULTURE", "ENTERTAINMENT")
+# "Real Madrid x Sevilla: onde assistir ao vivo" is a match listing even when no club is in the vocabulary.
+_MATCHUP = re.compile(r"\b[a-z0-9]+ (?:x|vs|versus) [a-z0-9]+\b")
+_MATCH_LISTING = re.compile(r"\b(onde assistir|escalacoes|escalacao|palpites?|horario do jogo|where to watch|lineups?)\b")
+# Cars burned in a riot or a school where a shooting happened are the scene, not the subject.
+_VIOLENT_SCENE = re.compile(r"\b(protesto|protestos|manifestacao|manifestantes|tumulto|queimados|incendiados|incendiadas|vandalismo|"
+                            r"riot|riots|protest|protests|protesters|torched|tiroteio|ataque a tiros|baleado|baleada|baleados|"
+                            r"morto a tiros|morta a tiros|esfaqueado|esfaqueada|massacre|shooting|shootings|shooter|gunman|gunfire|"
+                            r"stabbing|stabbed|shot dead|killed)\b")
 
 
 def _conflict_guard(title_text, description_text, combined):
@@ -111,6 +120,8 @@ _NON_MILITARY_IDIOMS = (
     (re.compile(r"\b(gears|god|art|days|tides|ashes) of war\b"), r"\1ofwar game"), (re.compile(r"\bwar thunder\b"), "warthunder game"),
     (re.compile(r"\bthis war of mine\b"), "thiswarofmine game"), (re.compile(r"\bwar of the worlds\b"), "waroftheworlds"),
     (re.compile(r"\bguerra as drogas\b"), "politica de drogas"),
+    # Figurative weather: "a tempestade perfeita no acesso à habitação" is not a forecast.
+    (re.compile(r"\btempestades? perfeitas?\b"), "conjuncao critica"), (re.compile(r"\bperfect storms?\b"), "critical conjunction"),
 )
 
 
@@ -151,6 +162,7 @@ def classify_article(article):
     description_words = set(re.findall(r"[a-z0-9]+", description_text))
     # Check each taxonomy term once per field. The old token loop added the same
     # title hit once for every repeated token in the description.
+    title_topics = set()
     for category, by_first_word in terms_by_category:
         seen = set()
         for word in title_words | description_words:
@@ -161,6 +173,7 @@ def classify_article(article):
                 in_title = bool(pattern.search(title_text))
                 in_description = bool(pattern.search(description_text))
                 if in_title:
+                    title_topics.add(category)
                     scores[category] += weight * 2.2
                 if in_description:
                     scores[category] += weight * 0.55
@@ -211,6 +224,21 @@ def classify_article(article):
         for category in scores:
             if category.startswith("JUSTICA") or category == "JUSTICE":
                 scores[category] *= 0.2
+    # Unless the headline names another subject ("Lula x Bolsonaro: onde assistir ao debate").
+    other_subjects = {topic for topic in title_topics if topic not in _GEOGRAPHIC_CONTEXT
+                      and "SPORTS" not in (topic, *taxonomy().ancestors(topic))}
+    if "SPORTS" in scores and not other_subjects and _MATCHUP.search(title_text) and _MATCH_LISTING.search(title_text):
+        scores["SPORTS"] += 12
+        title_topics.add("SPORTS")
+    if _VIOLENT_SCENE.search(title_text):
+        for category in ("AUTOMOVEIS",):
+            if category in scores:
+                scores[category] *= 0.15
+        if "EDUCATION" in scores and not _EDUCATION_ACTION.search(title_text):
+            for category in ("EDUCATION", *taxonomy().descendants("EDUCATION")):
+                if category in scores:
+                    scores[category] *= 0.15
+    article.title_topics = title_topics
     best = max(scores.values(), default=0)
     selected = {category for category, score in scores.items() if score >= 4 and score >= best * 0.45} if best else set()
     for category in tuple(selected):
@@ -269,7 +297,12 @@ def classify_for_index(article, source_categories=()):
     if best_id in _GEOGRAPHIC_CONTEXT:
         # A place name alone is weak evidence of what the story is about.
         confidence = round(confidence * 0.8, 3)
-    tags = [(node, score) for node, score in scores.items() if score >= MIN_TAG_SCORE and score >= RELATIVE_TAG_SCORE * best]
+    # A second topic must be named in the headline or be nearly as strong as the first: "apostas pelo
+    # app ou pela internet" in a lottery story's description does not make it technology news.
+    lineage = {best_id, *registry.ancestors(best_id), *registry.descendants(best_id)} if best_id else set()
+    title_topics = getattr(article, "title_topics", set())
+    tags = [(node, score) for node, score in scores.items() if score >= MIN_TAG_SCORE and score >= RELATIVE_TAG_SCORE * best
+            and (node in lineage or node in title_topics or score >= SECONDARY_DESCRIPTION_SHARE * best)]
     if tags and confidence >= MIN_CLASSIFICATION_CONFIDENCE:
         return {"tags": sorted(tags, key=lambda item: -item[1]), "primary": best_id, "confidence": confidence, "reason": "CLASSIFIED"}
     title_text, description_text = normalize_title(article.title), normalize_title(article.description)

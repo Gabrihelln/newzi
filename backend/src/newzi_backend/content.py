@@ -17,6 +17,9 @@ INDEX_VERSION = "content-index-v1"
 MAX_EXPANDED_BRIEFING_SIZE = 20
 # Outlets listed for one story: the chosen article plus others covering the same event.
 MAX_SOURCES_PER_ITEM = 5
+# A story reaches a user through one of its topics only when that topic carries at least this share
+# of the story's strongest one; a passing mention is not what the story is about.
+SECONDARY_TAG_SHARE = 0.5
 # A daily briefing tells what is new: older stories only fill a topic's gap inside this window
 # (it used to be 30 days, which let last week's previews of games and votes come back).
 DEFAULT_BRIEFING_MAX_AGE_HOURS = 48
@@ -503,6 +506,22 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     event_members = {}
     for item in by_id.values():
         event_members.setdefault(thread_of[item["content"]["id"]], []).append(item["content"])
+    # An article with no topic signal of its own was filed under its outlet's domain ("Real Madrid x
+    # Sevilla: onde assistir" from a politics outlet); it takes the topics of the story's other coverage.
+    for members in event_members.values():
+        classified = [by_id[member["id"]]["tags"] for member in members
+                      if member["classification_reason"] == "CLASSIFIED" and by_id[member["id"]]["tags"]]
+        if not classified:
+            continue
+        votes = {}
+        for tags in classified:
+            top = max(tags, key=lambda node: (tags[node], node))
+            votes[top] = votes.get(top, 0) + 1
+        topic = min(votes, key=lambda node: (-votes[node], node))
+        consensus = max((tags for tags in classified if topic in tags), key=lambda tags: tags[topic])
+        for member in members:
+            if member["classification_reason"] == "NO_SIGNAL_FALLBACK":
+                by_id[member["id"]]["tags"] = dict(consensus)
     ranked = []
     from .scheduling import BriefingProfile
     profile_key = BriefingProfile(tuple(interests), language, briefing_size, country_scope).key()
@@ -519,6 +538,8 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         return any(parse(member["published_at"]) > event_told[event_id] for member in event_members[event_id])
     for item in by_id.values():
         content, tags = item["content"], item["tags"]
+        strongest = max(tags.values(), default=0)
+        tags = {node: score for node, score in tags.items() if score >= SECONDARY_TAG_SHARE * strongest}
         published = parse(content["published_at"])
         age_hours = max(0, (now-published).total_seconds()/3600)
         if tags.keys() & exact:
