@@ -34,7 +34,18 @@
         "gemini": 5,
         "deep learning": 5,
         "neural": 4,
-        "agentic": 4
+        "agentic": 4,
+        "inteligência artificial": 6,
+        "agente de ia": 6,
+        "agentes de ia": 6,
+        "modelo de ia": 6,
+        "chatgpt": 6,
+        "ia": 5,
+        "chatbot": 5,
+        "chatbots": 5,
+        "copilot": 5,
+        "deepseek": 5,
+        "grok": 5
       }
     },
     {
@@ -66,7 +77,33 @@
         "electric vehicle": 4,
         "technology": 2,
         "tech": 2,
-        "app": 2
+        "app": 2,
+        "celular": 5,
+        "smartphone": 5,
+        "smartphones": 5,
+        "aplicativo": 5,
+        "processador": 5,
+        "notebook": 5,
+        "computador": 5,
+        "wi-fi": 5,
+        "5g": 5,
+        "6g": 5,
+        "anatel": 5,
+        "whatsapp": 5,
+        "vazamento de dados": 5,
+        "ciberataque": 5,
+        "golpe digital": 5,
+        "hacker": 5,
+        "hackers": 5,
+        "samsung": 3,
+        "google": 3,
+        "apple": 3,
+        "microsoft": 3,
+        "instagram": 3,
+        "tiktok": 3,
+        "youtube": 3,
+        "internet": 3,
+        "pc": 3
       }
     },
     {
@@ -92,12 +129,31 @@
         "earnings": 5,
         "subscription": 3,
         "company": 2,
-        "economy": 4,
         "finance": 5,
-        "ceo": 3,
+        "ceo": 4,
         "funding": 4,
         "enterprise": 3,
-        "stock": 4
+        "stock": 4,
+        "lucro líquido": 6,
+        "balanço trimestral": 6,
+        "resultado trimestral": 6,
+        "recuperação judicial": 6,
+        "falência": 6,
+        "conselho de administração": 6,
+        "fusão": 6,
+        "aquisição": 6,
+        "faturamento": 6,
+        "varejista": 6,
+        "montadora": 6,
+        "empresa": 4,
+        "empresas": 4,
+        "companhia": 4,
+        "lucro": 4,
+        "executivo": 4,
+        "executiva": 4,
+        "acionistas": 4,
+        "varejo": 4,
+        "startups": 4
       }
     },
     {
@@ -130,7 +186,34 @@
         "orcamento": 5,
         "crescimento economico": 6,
         "custo de emprestimo": 6,
-        "titulo publico": 4
+        "titulo publico": 4,
+        "selic": 6,
+        "copom": 6,
+        "banco central": 6,
+        "ipca": 6,
+        "dívida pública": 6,
+        "ajuste fiscal": 6,
+        "arcabouço fiscal": 6,
+        "reforma tributária": 6,
+        "salário mínimo": 6,
+        "escala 6x1": 6,
+        "jornada de trabalho": 6,
+        "ministério da fazenda": 6,
+        "dólar": 4,
+        "câmbio": 4,
+        "desemprego": 4,
+        "fiscal": 4,
+        "déficit": 4,
+        "superávit": 4,
+        "imposto": 4,
+        "impostos": 4,
+        "tributária": 4,
+        "receita federal": 4,
+        "aposentadoria": 4,
+        "inss": 4,
+        "previdência": 4,
+        "6x1": 4,
+        "orçamento": 4
       }
     },
     {
@@ -154,7 +237,20 @@
         "stock": 4,
         "ações": 4,
         "credit": 4,
-        "crédito": 4
+        "crédito": 4,
+        "bolsa de valores": 6,
+        "ibovespa": 6,
+        "b3": 6,
+        "tesouro direto": 6,
+        "renda fixa": 6,
+        "cdb": 6,
+        "dividendos": 6,
+        "wall street": 6,
+        "investidor": 4,
+        "investidores": 4,
+        "fundos de investimento": 4,
+        "mercado de ações": 4,
+        "stocks": 4
       }
     },
     {
@@ -193,8 +289,20 @@
         "study": 4,
         "ciência": 5,
         "cientista": 5,
-        "pesquisa": 5,
-        "estudo": 4
+        "estudo": 4,
+        "cientistas": 4,
+        "pesquisadores": 4,
+        "descoberta": 4,
+        "descobrem": 4,
+        "estudo publicado": 4,
+        "revista científica": 4,
+        "nature": 4,
+        "paleontologia": 4,
+        "fóssil": 4,
+        "fósseis": 4,
+        "espécie": 4,
+        "espécies": 4,
+        "pesquisa": 3
       }
     },
     {
@@ -215,7 +323,55 @@
         "medicina": 5,
         "médico": 5,
         "vaccine": 5,
-        "vacina": 5
+        "vacina": 5,
+        "ministério da saúde": 6,
+        "plano de saúde": 6,
+        "planos de saúde": 6,
+        "anvisa": 6,
+        "saúde mental": 6,
+        "vacinação": 6,
+        "dengue": 6,
+        "covid": 6,
+        "câncer": 6,
+        "cancer": 6,
+        "diabetes": 6,
+        "obesidade": 6,
+        "alzheimer": 6,
+        "avc": 6,
+        "infarto": 6,
+        "uti": 6,
+        "sus": 4,
+        "doença": 4,
+        "doenças": 4,
+        "paciente": 4,
+        "pacientes": 4,
+        "tratamento": 4,
+        "medicamento": 4,
+        "medicamentos": 4,
+        "remédio": 4,
+        "gripe": 4,
+        "vírus": 4,
+        "surto": 4,
+        "epidemia": 4,
+        "cirurgia": 4,
+        "hospitalar": 4,
+        "internado": 4,
+        "internada": 4,
+        "sintomas": 4,
+        "diagnóstico": 4,
+        "ansiedade": 4,
+        "depressão": 4,
+        "osteoporose": 4,
+        "fibromialgia": 4,
+        "transplante": 4,
+        "disease": 4,
+        "patients": 4,
+        "treatment": 4,
+        "engorda": 4,
+        "emagrecer": 4,
+        "dieta": 4,
+        "nutrição": 4,
+        "sono": 4
       }
     },
     {
@@ -236,7 +392,88 @@
         "eleição": 5,
         "governo": 4,
         "congresso": 4,
-        "senate": 4
+        "senate": 4,
+        "politica": 5,
+        "eleições": 5,
+        "eleitoral": 5,
+        "eleitores": 5,
+        "eleitor": 5,
+        "candidato": 5,
+        "candidata": 5,
+        "candidatos": 5,
+        "candidatura": 5,
+        "deputado": 5,
+        "deputada": 5,
+        "deputados": 5,
+        "deputadas": 5,
+        "senador": 5,
+        "senadora": 5,
+        "senadores": 5,
+        "vereador": 5,
+        "vereadora": 5,
+        "vereadores": 5,
+        "governador": 5,
+        "governadora": 5,
+        "partido": 5,
+        "partidos": 5,
+        "bancada": 5,
+        "oposição": 5,
+        "parlamentar": 5,
+        "parlamentares": 5,
+        "parlamento": 5,
+        "politician": 5,
+        "politicians": 5,
+        "lawmaker": 5,
+        "lawmakers": 5,
+        "parliament": 5,
+        "congress": 5,
+        "democrats": 5,
+        "republicans": 5,
+        "segundo turno": 6,
+        "primeiro turno": 6,
+        "campanha eleitoral": 6,
+        "pesquisa eleitoral": 6,
+        "debate presidencial": 6,
+        "base aliada": 6,
+        "presidente da república": 6,
+        "palácio do planalto": 6,
+        "impeachment": 6,
+        "cpi": 6,
+        "cpmi": 6,
+        "psol": 6,
+        "mdb": 6,
+        "psdb": 6,
+        "união brasil": 6,
+        "prime minister": 6,
+        "primeiro-ministro": 6,
+        "white house": 6,
+        "casa branca": 6,
+        "prefeito": 4,
+        "prefeita": 4,
+        "ministro": 4,
+        "ministra": 4,
+        "ministros": 4,
+        "sabatina": 4,
+        "urnas": 4,
+        "voto": 4,
+        "votos": 4,
+        "lula": 4,
+        "bolsonaro": 4,
+        "flávio bolsonaro": 4,
+        "alckmin": 4,
+        "tarcísio": 4,
+        "datafolha": 4,
+        "quaest": 4,
+        "ipec": 4,
+        "atlasintel": 4,
+        "campanha": 4,
+        "planalto": 4,
+        "governista": 4,
+        "republicanos": 4,
+        "democratas": 4,
+        "trump": 4,
+        "pt": 3,
+        "pl": 3
       }
     },
     {
@@ -261,7 +498,31 @@
         "guerra": 5,
         "war": 5,
         "diplomacy": 4,
-        "diplomacia": 4
+        "diplomacia": 4,
+        "onu": 4,
+        "otan": 4,
+        "kremlin": 4,
+        "putin": 4,
+        "ucrânia": 4,
+        "rússia": 4,
+        "israel": 4,
+        "gaza": 4,
+        "hamas": 4,
+        "irã": 4,
+        "china": 4,
+        "venezuela": 4,
+        "argentina": 4,
+        "eua": 3,
+        "estados unidos": 3,
+        "europa": 3,
+        "frança": 3,
+        "alemanha": 3,
+        "reino unido": 3,
+        "itália": 3,
+        "espanha": 3,
+        "japão": 3,
+        "índia": 3,
+        "méxico": 3
       }
     },
     {
@@ -298,7 +559,35 @@
         "meio ambiente": 5,
         "clima": 5,
         "sustentabilidade": 5,
-        "biodiversidade": 5
+        "biodiversidade": 5,
+        "mudanças climáticas": 6,
+        "mudança climática": 6,
+        "aquecimento global": 6,
+        "climate change": 6,
+        "incêndio florestal": 6,
+        "incêndios florestais": 6,
+        "unidades de conservação": 6,
+        "qualidade do ar": 6,
+        "wildfire": 6,
+        "wildfires": 6,
+        "queimadas": 3,
+        "queimada": 3,
+        "desmatamento": 5,
+        "poluição": 5,
+        "estiagem": 5,
+        "emissões": 5,
+        "cop30": 5,
+        "cop17": 5,
+        "ibama": 5,
+        "icmbio": 5,
+        "inpe": 5,
+        "seca": 3,
+        "fumaça": 3,
+        "carbono": 3,
+        "ambiental": 3,
+        "ambientais": 3,
+        "focos de queimadas": 6,
+        "focos de incêndio": 6
       }
     },
     {
@@ -317,7 +606,31 @@
         "educação": 5,
         "escola": 4,
         "universidade": 4,
-        "ensino": 4
+        "ensino": 4,
+        "enem": 6,
+        "vestibular": 6,
+        "fuvest": 6,
+        "sisu": 6,
+        "prouni": 6,
+        "fies": 6,
+        "mec": 6,
+        "ministério da educação": 6,
+        "ensino médio": 6,
+        "ensino superior": 6,
+        "educação básica": 6,
+        "escola pública": 6,
+        "escolas públicas": 6,
+        "calendário escolar": 6,
+        "sala de aula": 6,
+        "universidade federal": 6,
+        "alunos": 4,
+        "estudantes": 4,
+        "professores": 4,
+        "professora": 4,
+        "professor": 4,
+        "reitor": 4,
+        "aulas": 4,
+        "vestibulandos": 4
       }
     },
     {
@@ -337,7 +650,14 @@
         "cultura": 5,
         "arte": 4,
         "livro": 4,
-        "literatura": 5
+        "literatura": 5,
+        "exposição": 5,
+        "museu": 5,
+        "teatro": 5,
+        "escritor": 5,
+        "escritora": 5,
+        "bienal": 5,
+        "patrimônio cultural": 5
       }
     },
     {
@@ -359,7 +679,27 @@
         "cinema": 4,
         "filme": 4,
         "música": 4,
-        "televisão": 4
+        "televisão": 4,
+        "cantor": 5,
+        "cantora": 5,
+        "ator": 5,
+        "atriz": 5,
+        "série": 2,
+        "séries": 5,
+        "show": 5,
+        "shows": 5,
+        "álbum": 5,
+        "festival": 3,
+        "novela": 5,
+        "carnaval": 5,
+        "escola de samba": 5,
+        "rainha de bateria": 5,
+        "bilheteria": 5,
+        "banda": 3,
+        "desfile": 3,
+        "estreia": 3,
+        "streaming": 3,
+        "netflix": 3
       }
     },
     {
@@ -396,7 +736,13 @@
         "olimpico": 4,
         "paralimpico": 5,
         "paralimpiada": 5,
-        "selecao brasileira": 5
+        "selecao brasileira": 5,
+        "jogador": 4,
+        "jogadores": 4,
+        "clube": 4,
+        "clubes": 4,
+        "partida": 4,
+        "treino": 4
       }
     },
     {
@@ -433,7 +779,27 @@
       "display_order": 18,
       "terms": {
         "regiões do brasil": 5,
-        "regiões": 3
+        "sp": 2,
+        "rj": 2,
+        "mg": 2,
+        "rs": 2,
+        "pr": 2,
+        "sc": 2,
+        "ba": 2,
+        "pe": 2,
+        "ce": 2,
+        "df": 2,
+        "pi": 2,
+        "pb": 2,
+        "ro": 2,
+        "ac": 2,
+        "ap": 2,
+        "rr": 2,
+        "mt": 2,
+        "ms": 2,
+        "rn": 2,
+        "interior do estado": 2,
+        "interior de": 2
       }
     },
     {
@@ -447,7 +813,37 @@
       "active": true,
       "display_order": 19,
       "terms": {
-        "estados": 3
+        "estados": 3,
+        "são paulo": 3,
+        "rio de janeiro": 3,
+        "minas gerais": 3,
+        "bahia": 3,
+        "pernambuco": 3,
+        "ceará": 3,
+        "paraná": 3,
+        "santa catarina": 3,
+        "rio grande do sul": 3,
+        "rio grande do norte": 3,
+        "goiás": 3,
+        "amazonas": 3,
+        "maranhão": 3,
+        "piauí": 3,
+        "paraíba": 3,
+        "alagoas": 3,
+        "sergipe": 3,
+        "tocantins": 3,
+        "rondônia": 3,
+        "amapá": 3,
+        "roraima": 3,
+        "mato grosso": 3,
+        "mato grosso do sul": 3,
+        "espírito santo": 3,
+        "distrito federal": 3,
+        "governo do estado": 5,
+        "assembleia legislativa": 5,
+        "alesp": 5,
+        "alerj": 5,
+        "secretaria estadual": 5
       }
     },
     {
@@ -461,7 +857,38 @@
       "active": true,
       "display_order": 20,
       "terms": {
-        "cidades": 3
+        "cidades": 3,
+        "brasília": 3,
+        "manaus": 3,
+        "recife": 3,
+        "belém": 3,
+        "curitiba": 3,
+        "porto alegre": 3,
+        "goiânia": 3,
+        "são luís": 3,
+        "teresina": 3,
+        "maceió": 3,
+        "aracaju": 3,
+        "joão pessoa": 3,
+        "cuiabá": 3,
+        "florianópolis": 3,
+        "belo horizonte": 3,
+        "porto velho": 3,
+        "macapá": 3,
+        "boa vista": 3,
+        "rio branco": 3,
+        "prefeitura": 4,
+        "câmara municipal": 4,
+        "vereador": 4,
+        "vereadora": 4,
+        "município": 4,
+        "municípios": 4,
+        "bairro": 3,
+        "zona sul": 3,
+        "zona norte": 3,
+        "zona leste": 3,
+        "zona oeste": 3,
+        "centro da cidade": 3
       }
     },
     {
@@ -476,8 +903,16 @@
       "display_order": 21,
       "terms": {
         "políticas públicas": 5,
-        "políticas": 3,
-        "públicas": 3
+        "bolsa família": 6,
+        "pé-de-meia": 6,
+        "programa social": 6,
+        "programas sociais": 6,
+        "benefício social": 6,
+        "auxílio emergencial": 6,
+        "minha casa minha vida": 6,
+        "farmácia popular": 6,
+        "auxílio": 4,
+        "benefício": 4
       }
     },
     {
@@ -492,7 +927,19 @@
       "display_order": 22,
       "terms": {
         "eleições no brasil": 5,
-        "eleições": 3
+        "eleições 2026": 6,
+        "eleição presidencial": 6,
+        "urna eletrônica": 6,
+        "horário eleitoral": 6,
+        "propaganda eleitoral": 6,
+        "pesquisa datafolha": 6,
+        "pesquisa quaest": 6,
+        "candidato a presidente": 6,
+        "candidata a presidente": 6,
+        "segundo turno": 6,
+        "primeiro turno": 6,
+        "tse": 3,
+        "eleitoral": 3
       }
     },
     {
@@ -506,9 +953,18 @@
       "active": true,
       "display_order": 23,
       "terms": {
-        "governo federal": 5,
-        "governo": 3,
-        "federal": 3
+        "governo federal": 6,
+        "governo lula": 6,
+        "presidente lula": 6,
+        "palácio do planalto": 6,
+        "casa civil": 6,
+        "esplanada dos ministérios": 6,
+        "ministério da fazenda": 6,
+        "ministro da fazenda": 6,
+        "planalto": 4,
+        "ministério": 4,
+        "ministra": 4,
+        "ministro": 4
       }
     },
     {
@@ -522,9 +978,25 @@
       "active": true,
       "display_order": 24,
       "terms": {
-        "congresso nacional": 5,
-        "congresso": 3,
-        "nacional": 3
+        "congresso nacional": 6,
+        "câmara dos deputados": 6,
+        "senado federal": 6,
+        "deputado federal": 6,
+        "deputada federal": 6,
+        "medida provisória": 6,
+        "projeto de lei": 6,
+        "pec": 6,
+        "plenário da câmara": 6,
+        "plenário do senado": 6,
+        "hugo motta": 6,
+        "alcolumbre": 6,
+        "senado": 4,
+        "plenário": 4,
+        "votação": 4,
+        "aprovado pelo senado": 4,
+        "aprovado pela câmara": 4,
+        "relator": 4,
+        "relatora": 4
       }
     },
     {
@@ -539,8 +1011,36 @@
       "display_order": 25,
       "terms": {
         "justiça brasileira": 5,
-        "justiça": 3,
-        "brasileira": 3
+        "stf": 6,
+        "supremo tribunal federal": 6,
+        "stj": 6,
+        "tse": 6,
+        "tribunal superior eleitoral": 6,
+        "pgr": 6,
+        "procuradoria-geral da república": 6,
+        "ministério público": 6,
+        "mpf": 6,
+        "justiça federal": 6,
+        "justiça eleitoral": 6,
+        "habeas corpus": 6,
+        "delação premiada": 6,
+        "alexandre de moraes": 6,
+        "gilmar mendes": 6,
+        "supremo": 4,
+        "tribunal de justiça": 4,
+        "desembargador": 4,
+        "desembargadora": 4,
+        "inquérito": 4,
+        "denúncia": 4,
+        "réu": 4,
+        "réus": 4,
+        "julgamento": 4,
+        "juiz": 4,
+        "juíza": 4,
+        "prisão preventiva": 4,
+        "condenado": 4,
+        "condenada": 4,
+        "absolvido": 4
       }
     },
     {
@@ -554,9 +1054,72 @@
       "active": true,
       "display_order": 26,
       "terms": {
-        "segurança pública": 5,
-        "segurança": 3,
-        "pública": 3
+        "segurança pública": 6,
+        "polícia militar": 6,
+        "polícia civil": 6,
+        "polícia federal": 6,
+        "prisão em flagrante": 6,
+        "homicídio": 6,
+        "latrocínio": 6,
+        "feminicídio": 6,
+        "tráfico de drogas": 6,
+        "facção criminosa": 6,
+        "operação policial": 6,
+        "morto a tiros": 6,
+        "morta a tiros": 6,
+        "acidente de trânsito": 6,
+        "atropelamento": 6,
+        "baleado": 5,
+        "baleada": 5,
+        "tiroteio": 5,
+        "assassinato": 5,
+        "assassinado": 5,
+        "assassinada": 5,
+        "assalto": 5,
+        "roubo": 5,
+        "furto": 5,
+        "traficante": 5,
+        "facção": 5,
+        "milícia": 5,
+        "sequestro": 5,
+        "estupro": 5,
+        "delegacia": 5,
+        "presídio": 5,
+        "penitenciária": 5,
+        "atropelado": 5,
+        "atropelada": 5,
+        "colisão": 5,
+        "capotou": 5,
+        "capotamento": 5,
+        "polícia": 4,
+        "policial": 4,
+        "policiais": 4,
+        "delegado": 4,
+        "delegada": 4,
+        "preso": 4,
+        "presa": 4,
+        "presos": 4,
+        "prisão": 4,
+        "flagrante": 4,
+        "tiros": 4,
+        "crime": 4,
+        "crimes": 4,
+        "criminoso": 4,
+        "criminosos": 4,
+        "suspeito": 4,
+        "suspeita": 4,
+        "violência": 4,
+        "agressão": 4,
+        "acidente": 4,
+        "batida": 4,
+        "motociclista": 4,
+        "afogado": 4,
+        "afogada": 4,
+        "desaparecido": 4,
+        "desaparecida": 4,
+        "corpo encontrado": 4,
+        "cadeia": 4,
+        "pf": 4
       }
     },
     {
@@ -570,9 +1133,27 @@
       "active": true,
       "display_order": 27,
       "terms": {
-        "direitos humanos": 5,
-        "direitos": 3,
-        "humanos": 3
+        "direitos humanos": 6,
+        "injúria racial": 6,
+        "trabalho escravo": 6,
+        "análogo à escravidão": 6,
+        "violência contra a mulher": 6,
+        "human rights": 6,
+        "lgbtqia+": 6,
+        "lgbtqia": 6,
+        "racismo": 5,
+        "homofobia": 5,
+        "transfobia": 5,
+        "lgbt": 5,
+        "quilombola": 5,
+        "quilombolas": 5,
+        "discriminação": 5,
+        "discrimination": 5,
+        "refugiados": 5,
+        "igualdade racial": 5,
+        "indígenas": 4,
+        "minorias": 4,
+        "feminismo": 4
       }
     },
     {
@@ -587,8 +1168,11 @@
       "display_order": 28,
       "terms": {
         "sociedade brasileira": 5,
-        "sociedade": 3,
-        "brasileira": 3
+        "mega-sena": 5,
+        "lotofácil": 5,
+        "quina": 5,
+        "loteria": 5,
+        "loterias": 5
       }
     },
     {
@@ -707,8 +1291,7 @@
       "active": true,
       "display_order": 32,
       "terms": {
-        "eleições no mundo": 5,
-        "eleições": 3
+        "eleições no mundo": 5
       }
     },
     {
@@ -722,9 +1305,7 @@
       "active": true,
       "display_order": 33,
       "terms": {
-        "governos estrangeiros": 5,
-        "governos": 3,
-        "estrangeiros": 3
+        "governos estrangeiros": 5
       }
     },
     {
@@ -741,7 +1322,6 @@
       "active": true,
       "display_order": 34,
       "terms": {
-        "defesa": 3,
         "defense": 4,
         "military": 3,
         "armed forces": 5,
@@ -750,15 +1330,17 @@
         "operacao militar": 5,
         "exercito": 5,
         "army": 4,
-        "navy": 4,
-        "marinha": 4,
+        "navy": 5,
         "aeronautica": 4,
         "defense ministry": 5,
         "ministerio da defesa": 5,
         "pentagon": 5,
         "pentagono": 5,
         "nato": 4,
-        "otan": 4
+        "otan": 4,
+        "ministério da defesa": 5,
+        "marinha do brasil": 5,
+        "forças armadas brasileiras": 5
       }
     },
     {
@@ -772,9 +1354,7 @@
       "active": true,
       "display_order": 35,
       "terms": {
-        "organizações internacionais": 5,
-        "organizações": 3,
-        "internacionais": 3
+        "organizações internacionais": 5
       }
     },
     {
@@ -789,8 +1369,18 @@
       "display_order": 36,
       "terms": {
         "américa latina": 5,
-        "américa": 3,
-        "latina": 3
+        "argentina": 4,
+        "venezuela": 4,
+        "colômbia": 4,
+        "chile": 4,
+        "bolívia": 4,
+        "paraguai": 4,
+        "uruguai": 4,
+        "méxico": 4,
+        "cuba": 4,
+        "haiti": 4,
+        "equador": 4,
+        "milei": 4
       }
     },
     {
@@ -804,9 +1394,15 @@
       "active": true,
       "display_order": 37,
       "terms": {
-        "estados unidos": 2,
-        "estados": 3,
-        "unidos": 3
+        "estados unidos": 5,
+        "eua": 5,
+        "casa branca": 5,
+        "white house": 5,
+        "departamento de estado": 5,
+        "congresso americano": 5,
+        "washington": 4,
+        "trump": 4,
+        "biden": 4
       }
     },
     {
@@ -820,7 +1416,16 @@
       "active": true,
       "display_order": 38,
       "terms": {
-        "europa": 3
+        "europa": 3,
+        "união europeia": 4,
+        "frança": 4,
+        "alemanha": 4,
+        "reino unido": 4,
+        "itália": 4,
+        "espanha": 4,
+        "bruxelas": 4,
+        "london": 4,
+        "londres": 4
       }
     },
     {
@@ -862,8 +1467,7 @@
       "active": true,
       "display_order": 41,
       "terms": {
-        "oriente médio": 5,
-        "oriente": 3
+        "oriente médio": 5
       }
     },
     {
@@ -941,9 +1545,7 @@
       "active": true,
       "display_order": 46,
       "terms": {
-        "partidos políticos": 5,
-        "partidos": 3,
-        "políticos": 3
+        "partidos políticos": 5
       }
     },
     {
@@ -1022,8 +1624,6 @@
       "display_order": 53,
       "terms": {
         "mercado financeiro": 5,
-        "mercado": 3,
-        "financeiro": 3,
         "mercado de capitais": 5
       }
     },
@@ -1122,9 +1722,7 @@
       "active": true,
       "display_order": 60,
       "terms": {
-        "finanças pessoais": 5,
-        "finanças": 3,
-        "pessoais": 3
+        "finanças pessoais": 5
       }
     },
     {
@@ -1174,9 +1772,29 @@
       "display_order": 63,
       "terms": {
         "mercado de trabalho": 5,
-        "mercado": 3,
-        "trabalho": 3,
-        "emprego": 3
+        "emprego": 3,
+        "vagas de emprego": 6,
+        "carteira assinada": 6,
+        "escala 6x1": 6,
+        "jornada de trabalho": 6,
+        "caged": 6,
+        "pnad": 6,
+        "layoffs": 6,
+        "demissões em massa": 6,
+        "desemprego": 4,
+        "clt": 4,
+        "sindicato": 4,
+        "greve": 4,
+        "demissões": 4,
+        "contratação": 4,
+        "contratações": 4,
+        "trabalhadores": 4,
+        "salário": 4,
+        "salários": 4,
+        "6x1": 4,
+        "concurso público": 5,
+        "concursos públicos": 5,
+        "edital": 5
       }
     },
     {
@@ -1311,8 +1929,7 @@
       "active": true,
       "display_order": 72,
       "terms": {
-        "computação em nuvem": 5,
-        "computação": 3
+        "computação em nuvem": 5
       }
     },
     {
@@ -1327,8 +1944,7 @@
       "display_order": 73,
       "terms": {
         "privacidade digital": 5,
-        "privacidade": 3,
-        "digital": 3
+        "privacidade": 3
       }
     },
     {
@@ -1377,7 +1993,19 @@
       "active": true,
       "display_order": 75,
       "terms": {
-        "automóveis": 3
+        "automóveis": 3,
+        "picape": 5,
+        "suv": 5,
+        "sedã": 5,
+        "carro elétrico": 5,
+        "montadora": 5,
+        "chevrolet": 5,
+        "volkswagen": 5,
+        "fiat": 5,
+        "toyota": 5,
+        "hyundai": 5,
+        "carro": 2,
+        "carros": 2
       }
     },
     {
@@ -1419,9 +2047,7 @@
       "active": true,
       "display_order": 78,
       "terms": {
-        "pesquisa científica": 5,
-        "pesquisa": 3,
-        "científica": 3
+        "pesquisa científica": 5
       }
     },
     {
@@ -1435,7 +2061,23 @@
       "active": true,
       "display_order": 79,
       "terms": {
-        "espaço": 3
+        "espaço sideral": 6,
+        "nave espacial": 6,
+        "estação espacial": 6,
+        "astronauta": 6,
+        "astronautas": 6,
+        "foguete": 6,
+        "órbita": 6,
+        "nasa": 6,
+        "spacex": 6,
+        "agência espacial": 6,
+        "satélite": 4,
+        "satélites": 4,
+        "lua": 4,
+        "marte": 4,
+        "galáxia": 4,
+        "cometa": 4,
+        "asteroide": 4
       }
     },
     {
@@ -1548,7 +2190,6 @@
       "display_order": 87,
       "terms": {
         "exploração espacial": 5,
-        "exploração": 3,
         "espacial": 3
       }
     },
@@ -1577,8 +2218,7 @@
       "active": true,
       "display_order": 89,
       "terms": {
-        "saúde pública": 5,
-        "pública": 3
+        "saúde pública": 5
       }
     },
     {
@@ -1634,8 +2274,7 @@
       "active": true,
       "display_order": 93,
       "terms": {
-        "saúde mental": 5,
-        "mental": 3
+        "saúde mental": 5
       }
     },
     {
@@ -1691,9 +2330,7 @@
       "active": true,
       "display_order": 97,
       "terms": {
-        "pesquisa médica": 5,
-        "pesquisa": 3,
-        "médica": 3
+        "pesquisa médica": 5
       }
     },
     {
@@ -1770,9 +2407,7 @@
       "active": true,
       "display_order": 103,
       "terms": {
-        "pesquisa acadêmica": 5,
-        "pesquisa": 3,
-        "acadêmica": 3
+        "pesquisa acadêmica": 5
       }
     },
     {
@@ -1786,9 +2421,7 @@
       "active": true,
       "display_order": 104,
       "terms": {
-        "educação básica": 5,
-        "educação": 3,
-        "básica": 3
+        "educação básica": 5
       }
     },
     {
@@ -1802,9 +2435,7 @@
       "active": true,
       "display_order": 105,
       "terms": {
-        "formação profissional": 5,
-        "formação": 3,
-        "profissional": 3
+        "formação profissional": 5
       }
     },
     {
@@ -1923,13 +2554,30 @@
         "oil reserves": 5,
         "energy reserves": 6,
         "fuel stockpiles": 5,
-        "diesel": 4,
+        "diesel": 5,
         "kerosene": 4,
         "querosene": 4,
         "reservas de combustivel": 6,
         "estoques de diesel": 6,
         "reservas de energia": 6,
-        "combustiveis": 4
+        "combustiveis": 4,
+        "energia elétrica": 6,
+        "conta de luz": 6,
+        "aneel": 6,
+        "petrobras": 6,
+        "energia solar": 6,
+        "energia eólica": 6,
+        "apagão": 6,
+        "tarifa de energia": 6,
+        "opep": 6,
+        "petróleo": 5,
+        "gasolina": 5,
+        "combustível": 5,
+        "combustíveis": 5,
+        "hidrelétrica": 5,
+        "gás natural": 5,
+        "brent": 5,
+        "electricity": 5
       }
     },
     {
@@ -1958,9 +2606,7 @@
       "active": true,
       "display_order": 115,
       "terms": {
-        "energia renovável": 5,
-        "energia": 3,
-        "renovável": 3
+        "energia renovável": 5
       }
     },
     {
@@ -1987,7 +2633,32 @@
       "active": true,
       "display_order": 117,
       "terms": {
-        "agronegócio": 3
+        "agronegócio": 6,
+        "produtor rural": 6,
+        "produtores rurais": 6,
+        "defensivos agrícolas": 6,
+        "agrotóxicos": 6,
+        "conab": 6,
+        "embrapa": 6,
+        "cana-de-açúcar": 6,
+        "agro": 5,
+        "safra": 5,
+        "soja": 5,
+        "pecuária": 5,
+        "pecuarista": 5,
+        "colheita": 5,
+        "plantio": 5,
+        "lavoura": 5,
+        "frigorífico": 5,
+        "fertilizantes": 5,
+        "agricultor": 5,
+        "agricultores": 5,
+        "milho": 4,
+        "gado": 4,
+        "boi": 4,
+        "algodão": 4,
+        "etanol": 4,
+        "café": 4
       }
     },
     {
@@ -2028,7 +2699,29 @@
       "active": true,
       "display_order": 120,
       "terms": {
-        "transportes": 3
+        "transportes": 3,
+        "transporte público": 6,
+        "companhia aérea": 6,
+        "companhias aéreas": 6,
+        "anac": 6,
+        "antt": 6,
+        "mobilidade urbana": 6,
+        "gol linhas aéreas": 6,
+        "azul linhas aéreas": 6,
+        "metrô": 5,
+        "ferrovia": 5,
+        "aviação": 5,
+        "latam": 5,
+        "pedágio": 5,
+        "aeroporto": 5,
+        "aeroportos": 5,
+        "transporte": 4,
+        "ônibus": 4,
+        "trem": 4,
+        "rodovia": 4,
+        "rodovias": 4,
+        "voos": 4,
+        "trânsito": 4
       }
     },
     {
@@ -2303,7 +2996,18 @@
       "active": true,
       "display_order": 137,
       "terms": {
-        "turismo": 3
+        "turismo": 6,
+        "destino turístico": 6,
+        "pacote de viagem": 6,
+        "passagens aéreas": 6,
+        "embratur": 6,
+        "turista": 5,
+        "turistas": 5,
+        "viagem": 4,
+        "viagens": 4,
+        "hotel": 4,
+        "hotéis": 4,
+        "férias": 4
       }
     },
     {
@@ -2331,9 +3035,7 @@
       "active": true,
       "display_order": 139,
       "terms": {
-        "criadores digitais": 5,
-        "criadores": 3,
-        "digitais": 3
+        "criadores digitais": 5
       }
     },
     {
@@ -2347,9 +3049,7 @@
       "active": true,
       "display_order": 140,
       "terms": {
-        "plataformas digitais": 5,
-        "plataformas": 3,
-        "digitais": 3
+        "plataformas digitais": 5
       }
     },
     {
@@ -2380,7 +3080,32 @@
         "vasco": 4,
         "fluminense": 4,
         "botafogo": 4,
-        "gremio": 4
+        "gremio": 4,
+        "goleiro": 5,
+        "zagueiro": 5,
+        "atacante": 5,
+        "artilheiro": 5,
+        "pênalti": 5,
+        "escalação": 5,
+        "cartão vermelho": 5,
+        "athletico": 5,
+        "atlético-mg": 5,
+        "bragantino": 5,
+        "chapecoense": 5,
+        "coritiba": 5,
+        "mirassol": 5,
+        "paysandu": 5,
+        "criciúma": 5,
+        "são paulo fc": 5,
+        "treinador": 3,
+        "rodada": 3,
+        "elenco": 3,
+        "expulso": 3,
+        "técnico do": 3,
+        "série a": 5,
+        "série b": 5,
+        "série c": 5,
+        "série d": 5
       }
     },
     {
@@ -2397,8 +3122,7 @@
       "active": true,
       "display_order": 142,
       "terms": {
-        "fórmula 1": 5,
-        "fórmula": 3
+        "fórmula 1": 5
       }
     },
     {
@@ -3137,7 +3861,30 @@
       "active": true,
       "display_order": 196,
       "terms": {
-        "meteorologia": 5
+        "meteorologia": 5,
+        "frente fria": 7,
+        "onda de calor": 7,
+        "alerta de tempestade": 7,
+        "inmet": 3,
+        "climatempo": 3,
+        "chuva forte": 5,
+        "chuvas fortes": 5,
+        "temporal": 5,
+        "temporais": 5,
+        "calor extremo": 5,
+        "geada": 5,
+        "granizo": 5,
+        "ciclone": 5,
+        "ciclone extratropical": 5,
+        "umidade do ar": 5,
+        "tempo seco": 5,
+        "furacão": 5,
+        "hurricane": 5,
+        "tornado": 5,
+        "tempestade": 5,
+        "storm": 5,
+        "el niño": 3,
+        "la niña": 3
       }
     },
     {
@@ -3890,7 +4637,18 @@
         "sociedade": 7,
         "direitos humanos": 8,
         "migração": 7,
-        "humanitário": 6
+        "humanitário": 6,
+        "desigualdade": 5,
+        "pobreza": 5,
+        "fome": 5,
+        "população de rua": 5,
+        "religião": 5,
+        "evangélicos": 5,
+        "católicos": 5,
+        "moradia": 4,
+        "igreja": 4,
+        "idosos": 4,
+        "comunidade": 4
       }
     },
     {

@@ -1,4 +1,4 @@
-CLASSIFIER_VERSION = "topic-classifier-v4"
+CLASSIFIER_VERSION = "topic-classifier-v5"
 import re
 from functools import lru_cache
 from ..utils.text import normalize_title
@@ -50,6 +50,15 @@ _CONFLICT_CUES = re.compile(r"\b(missile|missiles|airstrike|airstrikes|bombed|bo
 _ATTACK_CUE = re.compile(r"\b(attack|attacked|attacks|ataque|atacou|atacada|atacado)\b")
 _COMBAT_CUE = re.compile(r"\b(combat|combatting|combate|combater)\b")
 _MILITARY_CONTEXT = re.compile(r"\b(military|armed forces|troops|soldiers|weapons|armed group|militar|forcas armadas|tropas|soldados|armas|grupo armado)\b")
+# Brazilian state police and fire brigades are "militares" by law: "baleada após ataque a tiros...
+# Polícia Militar" is local crime, not war or defense coverage.
+_NOT_ARMED_FORCES = re.compile(r"\b(policia militar|policias militares|policial militar|policiais militares|"
+                               r"bombeiros? militar(?:es)?|corpo de bombeiros militar|colegio militar|justica militar|"
+                               r"porte ilegal de arma|arma de fogo|armas de fogo)\b")
+
+
+def _without_police(text):
+    return _NOT_ARMED_FORCES.sub(" ", text)
 _EDUCATION_ACTION = re.compile(r"\b(curriculum|curricula|education policy|school board|teacher|teachers|classroom|exam|university research|campus research|enrollment|scholarship|new school|school system|minister of education|curriculo|professor|professores|sala de aula|prova|pesquisa universitaria|matricula|bolsa de estudo|secretaria de educacao|ministerio da educacao)\b")
 _HEALTH_ACTION = re.compile(r"\b(treatment|cancer|clinical trial|vaccine|vaccination|diagnosis|medicine|drug trial|patients|public health|healthcare|therapy|surgeon|treatment|tratamento|cancer|ensaio clinico|vacina|vacinacao|diagnostico|medicamento|pacientes|saude publica|terapia|cirurgia)\b")
 _SPORTS_CONTEXT = re.compile(r"\b(football|soccer|tennis|basketball|court|match|tournament|league|goal|futebol|tenis|basquete|quadra|partida|torneio|campeonato|gol)\b")
@@ -125,8 +134,15 @@ def _strip_non_military_language(raw, normalized, context=""):
     return normalized
 
 
+def _disambiguate(text):
+    """Portuguese words that lose meaning once accents go: "aí" (there) would read as the English
+    "ai", and the verb "ia" ("ela ia fazer") as IA, artificial intelligence (written in capitals)."""
+    text = re.sub(r"\b[Aa]í\b", "ali", text or "")
+    return re.sub(r"\bia(m)?\b", "iria", text)
+
+
 def classify_article(article):
-    raw_title, raw_description = normalize_title(article.title), normalize_title(article.description)
+    raw_title, raw_description = normalize_title(_disambiguate(article.title)), normalize_title(_disambiguate(article.description))
     title_text = _strip_non_military_language(article.title, raw_title, raw_description)
     description_text = _strip_non_military_language(article.description, raw_description, raw_title)
     terms_by_category = _compiled_classification_terms()
@@ -161,7 +177,7 @@ def classify_article(article):
                     if pattern.search(meaningful_tags):
                         scores[category] += max(0.5, weight * 0.2)
     combined = f"{title_text} {description_text}"
-    military_context = bool(_MILITARY_CONTEXT.search(combined))
+    military_context = bool(_MILITARY_CONTEXT.search(_without_police(combined)))
     title_conflict_signal = bool(_CONFLICT_CUES.search(title_text))
     # "ira" is not listed: without accents it is also the verb "irá".
     title_party_context = bool(re.search(r"\b(ukraine|kyiv|kiev|gaza|israel|iran|teera|russia|russian|putin|hamas|hezbollah|syria|siria|sudan|taiwan|nato|otan|ucrania|russia)\b", title_text))
@@ -181,7 +197,7 @@ def classify_article(article):
         scores["DEFESA"] += 10
         if "GEOPOLITICA" in scores:
             scores["GEOPOLITICA"] += 3
-    if conflict_match or _conflict_guard(title_text, description_text, combined):
+    if conflict_match or _conflict_guard(title_text, description_text, _without_police(combined)):
         _suppress_guarded_domains(scores, title_text, combined)
     if _GEOGRAPHIC_BANK.search(combined) and not re.search(r"\b(central bank|interest rate|loan|lending|deposit|credit|financial|banco central|juros|emprestimo|credito|deposito)\b", combined):
         scores["FINANCE"] = scores.get("FINANCE", 0) * 0.12
@@ -259,7 +275,7 @@ def classify_for_index(article, source_categories=()):
     title_text, description_text = normalize_title(article.title), normalize_title(article.description)
     combined = (f"{_strip_non_military_language(article.title, title_text, description_text)} "
                 f"{_strip_non_military_language(article.description, description_text, title_text)}")
-    international =(_CONFLICT_GUARD_STRONG.search(combined) or _INTERNATIONAL_CONTEXT.search(combined)
+    international =(_CONFLICT_GUARD_STRONG.search(_without_police(combined)) or _INTERNATIONAL_CONTEXT.search(combined)
                      or re.search(r"\b(ukraine|gaza|israel|iran|russia|putin|hamas|syria|sudan|taiwan|nato|otan|ucrania)\b", combined))
     fallback = "WORLD" if international and "WORLD" in registry.nodes else None
     if not fallback:

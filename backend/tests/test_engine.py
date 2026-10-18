@@ -293,6 +293,40 @@ def test_threads_follow_headlines_not_background_in_descriptions():
     assert len({threads[f"s{n}"] for n in (0, 2, 3, 4, 5, 6)}) == 1                # one pope's-health story
 
 
+CLASSIFIED_HEADLINES = [
+    # (headline, the feed's own categories, expected primary topic, topics it must not get) — real
+    # production headlines that used to land in the wrong topic.
+    ("Criança de 2 anos é baleada dentro de casa após ataque a tiros em Coruripe, AL", ["brazil"],
+     "SEGURANCA_PUBLICA", {"CONFLITOS_INTERNACIONAIS", "DEFESA"}),
+    ("Motociclista morre após bater em árvore na Avenida Jerônimo de Albuquerque, em São Luís", ["brazil"],
+     "SEGURANCA_PUBLICA", {"DEFESA"}),
+    ("Xiaomi libera pacote de segurança de outubro para 15 dispositivos; confira a lista", ["technology"],
+     "TECHNOLOGY", {"SEGURANCA_PUBLICA"}),
+    ("Manifestantes fazem ato pró-Lula em BH", ["brazil"], "POLITICS", set()),
+    ("Deputada Erika Hilton critica plataformas por notícias falsas", ["business"], "POLITICS", {"BUSINESS"}),
+    ("Cebola com chocolate? Aí está o segredo do bombom que virou atração em SC", ["brazil"],
+     None, {"ARTIFICIAL_INTELLIGENCE"}),
+    ("Paris residents tell Al Jazeera they’re dismayed by protest damage", ["world"], None, {"JUSTICA_BRASILEIRA"}),
+    ("Papa Leão conduz oração no Vaticano após cirurgia e diz que retomará trabalho aos poucos", ["world"],
+     "HEALTH", {"MERCADO_DE_TRABALHO"}),
+    ("Rebaixado, América-MG vence e complica Operário-PR na briga por acesso na Série B", ["sports"],
+     "FUTEBOL", set()),
+    ("Bolsa Família com reajuste começa a ser pago amanhã; confira o calendário", ["economy"],
+     "POLITICAS_PUBLICAS", {"FINANCE"}),
+    ("Áudio: Dia Nacional da Vacinação é comemorado neste sábado", ["politics"], None, {"CONGRESSO_NACIONAL"}),
+]
+
+
+def test_headlines_land_in_their_topic():
+    from types import SimpleNamespace
+    from newzi_engine.processors.classify import classify_for_index
+    for title, categories, expected, forbidden in CLASSIFIED_HEADLINES:
+        result = classify_for_index(SimpleNamespace(title=title, description="", source_tags=categories, categories=[]), categories)
+        tags = {tag for tag, _ in result["tags"]}
+        assert expected is None or result["primary"] == expected, (title, result["primary"])
+        assert not tags & forbidden, (title, tags & forbidden)
+
+
 def test_old_stories_never_fill_a_briefing(repo):
     index(repo, "old", "ge", "Botafogo anuncia novo técnico", hours_ago=24 * 5, topic="SPORTS")
     index(repo, "recent", "lance", "Seleção é convocada para amistosos", hours_ago=30, topic="SPORTS")
