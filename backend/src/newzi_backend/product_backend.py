@@ -238,10 +238,12 @@ class ProductRepository:
             interest_params.extend(selected_with_children)
         interest_case="MAX(CASE "+" ".join(interest_parts)+" ELSE 0 END)" if interest_parts else "0"
         primary_topic="(SELECT topic.taxonomy_id FROM content_taxonomy topic WHERE topic.content_id=c.id ORDER BY topic.score DESC,topic.taxonomy_id LIMIT 1)"
-        query_params=[*interest_params,prefs.get("language") or "pt-BR",*where_params,min(300,max(1,int(limit)*10))]
+        reader_language=prefs.get("language") or "pt-BR"
+        # Any variety of the reader's language counts as a match ("pt-PT" for a "pt-BR" reader).
+        query_params=[*interest_params,reader_language.split("-")[0]+"%",*where_params,min(300,max(1,int(limit)*10))]
         sql=("WITH candidates AS (SELECT c.id,c.title,c.description,c.source_name,c.source_id,c.url,c.published_at,"
              "c.image_url,c.source_language,c.quality_score,COALESCE(NULLIF(c.event_id,''),c.id) AS event_key,"+interest_case+" AS interest_score,"
-             "CASE WHEN c.source_language=? THEN 1 ELSE 0 END AS language_match,"+primary_topic+" AS primary_taxonomy_id ")
+             "CASE WHEN c.source_language LIKE ? THEN 1 ELSE 0 END AS language_match,"+primary_topic+" AS primary_taxonomy_id ")
         sql += "FROM indexed_content c LEFT JOIN content_taxonomy t ON t.content_id=c.id WHERE "+" AND ".join(clauses)+" GROUP BY c.id), ranked AS (SELECT candidates.*,ROW_NUMBER() OVER(PARTITION BY event_key ORDER BY interest_score DESC,language_match DESC,published_at DESC,quality_score DESC,id) AS event_rank FROM candidates) SELECT * FROM ranked WHERE event_rank=1 ORDER BY published_at DESC,interest_score DESC,quality_score DESC,id LIMIT ?"
         rows=self.db.execute(sql,query_params).fetchall()
         size=max(1,min(int(limit),30))

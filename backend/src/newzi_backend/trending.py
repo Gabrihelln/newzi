@@ -47,7 +47,7 @@ def trending_events(repo, country_scope="BOTH", limit=5, now=None):
             joined.setdefault(row["source_id"], row["published_at"])
         if len(joined) < min_sources or not _in_scope({row["source_country"] for row in articles}, country_scope):
             continue
-        lead = sorted(articles, key=lambda row: (row["source_language"] not in ("pt-BR", "pt"), -(row["quality_score"] or 0), row["published_at"]))[0]
+        lead = sorted(articles, key=lambda row: (not str(row["source_language"] or "").startswith("pt"), -(row["quality_score"] or 0), row["published_at"]))[0]
         if not is_news(lead["title"], lead["description"], lead["url"]):
             continue
         ages = [max(0.0, (now - parse(published)).total_seconds() / 3600) for published in joined.values()]

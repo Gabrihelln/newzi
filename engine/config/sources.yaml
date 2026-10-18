@@ -452,7 +452,7 @@ sources:
     language: en
     country: US
     region: GLOBAL
-    categories: [science, space, technology, environment]
+    categories: [science, espaco, technology, environment]
     priority: 9
     trust_tier: 1
     enabled: true
@@ -667,4 +667,1811 @@ sources:
     categories: [curiosidades, science]
     priority: 7
     trust_tier: 1
+    enabled: true
+  # --- Added 2026-10-19: Brazilian national, regional, economy, tech and culture outlets, plus
+  # global newsrooms. Every feed was fetched with the collector's user agent and had items from
+  # the last 72 hours when added.
+  - id: g1_politica
+    name: "g1 Política"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/politica/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: g1_economia
+    name: "g1 Economia"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/economia/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [economy, business]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: g1_educacao
+    name: "g1 Educação"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/educacao/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [education]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: g1_carros
+    name: "g1 Carros"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/carros/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [automoveis]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_sp
+    name: "g1 São Paulo"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/sp/sao-paulo/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_rj
+    name: "g1 Rio de Janeiro"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/rj/rio-de-janeiro/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_mg
+    name: "g1 Minas Gerais"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/mg/minas-gerais/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_rs
+    name: "g1 Rio Grande do Sul"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/rs/rio-grande-do-sul/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_pr
+    name: "g1 Paraná"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/pr/parana/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_pe
+    name: "g1 Pernambuco"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/pe/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_ce
+    name: "g1 Ceará"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ce/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_am
+    name: "g1 Amazonas"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/am/amazonas/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_sc
+    name: "g1 Santa Catarina"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/sc/santa-catarina/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_pa
+    name: "g1 Pará"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/pa/para/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: folha_poder
+    name: "Folha Poder"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/poder/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: folha_mercado
+    name: "Folha Mercado"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/mercado/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [economy, business]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: folha_cotidiano
+    name: "Folha Cotidiano"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/cotidiano/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, society]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_esporte
+    name: "Folha Esporte"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/esporte/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [sports]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_ilustrada
+    name: "Folha Ilustrada"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/ilustrada/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [culture, entertainment]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_ciencia
+    name: "Folha Ciência"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/ciencia/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [science]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_saude
+    name: "Folha Equilíbrio e Saúde"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/equilibrioesaude/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [health]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_educacao
+    name: "Folha Educação"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/educacao/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [education]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_ambiente
+    name: "Folha Ambiente"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/ambiente/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [environment]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: folha_tec
+    name: "Folha Tecnologia"
+    url: https://feeds.folha.uol.com.br/
+    feed_url: https://feeds.folha.uol.com.br/tec/rss091.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: estadao_politica
+    name: "Estadão Política"
+    url: https://www.estadao.com.br/
+    feed_url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/politica/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: estadao_economia
+    name: "Estadão Economia"
+    url: https://www.estadao.com.br/
+    feed_url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/economia/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [economy, business]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: estadao_brasil
+    name: "Estadão Brasil"
+    url: https://www.estadao.com.br/
+    feed_url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/brasil/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, society]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: estadao_internacional
+    name: "Estadão Internacional"
+    url: https://www.estadao.com.br/
+    feed_url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/internacional/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: estadao_esportes
+    name: "Estadão Esportes"
+    url: https://www.estadao.com.br/
+    feed_url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/esportes/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [sports]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: estadao_cultura
+    name: "Estadão Cultura"
+    url: https://www.estadao.com.br/
+    feed_url: https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/cultura/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [culture, entertainment]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: poder360
+    name: "Poder360"
+    url: https://www.poder360.com.br/
+    feed_url: https://www.poder360.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil, economy]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: agencia_senado
+    name: "Agência Senado"
+    url: https://www12.senado.leg.br/
+    feed_url: https://www12.senado.leg.br/noticias/feed/todasnoticias/rss
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, congresso_nacional]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: agencia_camara
+    name: "Agência Câmara"
+    url: https://www.camara.leg.br/
+    feed_url: https://www.camara.leg.br/noticias/rss/ultimas-noticias
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, congresso_nacional]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: carta_capital
+    name: "CartaCapital"
+    url: https://www.cartacapital.com.br/
+    feed_url: https://www.cartacapital.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: intercept_brasil
+    name: "Intercept Brasil"
+    url: https://www.intercept.com.br/
+    feed_url: https://www.intercept.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: nexo
+    name: "Nexo Jornal"
+    url: https://www.nexojornal.com.br/
+    feed_url: https://www.nexojornal.com.br/rss.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil, society]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: gazeta_do_povo
+    name: "Gazeta do Povo"
+    url: https://www.gazetadopovo.com.br/
+    feed_url: https://www.gazetadopovo.com.br/feed/rss/ultimas-noticias.xml
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: jovem_pan
+    name: "Jovem Pan"
+    url: https://jovempan.com.br/
+    feed_url: https://jovempan.com.br/feed
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: a_tarde
+    name: "A Tarde"
+    url: https://atarde.com.br/
+    feed_url: https://atarde.com.br/rss
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: infomoney
+    name: "InfoMoney"
+    url: https://www.infomoney.com.br/
+    feed_url: https://www.infomoney.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [finance, economy, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: exame
+    name: "Exame"
+    url: https://exame.com/
+    feed_url: https://exame.com/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [business, economy]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: money_times
+    name: "Money Times"
+    url: https://www.moneytimes.com.br/
+    feed_url: https://www.moneytimes.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [finance, economy]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: seu_dinheiro
+    name: "Seu Dinheiro"
+    url: https://www.seudinheiro.com/
+    feed_url: https://www.seudinheiro.com/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [finance, financas_pessoais]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: neofeed
+    name: "NeoFeed"
+    url: https://neofeed.com.br/
+    feed_url: https://neofeed.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [business, startups]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: pequenas_empresas
+    name: "Pequenas Empresas & Grandes Negócios"
+    url: https://revistapegn.globo.com/
+    feed_url: https://revistapegn.globo.com/rss/pegn
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [empreendedorismo, business]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: canal_rural
+    name: "Canal Rural"
+    url: https://www.canalrural.com.br/
+    feed_url: https://www.canalrural.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [agronegocio]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: globo_rural
+    name: "Globo Rural"
+    url: https://globorural.globo.com/
+    feed_url: https://globorural.globo.com/rss/globorural
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [agronegocio]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: tecmundo
+    name: "TecMundo"
+    url: https://rss.tecmundo.com.br/
+    feed_url: https://rss.tecmundo.com.br/feed
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: olhar_digital
+    name: "Olhar Digital"
+    url: https://olhardigital.com.br/
+    feed_url: https://olhardigital.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology, science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: tecnoblog
+    name: "Tecnoblog"
+    url: https://tecnoblog.net/
+    feed_url: https://tecnoblog.net/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: mobile_time
+    name: "Mobile Time"
+    url: https://www.mobiletime.com.br/
+    feed_url: https://www.mobiletime.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology, telecomunicacoes]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: teletime
+    name: "Teletime"
+    url: https://teletime.com.br/
+    feed_url: https://teletime.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [telecomunicacoes, technology]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: revista_galileu
+    name: "Revista Galileu"
+    url: https://revistagalileu.globo.com/
+    feed_url: https://revistagalileu.globo.com/rss/galileu
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: jornal_usp
+    name: "Jornal da USP"
+    url: https://jornal.usp.br/
+    feed_url: https://jornal.usp.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [science, education]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: rolling_stone_br
+    name: "Rolling Stone Brasil"
+    url: https://rollingstone.com.br/
+    feed_url: https://rollingstone.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [musica, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: gshow
+    name: "gshow"
+    url: https://gshow.globo.com/
+    feed_url: https://gshow.globo.com/rss/gshow
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [novelas, reality-shows, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: trivela
+    name: "Trivela"
+    url: https://trivela.com.br/
+    feed_url: https://trivela.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [futebol, sports]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: euronews_pt
+    name: "Euronews Português"
+    url: https://pt.euronews.com/
+    feed_url: https://pt.euronews.com/rss
+    type: rss
+    language: pt-PT
+    country: FR
+    categories: [world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: onu_news
+    name: "ONU News"
+    url: https://news.un.org/
+    feed_url: https://news.un.org/feed/subscribe/pt/news/all/rss.xml
+    type: rss
+    language: pt-BR
+    country: US
+    categories: [world, organizacoes_internacionais]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: publico_pt
+    name: "Público"
+    url: https://feeds.feedburner.com/
+    feed_url: https://feeds.feedburner.com/PublicoRSS
+    type: rss
+    language: pt-PT
+    country: PT
+    categories: [world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: nyt_world
+    name: "The New York Times World"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/World.xml
+    type: rss
+    language: en
+    country: US
+    categories: [world, politics]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: nyt_us
+    name: "The New York Times U.S."
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/US.xml
+    type: rss
+    language: en
+    country: US
+    categories: [estados_unidos, politics]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nyt_business
+    name: "The New York Times Business"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/Business.xml
+    type: rss
+    language: en
+    country: US
+    categories: [business, economy]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nyt_technology
+    name: "The New York Times Technology"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
+    type: rss
+    language: en
+    country: US
+    categories: [technology]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nyt_science
+    name: "The New York Times Science"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/Science.xml
+    type: rss
+    language: en
+    country: US
+    categories: [science]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nyt_health
+    name: "The New York Times Health"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/Health.xml
+    type: rss
+    language: en
+    country: US
+    categories: [health]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nyt_climate
+    name: "The New York Times Climate"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml
+    type: rss
+    language: en
+    country: US
+    categories: [environment, clima]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: nyt_arts
+    name: "The New York Times Arts"
+    url: https://rss.nytimes.com/
+    feed_url: https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml
+    type: rss
+    language: en
+    country: US
+    categories: [culture, entertainment]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: aljazeera
+    name: "Al Jazeera"
+    url: https://www.aljazeera.com/
+    feed_url: https://www.aljazeera.com/xml/rss/all.xml
+    type: rss
+    language: en
+    country: QA
+    categories: [world, geopolitica]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: npr_news
+    name: "NPR News"
+    url: https://feeds.npr.org/
+    feed_url: https://feeds.npr.org/1001/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [world, estados_unidos]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: npr_politics
+    name: "NPR Politics"
+    url: https://feeds.npr.org/
+    feed_url: https://feeds.npr.org/1014/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [politics, estados_unidos]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: npr_business
+    name: "NPR Business"
+    url: https://feeds.npr.org/
+    feed_url: https://feeds.npr.org/1006/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [business, economy]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: npr_science
+    name: "NPR Science"
+    url: https://feeds.npr.org/
+    feed_url: https://feeds.npr.org/1007/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: npr_health
+    name: "NPR Health"
+    url: https://feeds.npr.org/
+    feed_url: https://feeds.npr.org/1128/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [health]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: france24
+    name: "France 24"
+    url: https://www.france24.com/
+    feed_url: https://www.france24.com/en/rss
+    type: rss
+    language: en
+    country: FR
+    categories: [world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: dw_english
+    name: "DW"
+    url: https://rss.dw.com/
+    feed_url: https://rss.dw.com/rdf/rss-en-all
+    type: rss
+    language: en
+    country: DE
+    categories: [world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: euronews
+    name: "Euronews"
+    url: https://www.euronews.com/
+    feed_url: https://www.euronews.com/rss
+    type: rss
+    language: en
+    country: FR
+    categories: [world, europa]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: sky_news_world
+    name: "Sky News World"
+    url: https://feeds.skynews.com/
+    feed_url: https://feeds.skynews.com/feeds/rss/world.xml
+    type: rss
+    language: en
+    country: GB
+    categories: [world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: abc_news
+    name: "ABC News"
+    url: https://abcnews.go.com/
+    feed_url: https://abcnews.go.com/abcnews/topstories
+    type: rss
+    language: en
+    country: US
+    categories: [world, estados_unidos]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: cbs_news
+    name: "CBS News"
+    url: https://www.cbsnews.com/
+    feed_url: https://www.cbsnews.com/latest/rss/main
+    type: rss
+    language: en
+    country: US
+    categories: [estados_unidos, world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: politico
+    name: "Politico"
+    url: https://rss.politico.com/
+    feed_url: https://rss.politico.com/politics-news.xml
+    type: rss
+    language: en
+    country: US
+    categories: [politics, estados_unidos]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: the_economist
+    name: "The Economist"
+    url: https://www.economist.com/
+    feed_url: https://www.economist.com/latest/rss.xml
+    type: rss
+    language: en
+    country: GB
+    categories: [economy, world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: ft_home
+    name: "Financial Times"
+    url: https://www.ft.com/
+    feed_url: https://www.ft.com/rss/home/international
+    type: rss
+    language: en
+    country: GB
+    categories: [business, economy, finance]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: cnbc_world
+    name: "CNBC World"
+    url: https://www.cnbc.com/
+    feed_url: https://www.cnbc.com/id/100727362/device/rss/rss.html
+    type: rss
+    language: en
+    country: US
+    categories: [economy, world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: marketwatch
+    name: "MarketWatch"
+    url: https://feeds.content.dowjones.io/
+    feed_url: https://feeds.content.dowjones.io/public/rss/mw_topstories
+    type: rss
+    language: en
+    country: US
+    categories: [finance, mercado_financeiro]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: guardian_us
+    name: "The Guardian US"
+    url: https://www.theguardian.com/
+    feed_url: https://www.theguardian.com/us-news/rss
+    type: rss
+    language: en
+    country: GB
+    categories: [estados_unidos, politics]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: guardian_environment
+    name: "The Guardian Environment"
+    url: https://www.theguardian.com/
+    feed_url: https://www.theguardian.com/environment/rss
+    type: rss
+    language: en
+    country: GB
+    categories: [environment]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: guardian_americas
+    name: "The Guardian Americas"
+    url: https://www.theguardian.com/
+    feed_url: https://www.theguardian.com/world/americas/rss
+    type: rss
+    language: en
+    country: GB
+    categories: [america_latina, world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bbc_latin_america
+    name: "BBC Latin America"
+    url: https://feeds.bbci.co.uk/
+    feed_url: https://feeds.bbci.co.uk/news/world/latin_america/rss.xml
+    type: rss
+    language: en
+    country: GB
+    categories: [america_latina, world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bbc_health
+    name: "BBC Health"
+    url: https://feeds.bbci.co.uk/
+    feed_url: https://feeds.bbci.co.uk/news/health/rss.xml
+    type: rss
+    language: en
+    country: GB
+    categories: [health]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: ars_science
+    name: "Ars Technica Science"
+    url: https://feeds.arstechnica.com/
+    feed_url: https://feeds.arstechnica.com/arstechnica/science
+    type: rss
+    language: en
+    country: US
+    categories: [science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: sciencedaily
+    name: "ScienceDaily"
+    url: https://www.sciencedaily.com/
+    feed_url: https://www.sciencedaily.com/rss/top/science.xml
+    type: rss
+    language: en
+    country: US
+    categories: [science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: nature_news
+    name: "Nature News"
+    url: https://www.nature.com/
+    feed_url: https://www.nature.com/nature.rss
+    type: rss
+    language: en
+    country: GB
+    categories: [science, pesquisa_cientifica]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: new_scientist
+    name: "New Scientist"
+    url: https://www.newscientist.com/
+    feed_url: https://www.newscientist.com/feed/home/
+    type: rss
+    language: en
+    country: GB
+    categories: [science]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: space_com
+    name: "Space.com"
+    url: https://www.space.com/
+    feed_url: https://www.space.com/feeds/all
+    type: rss
+    language: en
+    country: US
+    categories: [espaco, science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: espn
+    name: "ESPN"
+    url: https://www.espn.com/
+    feed_url: https://www.espn.com/espn/rss/news
+    type: rss
+    language: en
+    country: US
+    categories: [sports]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: sky_sports_football
+    name: "Sky Sports Football"
+    url: https://www.skysports.com/
+    feed_url: https://www.skysports.com/rss/12040
+    type: rss
+    language: en
+    country: GB
+    categories: [futebol_internacional, sports]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: variety
+    name: "Variety"
+    url: https://variety.com/
+    feed_url: https://variety.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [entertainment, cinema]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: billboard
+    name: "Billboard"
+    url: https://www.billboard.com/
+    feed_url: https://www.billboard.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [musica, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: ign
+    name: "IGN"
+    url: https://feeds.feedburner.com/
+    feed_url: https://feeds.feedburner.com/ign/all
+    type: rss
+    language: en
+    country: US
+    categories: [games]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: coindesk
+    name: "CoinDesk"
+    url: https://www.coindesk.com/
+    feed_url: https://www.coindesk.com/arc/outboundfeeds/rss/
+    type: rss
+    language: en
+    country: US
+    categories: [criptomoedas]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: electrek
+    name: "Electrek"
+    url: https://electrek.co/
+    feed_url: https://electrek.co/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [mobilidade, energia_renovavel]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: cnn_brasil
+    name: "CNN Brasil"
+    url: https://www.cnnbrasil.com.br/
+    feed_url: https://www.cnnbrasil.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, politics]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: brasil_de_fato
+    name: "Brasil de Fato"
+    url: https://www.brasildefato.com.br/
+    feed_url: https://www.brasildefato.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil, society]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_geral
+    name: "g1"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: g1_ba
+    name: "g1 Bahia"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ba/bahia/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_df
+    name: "g1 Distrito Federal"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/df/distrito-federal/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_go
+    name: "g1 Goiás"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/go/goias/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_es
+    name: "g1 Espírito Santo"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/es/espirito-santo/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_mt
+    name: "g1 Mato Grosso"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/mt/mato-grosso/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_ms
+    name: "g1 Mato Grosso do Sul"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ms/mato-grosso-do-sul/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_rn
+    name: "g1 Rio Grande do Norte"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/rn/rio-grande-do-norte/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_pb
+    name: "g1 Paraíba"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/pb/paraiba/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_ma
+    name: "g1 Maranhão"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ma/maranhao/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_pi
+    name: "g1 Piauí"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/pi/piaui/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_al
+    name: "g1 Alagoas"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/al/alagoas/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_se
+    name: "g1 Sergipe"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/se/sergipe/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_to
+    name: "g1 Tocantins"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/to/tocantins/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_ro
+    name: "g1 Rondônia"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ro/rondonia/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_ac
+    name: "g1 Acre"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ac/acre/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_ap
+    name: "g1 Amapá"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/ap/amapa/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: g1_rr
+    name: "g1 Roraima"
+    url: https://g1.globo.com/
+    feed_url: https://g1.globo.com/rss/g1/rr/roraima/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, cidades]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: veja
+    name: "Veja"
+    url: https://veja.abril.com.br/
+    feed_url: https://veja.abril.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, brazil]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: epoca_negocios
+    name: "Época Negócios"
+    url: https://epocanegocios.globo.com/
+    feed_url: https://epocanegocios.globo.com/rss/epocanegocios
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [business]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: oglobo
+    name: "O Globo"
+    url: https://oglobo.globo.com/
+    feed_url: https://oglobo.globo.com/rss/oglobo
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [brazil, politics]
+    priority: 9
+    trust_tier: 1
+    enabled: true
+  - id: agencia_publica
+    name: "Agência Pública"
+    url: https://apublica.org/
+    feed_url: https://apublica.org/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, society]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: jota
+    name: "JOTA"
+    url: https://www.jota.info/
+    feed_url: https://www.jota.info/feed
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [justica_brasileira, politics]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: aos_fatos
+    name: "Aos Fatos"
+    url: https://www.aosfatos.org/
+    feed_url: https://www.aosfatos.org/noticias/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [politics, society]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: oeco
+    name: "O Eco"
+    url: https://oeco.org.br/
+    feed_url: https://oeco.org.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [environment]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: drauzio
+    name: "Portal Drauzio Varella"
+    url: https://drauziovarella.uol.com.br/
+    feed_url: https://drauziovarella.uol.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [health]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: tudocelular
+    name: "TudoCelular"
+    url: https://www.tudocelular.com/
+    feed_url: https://www.tudocelular.com/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [technology]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: placar
+    name: "Placar"
+    url: https://placar.com.br/
+    feed_url: https://placar.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [futebol, sports]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: olimpiada_todo_dia
+    name: "Olimpíada Todo Dia"
+    url: https://www.olimpiadatododia.com.br/
+    feed_url: https://www.olimpiadatododia.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [olimpiadas, sports]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: papelpop
+    name: "Papelpop"
+    url: https://www.papelpop.com/
+    feed_url: https://www.papelpop.com/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [entertainment, celebridades]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: noticias_da_tv
+    name: "Notícias da TV"
+    url: https://noticiasdatv.uol.com.br/
+    feed_url: https://noticiasdatv.uol.com.br/feed/
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [televisao, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: revista_quem
+    name: "Quem"
+    url: https://revistaquem.globo.com/
+    feed_url: https://revistaquem.globo.com/rss/quem
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [celebridades]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: rtp
+    name: "RTP Notícias"
+    url: https://www.rtp.pt/
+    feed_url: https://www.rtp.pt/noticias/rss
+    type: rss
+    language: pt-PT
+    country: PT
+    categories: [world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: observador
+    name: "Observador"
+    url: https://observador.pt/
+    feed_url: https://observador.pt/feed/
+    type: rss
+    language: pt-PT
+    country: PT
+    categories: [world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: independent_world
+    name: "The Independent World"
+    url: https://www.independent.co.uk/
+    feed_url: https://www.independent.co.uk/news/world/rss
+    type: rss
+    language: en
+    country: GB
+    categories: [world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: latimes
+    name: "Los Angeles Times"
+    url: https://www.latimes.com/
+    feed_url: https://www.latimes.com/world-nation/rss2.0.xml
+    type: rss
+    language: en
+    country: US
+    categories: [world, estados_unidos]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: axios
+    name: "Axios"
+    url: https://api.axios.com/
+    feed_url: https://api.axios.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [politics, estados_unidos]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: the_hill
+    name: "The Hill"
+    url: https://thehill.com/
+    feed_url: https://thehill.com/news/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [politics, estados_unidos]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: scmp
+    name: "South China Morning Post"
+    url: https://www.scmp.com/
+    feed_url: https://www.scmp.com/rss/91/feed
+    type: rss
+    language: en
+    country: HK
+    categories: [asia, world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: times_of_india
+    name: "Times of India"
+    url: https://timesofindia.indiatimes.com/
+    feed_url: https://timesofindia.indiatimes.com/rssfeedstopstories.cms
+    type: rss
+    language: en
+    country: IN
+    categories: [asia, world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: abc_australia
+    name: "ABC News Australia"
+    url: https://www.abc.net.au/
+    feed_url: https://www.abc.net.au/news/feed/2942460/rss.xml
+    type: rss
+    language: en
+    country: AU
+    categories: [world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: cbc_world
+    name: "CBC World"
+    url: https://www.cbc.ca/
+    feed_url: https://www.cbc.ca/webfeed/rss/rss-world
+    type: rss
+    language: en
+    country: CA
+    categories: [world]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: mercopress
+    name: "MercoPress"
+    url: https://en.mercopress.com/
+    feed_url: https://en.mercopress.com/rss/
+    type: rss
+    language: en
+    country: UY
+    categories: [america_latina]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: japan_times
+    name: "The Japan Times"
+    url: https://www.japantimes.co.jp/
+    feed_url: https://www.japantimes.co.jp/feed/
+    type: rss
+    language: en
+    country: JP
+    categories: [asia, world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: times_of_israel
+    name: "The Times of Israel"
+    url: https://www.timesofisrael.com/
+    feed_url: https://www.timesofisrael.com/feed/
+    type: rss
+    language: en
+    country: IL
+    categories: [oriente_medio, world]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: kyiv_independent
+    name: "The Kyiv Independent"
+    url: https://kyivindependent.com/
+    feed_url: https://kyivindependent.com/news-archive/rss/
+    type: rss
+    language: en
+    country: UA
+    categories: [conflitos_internacionais, europa]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: un_news_en
+    name: "UN News"
+    url: https://news.un.org/
+    feed_url: https://news.un.org/feed/subscribe/en/news/all/rss.xml
+    type: rss
+    language: en
+    country: US
+    categories: [world, organizacoes_internacionais]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: bloomberg_markets
+    name: "Bloomberg Markets"
+    url: https://feeds.bloomberg.com/
+    feed_url: https://feeds.bloomberg.com/markets/news.rss
+    type: rss
+    language: en
+    country: US
+    categories: [finance, mercado_financeiro]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bloomberg_politics
+    name: "Bloomberg Politics"
+    url: https://feeds.bloomberg.com/
+    feed_url: https://feeds.bloomberg.com/politics/news.rss
+    type: rss
+    language: en
+    country: US
+    categories: [politics, world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: bloomberg_tech
+    name: "Bloomberg Technology"
+    url: https://feeds.bloomberg.com/
+    feed_url: https://feeds.bloomberg.com/technology/news.rss
+    type: rss
+    language: en
+    country: US
+    categories: [technology, business]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: wsj_world
+    name: "The Wall Street Journal World"
+    url: https://feeds.content.dowjones.io/
+    feed_url: https://feeds.content.dowjones.io/public/rss/RSSWorldNews
+    type: rss
+    language: en
+    country: US
+    categories: [world]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: wsj_markets
+    name: "The Wall Street Journal Markets"
+    url: https://feeds.content.dowjones.io/
+    feed_url: https://feeds.content.dowjones.io/public/rss/RSSMarketsMain
+    type: rss
+    language: en
+    country: US
+    categories: [finance, economy]
+    priority: 8
+    trust_tier: 1
+    enabled: true
+  - id: scientific_american
+    name: "Scientific American"
+    url: http://rss.sciam.com/
+    feed_url: http://rss.sciam.com/ScientificAmerican-Global
+    type: rss
+    language: en
+    country: US
+    categories: [science]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: stat_news
+    name: "STAT"
+    url: https://www.statnews.com/
+    feed_url: https://www.statnews.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [health, pesquisa_medica]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: bbc_football
+    name: "BBC Football"
+    url: https://feeds.bbci.co.uk/
+    feed_url: https://feeds.bbci.co.uk/sport/football/rss.xml
+    type: rss
+    language: en
+    country: GB
+    categories: [futebol_internacional]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: motorsport_f1
+    name: "Motorsport.com F1"
+    url: https://www.motorsport.com/
+    feed_url: https://www.motorsport.com/rss/f1/news/
+    type: rss
+    language: en
+    country: GB
+    categories: [formula_1]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: hollywood_reporter
+    name: "The Hollywood Reporter"
+    url: https://www.hollywoodreporter.com/
+    feed_url: https://www.hollywoodreporter.com/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [entertainment, cinema]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: polygon
+    name: "Polygon"
+    url: https://www.polygon.com/
+    feed_url: https://www.polygon.com/rss/index.xml
+    type: rss
+    language: en
+    country: US
+    categories: [games]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: carbon_brief
+    name: "Carbon Brief"
+    url: https://www.carbonbrief.org/
+    feed_url: https://www.carbonbrief.org/feed/
+    type: rss
+    language: en
+    country: GB
+    categories: [clima, environment]
+    priority: 7
+    trust_tier: 2
+    enabled: true
+  - id: inside_climate
+    name: "Inside Climate News"
+    url: https://insideclimatenews.org/
+    feed_url: https://insideclimatenews.org/feed/
+    type: rss
+    language: en
+    country: US
+    categories: [clima, environment]
+    priority: 6
+    trust_tier: 2
     enabled: true

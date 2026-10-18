@@ -88,7 +88,7 @@ class BreakingNewsService:
                    FROM indexed_content WHERE event_id=? AND published_at IS NOT NULL ORDER BY published_at,id""", (event_id,)).fetchall()
             if not articles or articles[0]["published_at"] < lower:
                 continue  # the story started before the window: an old event gaining coverage
-            lead = sorted(articles, key=lambda row: (row["source_language"] != "pt-BR" and row["source_language"] != "pt",
+            lead = sorted(articles, key=lambda row: (not str(row["source_language"] or "").startswith("pt"),
                                                      -(row["quality_score"] or 0), row["published_at"]))[0]
             if not is_news(lead["title"], lead["description"], lead["url"]):
                 continue
