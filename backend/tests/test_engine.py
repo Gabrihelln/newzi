@@ -63,12 +63,12 @@ def test_coupons_never_form_an_event():
     assert groups(articles) == [["p1"], ["p2"], ["p3"]]
 
 
-def index(repo, article_id, source, title, event_id=None, hours_ago=1, quality=5.0, topic="TECHNOLOGY", country="US"):
+def index(repo, article_id, source, title, event_id=None, hours_ago=1, quality=5.0, topic="TECHNOLOGY", country="US", description=""):
     from newzi_backend.timeutil import iso
     published = iso(NOW - timedelta(hours=hours_ago))
     repo.db.execute("""INSERT INTO indexed_content(id,content_hash,title,description,url,source_name,source_id,source_country,source_language,
         published_at,indexed_at,enrichment_mode,quality_score,event_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (article_id, "h_" + article_id, title, "", "https://news.example/" + article_id, source.title(), source,
+                    (article_id, "h_" + article_id, title, description, "https://news.example/" + article_id, source.title(), source,
                      country, "en", published, published, "test", quality, event_id))
     repo.db.execute("INSERT INTO content_taxonomy(content_id,taxonomy_id,score) VALUES(?,?,?)", (article_id, topic, 8.0))
     repo.db.commit()
@@ -174,15 +174,17 @@ def test_a_headline_framed_for_a_past_day_is_left_out(repo):
     assert [item["event_id"] for item in sports_briefing(repo)] == ["fresh"]
 
 
-POPE = [("missa", "vatican", "Papa Leão XIV celebra missa no hospital após cirurgia para retirar câncer do pulmão", 40),
-        ("alta1", "folha", "Papa Leão XIV recebe alta após cirurgia para tratar câncer de pulmão", 24),
-        ("alta2", "g1", "Papa Leão 14 recebe alta do hospital, podendo voltar ao Vaticano", 21),
-        ("alta3", "uol", "Papa recebe alta do hospital depois de cirurgia para remover câncer no pulmão", 9)]
+POPE = [("missa", "vatican", "Papa Leão XIV celebra missa no hospital após cirurgia para retirar câncer do pulmão", 40,
+         "O pontífice segue internado no Gemelli."),
+        ("alta1", "folha", "Papa Leão XIV recebe alta após cirurgia para tratar câncer de pulmão", 24, ""),
+        ("alta2", "g1", "Papa Leão 14 recebe alta do hospital, podendo voltar ao Vaticano", 21, ""),
+        ("alta3", "uol", "Papa recebe alta do hospital depois de cirurgia para remover câncer no pulmão", 9,
+         "O papa Leão XIV deixou o Gemelli neste sábado.")]
 
 
 def index_pope(repo, stories=POPE):
-    for article_id, source, title, hours in stories:   # clustering left each in its own event, as in production
-        index(repo, article_id, source, title, event_id=article_id, hours_ago=hours, topic="WORLD")
+    for article_id, source, title, hours, description in stories:   # clustering left each in its own event, as in production
+        index(repo, article_id, source, title, event_id=article_id, hours_ago=hours, topic="WORLD", description=description)
     index(repo, "other", "bbc", "Terremoto atinge o Japão e deixa feridos", hours_ago=3, topic="WORLD")
 
 
@@ -225,6 +227,28 @@ def test_different_stories_about_the_same_people_stay_apart():
                 for n, title in enumerate(titles + filler)]
     threads = story_threads(contents)
     assert len({threads[f"s{n}"] for n in range(len(titles))}) == len(titles)
+
+
+def test_an_outlets_headline_template_is_not_a_story():
+    from newzi_backend.threads import story_threads
+    rows = [("Melhores momentos: Hamburg 1 x 0 Stuttgart pelo Alemão", "ge"),
+            ("Melhores momentos: Union Berlin 0 x 0 Dortmund pelo Alemão", "ge"),
+            ("Melhores momentos: Schalke 0 x 1 Mainz pelo Alemão", "ge"),
+            ("Melhores momentos: Elversberg 4 x 3 Augsburg pelo Alemão", "ge"),
+            ("Remo x Bragantino - Campeonato Brasileiro 2026 - globoesporte.com", "ge"),
+            ("Vila Nova x Novorizontino - Campeonato Brasileiro Série B 2026 - globoesporte.com", "ge"),
+            ("Cruzeiro x Bolívar - Taça Libertadores Feminina 2026 - globoesporte.com", "ge"),
+            ("Leeds United x Manchester United - Campeonato Inglês 2026/27 - globoesporte.com", "ge"),
+            # One outlet covering a story heavily is not a template: its headlines keep naming the pope.
+            ("Papa Leão XIV celebra missa no hospital após cirurgia para retirar câncer do pulmão", "folha"),
+            ("Papa Leão XIV recebe alta após cirurgia para tratar câncer de pulmão", "folha"),
+            ("Papa Leão 14 recebe alta do hospital, podendo voltar ao Vaticano", "folha"),
+            ("Papa Leão XIV deixa hospital após cirurgia de câncer no pulmão", "folha")]
+    contents = [{"id": f"s{n}", "title": title, "source_id": source, "published_at": f"2026-10-17T{n:02d}:00:00.000Z", "event_id": None}
+                for n, (title, source) in enumerate(rows)]
+    threads = story_threads(contents)
+    assert len({threads[f"s{n}"] for n in range(8)}) == 8
+    assert len({threads[f"s{n}"] for n in range(8, 12)}) == 1
 
 
 def test_old_stories_never_fill_a_briefing(repo):

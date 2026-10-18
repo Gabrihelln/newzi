@@ -15,13 +15,21 @@ from collections import Counter, defaultdict
 # Share of a story's word weight two stories must have in common to be one story.
 THREAD_SIMILARITY = 0.4
 # A story joining a thread must also resemble the thread's first story, so threads cannot chain
-# ("Papa recebe alta" -> "alta do dólar" -> ...).
-ANCHOR_SIMILARITY = 0.25
+# ("Papa recebe alta" -> "Papa fala com Putin" -> ...).
+ANCHOR_SIMILARITY = 0.3
 # Two stories sharing fewer words are never one story, however rare the words.
 MIN_SHARED_WORDS = 3
+# One story is about the same someone or somewhere (Papa, Jottapê, Oregon): headline templates
+# ("X x Y: onde assistir", "Atuações do X: dê suas notas") share words but never their names.
+MIN_SHARED_NAMES = 1
 # Shared names (Lula, Flávio) say who a story is about, not what happened; two stories must also
-# share this many words about the fact itself (alta, cirurgia, câncer).
+# share this many uncommon words about the fact itself (cirurgia, câncer, pulmão).
 MIN_SHARED_FACT_WORDS = 2
+# A description sentence repeated by this many stories is an outlet's boilerplate, not evidence.
+BOILERPLATE_REPEATS = 3
+# A word an outlet puts in this many headlines about different names is its headline template
+# ("Melhores momentos: ...", "Atuações do ...", "... - globoesporte.com"), not part of a story.
+TEMPLATE_REPEATS = 4
 # Words are compared by their first letters, so "retirar"/"retirada" and "câncer"/"cancerígeno" match.
 STEM_LENGTH = 6
 
@@ -47,6 +55,7 @@ _STOP = {_plain(word) for word in STOPWORDS}
 
 
 _ROMAN = {"i": 1, "v": 5, "x": 10, "l": 50, "c": 100}
+_YEAR = re.compile(r"(?:19|20)\d\d")
 
 
 def _roman(word):
@@ -60,14 +69,17 @@ def _roman(word):
     return str(total) if total > 0 else None
 
 
+def _lead(description):
+    return re.split(r"(?<=[.!?])\s+", (description or "").strip(), maxsplit=1)[0]
+
+
 def _words(title, description=""):
     """(stem, written as a name) for the words that say what a story is about.
 
     The description's first sentence adds the details outlets share about one fact. A word is
     written as a name when it is capitalized away from the start of a sentence.
     """
-    lead = re.split(r"(?<=[.!?])\s+", (description or "").strip(), maxsplit=1)[0]
-    for text in (title or "", lead):
+    for text in (title or "", _lead(description)):
         for position, match in enumerate(re.finditer(r"[^\W_]+", text)):
             raw = match.group()
             word = _roman(_plain(raw)) or _plain(raw)
@@ -81,23 +93,58 @@ def stems(title, description=""):
     return frozenset(stem for stem, _ in _words(title, description))
 
 
-def _similarity(a, b, weight, names=frozenset()):
-    shared = a & b
-    if len(shared) < MIN_SHARED_WORDS or len(shared - names) < MIN_SHARED_FACT_WORDS:
+def _templates(ordered, names):
+    """{source id: words that outlet repeats in headlines about different names}.
+
+    A story's headlines keep naming the same someone ("Papa", "Leão"); a template's headlines name
+    someone new each time ("Melhores momentos: Hamburg x Stuttgart", "... Dortmund ..."). A name the
+    template always carries ("pelo Alemão") is template too, so this repeats until nothing changes.
+    """
+    by_source = defaultdict(list)
+    for content in ordered:
+        by_source[content.get("source_id")].append(stems(content["title"]))
+    templates = {}
+    for source, headlines in by_source.items():
+        found = frozenset()
+        for _ in range(4):
+            uses = defaultdict(list)                       # word -> the other names of each headline using it
+            for headline in headlines:
+                for word in headline - found:
+                    uses[word].append((headline & names) - found - {word})
+            grown = found | {
+                word for word, others in uses.items()
+                if len(others) >= TEMPLATE_REPEATS
+                and sum(1 for other in others if other) * 2 >= len(others)
+                and max(Counter(name for other in others for name in other).values(), default=0) * 4 <= len(others) * 3}
+            if grown == found:
+                break
+            found = grown
+        templates[source] = found
+    return templates
+
+
+def _similarity(a, b, weight, names=frozenset(), uncommon=None, ignored=frozenset()):
+    shared = (a & b) - ignored
+    facts = {word for word in shared - names if (uncommon is None or word in uncommon) and not _YEAR.fullmatch(word)}
+    if len(shared) < MIN_SHARED_WORDS or len(shared & names) < MIN_SHARED_NAMES or len(facts) < MIN_SHARED_FACT_WORDS:
         return 0.0
     return sum(weight[word] for word in shared) / max(1e-9, min(sum(weight[word] for word in a), sum(weight[word] for word in b)))
 
 
 def story_threads(contents):
-    """{article id: thread id} for indexed articles (dicts with id, title, description, published_at, event_id).
+    """{article id: thread id} for indexed articles (dicts with id, title, description, source_id, published_at, event_id).
 
     Articles of one event always share a thread. A thread's id is the event (or article) id of its
     oldest story, so it stays the same while newer coverage joins it.
     """
     ordered = sorted(contents, key=lambda content: (content["published_at"] or "", content["id"]))
+    repeated = Counter(_plain(_lead(content.get("description"))) for content in ordered)
     words, as_name, as_word = {}, Counter(), Counter()
     for content in ordered:
-        found = list(_words(content["title"], content.get("description")))
+        description = content.get("description")
+        if repeated[_plain(_lead(description))] >= BOILERPLATE_REPEATS:
+            description = ""
+        found = list(_words(content["title"], description))
         words[content["id"]] = frozenset(stem for stem, _ in found)
         for stem, capitalized in found:
             (as_name if capitalized else as_word)[stem] += 1
@@ -108,6 +155,12 @@ def story_threads(contents):
     weight = {word: math.log(1 + total / count) for word, count in frequency.items()}
     # Only words rare enough to tell stories apart are used to find candidate threads.
     rare_limit = max(8, int(total * 0.02))
+    uncommon = frozenset(word for word, count in frequency.items() if count <= rare_limit)
+    templates = _templates(ordered, names)
+    source_of = {content["id"]: content.get("source_id") for content in ordered}
+    def similarity(story_id, other_id):
+        ignored = templates.get(source_of[story_id], frozenset()) | templates.get(source_of[other_id], frozenset())
+        return _similarity(words[story_id], words[other_id], weight, names, uncommon, ignored)
     postings = defaultdict(list)          # word -> thread ids with a story using it
     members = defaultdict(list)           # thread id -> article ids
     thread_of, thread_of_event = {}, {}
@@ -119,8 +172,8 @@ def story_threads(contents):
             candidates = {candidate for word in story_words if frequency[word] <= rare_limit for candidate in postings[word]}
             best, best_score = None, THREAD_SIMILARITY
             for candidate in sorted(candidates):
-                score = max(_similarity(story_words, words[member], weight, names) for member in members[candidate])
-                anchor = _similarity(story_words, words[members[candidate][0]], weight, names)
+                score = max(similarity(story_id, member) for member in members[candidate])
+                anchor = similarity(story_id, members[candidate][0])
                 if score >= best_score and anchor >= ANCHOR_SIMILARITY:
                     best, best_score = candidate, score
             thread = best or event_id or story_id
