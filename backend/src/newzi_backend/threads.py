@@ -137,7 +137,12 @@ def _similarity(a, b, weight, names=frozenset(), uncommon=None, ignored=frozense
     return sum(weight[word] for word in shared) / max(1e-9, min(sum(weight[word] for word in a), sum(weight[word] for word in b)))
 
 
-def story_threads(contents):
+def explain_pair(contents, story_a, story_b):
+    """Why two stories of ``contents`` are or are not one story (for diagnosing threads)."""
+    return story_threads(contents, explain=(story_a, story_b))
+
+
+def story_threads(contents, explain=None):
     """{article id: thread id} for indexed articles (dicts with id, title, description, source_id, published_at, event_id).
 
     Articles of one event always share a thread. A thread's id is the event (or article) id of its
@@ -164,9 +169,17 @@ def story_threads(contents):
     uncommon = frozenset(word for word, count in frequency.items() if count <= rare_limit)
     templates = _templates(ordered, words, names)
     source_of = {content["id"]: content.get("source_id") for content in ordered}
+    def ignored_for(story_id, other_id):
+        return templates.get(source_of[story_id], frozenset()) | templates.get(source_of[other_id], frozenset())
     def similarity(story_id, other_id):
-        ignored = templates.get(source_of[story_id], frozenset()) | templates.get(source_of[other_id], frozenset())
-        return _similarity(words[story_id], words[other_id], weight, names, uncommon, ignored)
+        return _similarity(words[story_id], words[other_id], weight, names, uncommon, ignored_for(story_id, other_id))
+    if explain:
+        a, b = explain
+        shared = words[a] & words[b]
+        return {"words_a": sorted(words[a]), "words_b": sorted(words[b]), "shared": sorted(shared),
+                "shared_names": sorted(shared & names), "shared_uncommon": sorted(shared & uncommon),
+                "ignored_as_template": sorted(shared & ignored_for(a, b)),
+                "similarity": round(similarity(a, b), 3), "rare_limit": rare_limit}
     postings = defaultdict(list)          # word -> thread ids with a story using it
     members = defaultdict(list)           # thread id -> article ids
     thread_of, thread_of_event = {}, {}
