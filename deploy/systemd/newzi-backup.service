@@ -1,0 +1,25 @@
+[Unit]
+Description=NEWZI daily backup of the product database
+After=local-fs.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=newzi
+Group=newzi
+EnvironmentFile=/etc/newzi/newzi.env
+# Copies (and rclone's config, which rclone rewrites when it refreshes its token) live here.
+StateDirectory=newzi-backup
+StateDirectoryMode=0700
+Environment=NEWZI_BACKUP_DIR=/var/lib/newzi-backup/copies
+Environment=RCLONE_CONFIG=/var/lib/newzi-backup/rclone.conf
+ExecStart=/usr/bin/python3 /opt/newzi/deploy/backup/newzi_backup.py
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# SQLite needs write access next to a WAL database even to read it.
+ReadWritePaths=/var/lib/newzi /var/lib/newzi-backup
+UMask=0077

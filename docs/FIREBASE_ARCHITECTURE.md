@@ -8,4 +8,6 @@ News, events, briefings, audio, deliveries, jobs, and scheduler state remain in 
 
 The backend keeps its internal user row for operational foreign keys and adds firebase_uid as a unique external identity key. New Firebase users use their Firebase UID as the row ID. Passwords, Firebase tokens, refresh tokens, and service-account material are never persisted.
 
-The Firestore rules in firebase/firestore.rules are kept only for existing data; nothing in the app reads or writes Firestore.
+Nothing in the app reads or writes Firestore. The rules in firebase/firestore.rules deny all access; the `users/{uid}` documents left from the old mirror can be deleted in the Firebase console.
+
+The product database is backed up daily by `deploy/systemd/newzi-backup.timer` (see `deploy/README.md`).
