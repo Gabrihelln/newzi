@@ -57,6 +57,16 @@ async def logout(request: Request, uid: str = Depends(current_user)):
     return await call(request, service.logout, uid, service.bearer_token(request.headers.get("authorization")), body.get("push_token"))
 
 
+@router.get("/api/v1/football/crests/{team_id}.png")
+async def football_crest(team_id: int, request: Request):
+    """A team's official crest, cached on our server (public, like any crest)."""
+    from ...football_favorites import crest_file
+    path = await call(request, lambda: crest_file(service_of(request).repo, team_id))
+    if not path:
+        raise not_found("crest not found")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800", "X-Content-Type-Options": "nosniff"})
+
+
 @router.get("/api/v1/covers/edition.png")
 async def edition_cover(request: Request, period: str = "morning", day: str = "", items: int = 0, minutes: int = 0):
     """Cover art of a daily edition for the media notification and the lock screen (see covers.py).

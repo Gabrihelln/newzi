@@ -498,7 +498,7 @@ class BriefingGenerationWorker:
             return
 
 
-WORKER_ROLES = ("news", "schedule", "generation", "audio", "notifications", "breaking", "retention")
+WORKER_ROLES = ("news", "schedule", "generation", "audio", "notifications", "breaking", "football", "retention")
 
 
 def parse_worker_roles(value=None):
@@ -538,6 +538,8 @@ class BriefingDeliveryWorker:
         self.news_refresh=NewsRefreshWorker(repo)
         self.notifications=NotificationService(repo)
         self.breaking=BreakingNewsService(repo)
+        from .football_alerts import FootballAlertService
+        self.football=FootballAlertService(repo)
         self.interval_seconds=max(1.0,float(interval_seconds or os.getenv("DELIVERY_WORKER_POLL_SECONDS","15")))
         self.batch_size=max(1,int(batch_size or os.getenv("WORKER_BATCH_SIZE","20")))
         self.notification_batch=max(1,int(os.getenv("NOTIFICATION_BATCH_SIZE","200")))
@@ -583,6 +585,7 @@ class BriefingDeliveryWorker:
             result["audio"]=self.audio.generate_batch()
         if "generation" in roles: self.generation._publish_manual_refreshes()
         if "breaking" in roles: result["breaking_news"]=self.breaking.run_once()
+        if "football" in roles: result["football_alerts"]=self.football.run_once()
         if "notifications" in roles:
             result["notifications_enqueued"]=self.notifications.enqueue_ready()
             result["notification_delivery"]=self.notifications.run_batch(self.notification_batch)

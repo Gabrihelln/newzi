@@ -328,6 +328,25 @@ def _user_avatars(db):
         db.execute("ALTER TABLE users ADD COLUMN avatar_file TEXT")
 
 
+def _football_favorites(db):
+    """Team catalog with crests, favourite teams, followed games, the alerts worker's last seen state of each
+    game, and the team alert switches."""
+    text, integer = render_column("TEXT", db.dialect), render_column("INTEGER", db.dialect)
+    db.execute("CREATE TABLE IF NOT EXISTS football_teams(id BIGINT PRIMARY KEY, name TEXT NOT NULL, tla TEXT, crest_url TEXT, "
+               "competitions TEXT NOT NULL DEFAULT '[]', updated_at TEXT NOT NULL)")
+    db.execute("CREATE TABLE IF NOT EXISTS user_favorite_teams(user_id TEXT NOT NULL, team_id BIGINT NOT NULL, "
+               f"position {integer} NOT NULL DEFAULT 0, created_at TEXT NOT NULL, PRIMARY KEY(user_id,team_id))")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_favorite_teams_team ON user_favorite_teams(team_id)")
+    db.execute("CREATE TABLE IF NOT EXISTS user_followed_matches(user_id TEXT NOT NULL, match_id BIGINT NOT NULL, "
+               "created_at TEXT NOT NULL, PRIMARY KEY(user_id,match_id))")
+    db.execute("CREATE TABLE IF NOT EXISTS football_match_states(match_id BIGINT PRIMARY KEY, status TEXT NOT NULL, "
+               f"home_goals {integer}, away_goals {integer}, updated_at TEXT NOT NULL)")
+    columns = set(db.table_columns("notification_settings"))
+    for name in ("team_kickoff_enabled", "team_goals_enabled", "team_final_enabled", "team_news_enabled"):
+        if name not in columns:
+            db.execute(f"ALTER TABLE notification_settings ADD COLUMN {name} {render_column('INTEGER NOT NULL DEFAULT 1', db.dialect)}")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -337,6 +356,7 @@ MIGRATIONS = [
     ("0006_subscriptions", _subscriptions),
     ("0007_per_user_editions", _per_user_editions),
     ("0008_user_avatars", _user_avatars),
+    ("0009_football_favorites", _football_favorites),
 ]
 
 

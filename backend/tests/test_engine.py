@@ -536,7 +536,8 @@ def test_football_overview_cache_and_audience(monkeypatch):
     table = service.standings("BSA")
     assert table["matchday"] == 30 and table["competition"] == {"code": "BSA", "name": "Brasileirão"} and len(table["groups"]) == 1
     assert table["groups"][0]["name"] is None and table["groups"][0]["rows"][0] == {
-        "position": 1, "team": "Palmeiras", "tla": "PAL", "played": 29, "won": 19, "draw": 4, "lost": 6, "goal_difference": 25, "points": 61}
+        "position": 1, "team": "Palmeiras", "team_id": None, "tla": "PAL", "crest": None, "played": 29, "won": 19, "draw": 4, "lost": 6,
+        "goal_difference": 25, "points": 61, "form": [], "zone": "libertadores"}
     assert football._group_name("GROUP_B") == "Grupo B"
     clock[0] = 4000.0
     service.fetch = lambda path, params=None: (_ for _ in ()).throw(ConnectionError("down"))
@@ -577,7 +578,7 @@ def test_subscription_plans_and_access(tmp_path, monkeypatch):
     now = datetime(2026, 10, 14, 12, 0, tzinfo=timezone.utc)
     monkeypatch.delenv("BILLING_ENABLED", raising=False)
     basic = subscription_for(repo, uid, now)
-    assert basic["tier"] == "basic" and basic["limits"] == {"briefing_times": 1} and not basic["purchases_enabled"]
+    assert basic["tier"] == "basic" and basic["limits"] == {"briefing_times": 1, "favorite_teams": 1} and not basic["purchases_enabled"]
     assert [plan["id"] for plan in basic["plans"]] == ["annual", "monthly"] and not basic["will_renew"]
 
     def store(status, expires_at, auto_renew=1):

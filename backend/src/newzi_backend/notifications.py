@@ -45,11 +45,17 @@ class NotificationKind:
 NOTIFICATION_KINDS = {
     "DAILY_BRIEFING": NotificationKind("DAILY_BRIEFING", "daily_briefing_enabled", "daily_briefing", timedelta(hours=3)),
     "BREAKING_NEWS": NotificationKind("BREAKING_NEWS", "breaking_news_enabled", "breaking_news", timedelta(hours=1)),
+    # Favourite teams and followed games (football_alerts.py); a late game alert is stale, so they expire fast.
+    "TEAM_KICKOFF": NotificationKind("TEAM_KICKOFF", "team_kickoff_enabled", "team_alerts", timedelta(minutes=20)),
+    "TEAM_GOAL": NotificationKind("TEAM_GOAL", "team_goals_enabled", "team_alerts", timedelta(minutes=15)),
+    "TEAM_FINAL": NotificationKind("TEAM_FINAL", "team_final_enabled", "team_alerts", timedelta(hours=2)),
+    "TEAM_NEWS": NotificationKind("TEAM_NEWS", "team_news_enabled", "team_alerts", timedelta(hours=2)),
 }
 # Announcements and promotions are not here: they are sent from the Firebase console to the FCM topics every
 # phone joins (mobile/src/push/topics.ts), to everyone whose phone allows notifications, with no switch.
 # Every switch and its value for a new account.
-SETTING_DEFAULTS = {"notifications_enabled": True, "daily_briefing_enabled": True, "breaking_news_enabled": False}
+SETTING_DEFAULTS = {"notifications_enabled": True, "daily_briefing_enabled": True, "breaking_news_enabled": False,
+                    "team_kickoff_enabled": True, "team_goals_enabled": True, "team_final_enabled": True, "team_news_enabled": True}
 SETTING_FIELDS = tuple(SETTING_DEFAULTS)
 
 
@@ -241,11 +247,12 @@ class NotificationService:
             # The user turned this kind of notice off after it was queued.
             self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='turned off in the notification settings' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
             return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
-        if job["notification_type"]=="BREAKING_NEWS":
+        if job["notification_type"]!="DAILY_BRIEFING":
+            # Breaking news and team alerts are queued with their message; one delivered late is noise, so it is dropped.
             message=json.loads(job["payload_json"] or "null")
-            if not message or parse(job["scheduled_for"])<now-self.breaking_max_delay:
-                # A breaking alert delivered hours late is noise; drop it instead.
-                self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='breaking news is no longer fresh' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
+            max_delay=self.breaking_max_delay if job["notification_type"]=="BREAKING_NEWS" else NOTIFICATION_KINDS.get(job["notification_type"],NOTIFICATION_KINDS["BREAKING_NEWS"]).ttl
+            if not message or parse(job["scheduled_for"])<now-max_delay:
+                self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='alert is no longer fresh' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
                 return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
             title,body,data=message["title"],message["body"],message["data"]
         else:

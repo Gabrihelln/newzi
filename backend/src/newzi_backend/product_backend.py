@@ -473,7 +473,8 @@ class ProductRepository:
         *(f"DELETE FROM {table} WHERE user_id=?" for table in (
             "saved_story_progress", "saved_stories", "article_feedback", "saved_briefings", "briefing_listening_progress",
             "generation_jobs", "user_briefing_deliveries", "manual_refresh_requests", "notification_jobs", "push_devices",
-            "notification_settings", "subscriptions", "auth_sessions", "user_preferences")),
+            "notification_settings", "subscriptions", "auth_sessions", "user_preferences", "user_favorite_teams",
+            "user_followed_matches")),
         "DELETE FROM users WHERE id=?",
     )
 

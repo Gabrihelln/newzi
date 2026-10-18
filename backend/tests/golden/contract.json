@@ -19021,6 +19021,10 @@
    "notifications_enabled": true,
    "daily_briefing_enabled": true,
    "breaking_news_enabled": false,
+   "team_kickoff_enabled": true,
+   "team_goals_enabled": true,
+   "team_final_enabled": true,
+   "team_news_enabled": true,
    "briefing_time": "07:00",
    "briefing_size": 5,
    "breaking_news_rules": {
@@ -19041,6 +19045,10 @@
    "notifications_enabled": true,
    "daily_briefing_enabled": false,
    "breaking_news_enabled": false,
+   "team_kickoff_enabled": true,
+   "team_goals_enabled": true,
+   "team_final_enabled": true,
+   "team_news_enabled": true,
    "briefing_time": "07:00",
    "briefing_size": 5,
    "breaking_news_rules": {

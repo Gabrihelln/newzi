@@ -114,17 +114,73 @@ async def rate_article(story_id: str, request: Request, uid: str = Depends(curre
 
 @router.get("/football")
 async def football(request: Request, uid: str = Depends(current_user), scope: str = ""):
-    """Live and upcoming games worldwide; ``scope=explore`` is the Explore card, shown to everyone."""
+    """Live and upcoming games worldwide; ``scope=explore`` is the Explore card, shown to everyone.
+    Also says which teams are the person's favourites and which games they follow (stars and bells)."""
     from ...football import football_for
+    from ...football_favorites import favorites
     service = service_of(request)
-    return await call(request, lambda: football_for(service.repo.get_preferences(uid), require_follow=scope != "explore"))
+
+    def run():
+        data = football_for(service.repo.get_preferences(uid), require_follow=scope != "explore", repo=service.repo)
+        mine = favorites(service.repo, uid)
+        return {**data, "favorite_team_ids": [team["id"] for team in mine["teams"]], "followed_match_ids": mine["followed_matches"]}
+    return await call(request, run)
 
 
 @router.get("/football/standings/{code}")
 async def football_standings(request: Request, code: str, uid: str = Depends(current_user)):
-    """One competition's table (BSA, CLI, PL...)."""
+    """One competition's table (BSA, PL...), with crests, last results and zones."""
     from ...football import football_standings as standings
-    return await call(request, lambda: standings(code))
+    service = service_of(request)
+    return await call(request, lambda: standings(code, repo=service.repo))
+
+
+@router.get("/football/rounds/{code}")
+async def football_round(request: Request, code: str, uid: str = Depends(current_user), matchday: int = 0):
+    """The games of one round of a competition (the current one by default)."""
+    from ...football import football_round as round_games
+    service = service_of(request)
+    return await call(request, lambda: round_games(code, matchday or None, repo=service.repo))
+
+
+@router.get("/football/teams")
+async def football_teams(request: Request, uid: str = Depends(current_user), q: str = "", competition: str = ""):
+    """Teams for the favourites screen: a competition's teams or a search by name."""
+    from ...football_favorites import search_teams
+    service = service_of(request)
+    return await call(request, lambda: search_teams(service.repo, q, competition))
+
+
+@router.get("/football/favorites")
+async def football_favorites(request: Request, uid: str = Depends(current_user)):
+    from ...football_favorites import favorites
+    service = service_of(request)
+    return await call(request, lambda: favorites(service.repo, uid))
+
+
+@router.put("/football/favorites")
+async def save_football_favorites(request: Request, uid: str = Depends(current_user)):
+    """Favourite teams in order (Básico: 1) and the team alert switches."""
+    from ...football_favorites import FavoritesError, save_favorites
+    from ...product_backend import ApiError
+    service = service_of(request)
+    body = await json_body(request)
+
+    def run():
+        try:
+            return save_favorites(service.repo, uid, body)
+        except FavoritesError as exc:
+            raise ApiError(exc.code, str(exc), 403 if exc.code == "FAVORITES_LIMIT" else 400) from None
+    return await call(request, run)
+
+
+@router.put("/football/matches/{match_id}/follow")
+async def follow_football_match(match_id: int, request: Request, uid: str = Depends(current_user)):
+    """The bell of a game: alerts for its kickoff, goals and final result."""
+    from ...football_favorites import follow_match
+    service = service_of(request)
+    body = await json_body(request)
+    return await call(request, lambda: follow_match(service.repo, uid, match_id, bool(body.get("following"))))
 
 
 @router.get("/trending")

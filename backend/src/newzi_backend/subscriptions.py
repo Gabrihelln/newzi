@@ -15,7 +15,7 @@ PLANS = [
     {"id": "annual", "name": "Anual", "price": "R$ 119,90", "per": "ano", "monthly_equivalent": "R$ 9,99", "savings_percent": 33},
     {"id": "monthly", "name": "Mensal", "price": "R$ 14,90", "per": "mês"},
 ]
-LIMITS = {"basic": {"briefing_times": 1}, "premium": {"briefing_times": 4}}
+LIMITS = {"basic": {"briefing_times": 1, "favorite_teams": 1}, "premium": {"briefing_times": 4, "favorite_teams": 10}}
 # A cancelled plan keeps Premium until it expires; "grace" is a failed renewal the store is still retrying.
 WITH_ACCESS = {"active", "grace", "canceled"}
 PREMIUM_BENEFITS = [
