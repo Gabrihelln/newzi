@@ -6,6 +6,45 @@
 > fazer e espere ele confirmar. Ao terminar uma etapa, marque o `[ ]` como `[x]` neste arquivo.
 > Não pule a seção **Regras do projeto**.
 
+## 0. Ao voltar ao Mac: comece por aqui (atualizado em 2026-10-18, à noite)
+
+Desde a última sessão no Mac (registro de 2026-10-18 na seção 11, commit `f6c4678`), o `main` recebeu os commits
+`e3af3c0` → `06595ca`, feitos e testados **só no Android**. Faça nesta ordem e marque cada item:
+
+1. [ ] **Código** [Claude]: `git pull` em `main`; `cd mobile && npm ci`. O `postinstall` roda o `patch-package`
+   (`mobile/patches/react-native-video+6.19.3.patch`, que só muda o código **Android** do player; no iOS não
+   faz nada). Se o `npm ci` reclamar do patch, veja se o arquivo continua com fim de linha LF (`.gitattributes`).
+2. [ ] **Pods** [Claude]: `cd mobile/ios && pod install` (use `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` se der erro de
+   Unicode). Entram dois pods novos: **`react-native-image-picker` 8.2.1** (foto do perfil) e
+   **`@callstack/liquid-glass` 0.8.2** (`LiquidGlass`, barra de navegação). O Liquid Glass usa APIs do iOS 26:
+   compile com o **Xcode 26**. Confira também que o `RNAppleAuthentication` continua no `Podfile.lock`.
+3. [ ] **Compilar e instalar** no iPhone (seção 6.2) e rodar `npm run typecheck` em `mobile/`.
+4. [ ] **Testar o que mudou** (roteiro abaixo) em modo claro **e** escuro; anotar na seção 11 o que falhar.
+5. [ ] **Pendências antigas** que continuam abertas: 5.5 (áudio em segundo plano e tela de bloqueio), 5.6 passo 4
+   (login Google e Apple, sair/entrar, excluir conta Apple), 6.1 (simulador) e o roteiro completo da seção 7.
+6. [ ] Se tudo estiver bem, **novo build no TestFlight** (seção 8): aumentar `CURRENT_PROJECT_VERSION` antes.
+
+### 0.1 O que mudou e precisa ser testado no iPhone
+| Área | O que conferir no iPhone | Onde está o código |
+|---|---|---|
+| **Notificações (onboarding)** | Na etapa "Ative as notificações", com "Resumo diário"/"Notícias urgentes" ligados, "Ativar" mostra o pedido de permissão do iOS; recusar não trava o cadastro; "Agora não" pula sem pedir | `OnboardingScreen.tsx` (etapa 7), `push/push.ts` |
+| **Perfil › Notificações** | Cartão azul (permitido) ou laranja com "Ativar permissão" (bloqueado/sem resposta: no iOS, "Ativar" abre os Ajustes depois da 1ª recusa); cada chave salva sozinha; ao voltar dos Ajustes o cartão muda | `NotificationSettingsScreen.tsx` |
+| **Push** | Não existe mais aviso dentro do app com ele aberto (decisão do Gabriel). Notícia urgente: título = manchete, texto = resumo curto da matéria; tocar abre a matéria. Resumo diário: "10 notícias selecionadas para você · 5 min" | backend `breaking.py`, `notifications.py`; `navigation/notificationRouting.ts` |
+| **Novidades e promoções** | O app inscreve todo aparelho nos tópicos FCM `novidades` e `promocoes` ao abrir; testar com uma campanha do Firebase Console para o tópico; tocar com dado `screen=Subscription` (ou `story_id`) abre a tela | `push/topics.ts` |
+| **Login** | Botão da Apple só no iPhone; Google e Apple funcionando (5.6) | `AuthScreens.tsx`, `services/firebaseAuth.ts` |
+| **Segurança e privacidade** | "Alterar senha" (senha atual + nova + confirmação) para contas de e-mail; contas Google/Apple mostram aviso no lugar | `ProfileScreen.tsx` |
+| **Dados pessoais / Editar perfil** | Cartão com foto ou iniciais, selos, "Este aparelho: iPhone · ativo agora", zona de perigo; **Trocar foto** pela câmera e pela galeria (o iOS pede permissão com os textos `NSCameraUsageDescription` e `NSPhotoLibraryUsageDescription` já no `Info.plist`); a foto nova aparece no cabeçalho | `AccountScreen.tsx`, `EditProfileScreen.tsx`, `services/profilePhoto.ts` |
+| **Resumo diário** | Cartão "Próximo resumo" muda ao mexer no horário; barra "Salvar alterações" fixa só com mudança; prévia (▶) da voz toca | `DailyBriefingSettingsScreen.tsx` |
+| **Preferências de conteúdo** | Cartão de resumo, busca, chips, domínios com progresso, "Acompanhar tudo", contador de alterações e confirmação ao sair sem salvar | `ContentPreferencesScreen.tsx` |
+| **Cabeçalho e busca** | Mesmo cabeçalho (logo + avatar de 42 px) em Início, Explorar, Salvos e Perfil, sem pular ao trocar de aba; **nenhuma lupa** em lugar nenhum (a busca é só o campo do Explorar) | `AppHeader.tsx` |
+| **Barra de navegação** | Quase até as bordas, ícones espalhados, player no meio, sombra; **Liquid Glass no iOS 26** (5.6.1); nada encoberto pela barra inferior do iPhone | `navigation/RootNavigator.tsx` |
+| **Mascote** | O robô saiu do app inteiro: avatar sem foto = iniciais; capas = "capa da edição" desenhada (folhas sobre degradê de manhã/tarde/noite) | `EditionCover.tsx` |
+| **Explorar** | "Seus assuntos" com "Editar", cards "Em alta" com ranking, "+N hoje" e ícone do assunto, ordenação em pílula | `ExploreScreen.tsx` |
+| **Player e Capítulos** | Capa da edição, fechar/compartilhar, selo "Agora", controles capítulo · −15 · play · +15 · capítulo; Capítulos com faixa "Tocando" e card inteiro clicável | `BriefingAudioScreen.tsx`, `AudioChaptersScreen.tsx` |
+| **Tela de bloqueio / Central de Controle** | O "Now Playing" mostra a **capa da edição** como capa de álbum (o iOS baixa `https://api.newzi.app/api/v1/covers/edition.png?...`), título "Resumo da tarde · 18 out" e artista "Newzi". Confira também se os botões de avançar/voltar pulam 15 s (no Android o patch ajustou; no iOS o `react-native-video` define o salto sozinho: se não for 15 s, ajustar só para iOS) | `audio/AudioEngine.tsx`, `audio/player.ts`, backend `covers.py` |
+| **Salvar** | Ícone de salvar fica totalmente preenchido ao salvar (cards, leitura, player, Salvos) | `Icon.tsx` (`filled`) |
+| **Esportes (futebol)** | Card de futebol do Explorar → Esportes: "Meus times" (anel vermelho e placar ao vivo), jogos ao vivo com escudos grandes, próximos jogos por dia e campeonato com estrela e sino; Tabelas (pílulas, Jogos com rodada, Tabela com zonas, últimos resultados e seus times); Times favoritos (busca, grade de escudos, avisos de início, gols, resultado e notícias). Escudos oficiais vêm de `https://api.newzi.app/api/v1/football/crests/{id}.png` | `FootballScreen.tsx`, `FootballTablesScreen.tsx`, `FavoriteTeamsScreen.tsx`, backend `football*.py` |
+
 Este guia substitui `docs/IOS_BRINGUP_CHECKLIST.md` e a parte de "Mac execution" de
 `docs/MOBILE_IOS_COMPATIBILITY.md`, que estão desatualizados (citam `react-native-sound`, trocado por
 `react-native-video`).
@@ -18,25 +57,28 @@ Este guia substitui `docs/IOS_BRINGUP_CHECKLIST.md` e a parte de "Mac execution"
 
 | Parte | Pasta | Estado |
 |---|---|---|
-| Backend (API FastAPI) | `backend/` | Funcionando; 53 testes passando (`python -m pytest -q backend/tests`) |
+| Backend (API FastAPI) | `backend/` | No ar em `https://api.newzi.app`; 91 testes passando (`python -m pytest -q backend/tests`) |
 | Engine (coleta de notícias, briefing, áudio, push) | `engine/` | Funcionando; worker com `python engine/main.py --delivery-worker` |
 | App Android | `mobile/android/` | Funcionando e testado em aparelho real (Android, via USB) |
-| **App iOS** | `mobile/ios/` | **Nunca foi compilado.** O projeto Xcode existe, mas faltam as configurações abaixo |
+| **App iOS** | `mobile/ios/` | Compila e roda no iPhone; build 1 no TestFlight. Faltam os testes da seção 0 e as pendências da 5.x |
 
 O app é **um só código React Native** (`mobile/src/`, TypeScript) para Android e iOS. Quase tudo já funciona
 no iOS sem mudar código de tela; o que falta é **configuração nativa** (Xcode, Firebase, Apple) e testes.
 
 ### O app hoje (o que precisa funcionar no iPhone)
-- Login por e-mail/senha (Firebase Auth). Login com Google está **desligado** nas duas plataformas
-  (`GOOGLE_WEB_CLIENT_ID` vazio em `mobile/src/config/socialAuth.ts`).
-- Onboarding (escolha de assuntos), Home (destaque, últimas, selo "Em alta"), Explorar (assuntos com ícones,
-  card de futebol, tela Futebol com jogos e tabelas), Salvos, Perfil.
+- Login por e-mail/senha (Firebase Auth), **Google** (Android e iPhone) e **Apple** (só iPhone); troca de senha
+  dentro do app. "Esqueci minha senha" com o app deslogado ficou para depois (decisão do Gabriel).
+- Onboarding (assuntos e avisos), Home (destaque, últimas, selo "Em alta"), Explorar (busca, assuntos, "Em alta",
+  card de futebol, tela Futebol com jogos e tabelas), Salvos, Perfil (dados pessoais com foto, resumo diário,
+  preferências de conteúdo, notificações, segurança). **Sem mascote** e **sem botões de busca** fora do Explorar.
 - Briefing diário em áudio (player com `react-native-video`, tocando em segundo plano e na tela de bloqueio).
-- Notificações push (Firebase Cloud Messaging; no iOS passa pelo APNs da Apple).
+- Notificações push (Firebase Cloud Messaging; no iOS passa pelo APNs da Apple): resumo diário, notícias urgentes
+  (3+ veículos, só para quem segue o assunto) e novidades/promoções enviadas pelo Firebase Console a tópicos.
 - Modo escuro (automático pelo sistema ou escolhido em Perfil › Aparência).
 - Perfil › Assinatura e plano (Básico × Premium). **A compra ainda não funciona em nenhuma plataforma**
   (ver seção 9).
-- Cache offline (MMKV + TanStack Query) e armazenamento seguro do login (Keychain no iOS).
+- Cache offline (MMKV + TanStack Query, sem faixa de "Sem conexão" por decisão do Gabriel) e armazenamento
+  seguro do login (Keychain no iOS).
 
 ### Identificadores
 - Bundle ID iOS: **`app.newzi.ios`** / pacote Android: **`com.newzi.app`**. São diferentes porque o
@@ -192,10 +234,11 @@ e entregue ao Claude.
    o swizzling sozinho). Conferido: não precisa; ele registra o APNs sozinho.
 4. Teste rápido sem a VPS: Firebase › *Messaging* › nova campanha › *Mensagens do Firebase Notifications*,
    app iOS `app.newzi.ios`. As rotas de dev de push ficam desligadas em produção.
-3. Teste no iPhone: permitir notificações → em Perfil › Notificações, conferir; enviar um push de teste pelo
-   backend (rotas de dev em `backend/src/newzi_backend/api/routes/dev.py`) com o app aberto (aviso dentro do
-   app), em segundo plano e fechado; tocar na notificação deve abrir a tela certa
-   (`mobile/src/navigation/notificationRouting.ts`).
+3. Teste no iPhone: permitir notificações → em Perfil › Notificações, conferir; enviar um push de teste com o
+   app aberto (**não aparece nada**: o aviso dentro do app foi removido de propósito), em segundo plano e
+   fechado; tocar na notificação deve abrir a tela certa (`mobile/src/navigation/notificationRouting.ts`).
+   Para testar num aparelho só: Firebase Console › Messaging › "Enviar mensagem de teste" com o token do
+   aparelho (o token está em `push_devices` no banco da VPS).
 
 ### 5.4 [x] Rede local no iPhone (modo desenvolvimento)
 - iPhone e Mac na **mesma rede Wi-Fi**. O app em debug baixa o código do Metro pelo IP do Mac; a API é a
@@ -214,8 +257,10 @@ O player (`mobile/src/audio/AudioEngine.tsx`) usa `playInBackground`, `playWhenI
 `ignoreSilentSwitch="ignore"` e `showNotificationControls`. No iPhone, valide:
 - o áudio toca com a chave de silencioso ligada;
 - continua com a tela bloqueada e com o app em segundo plano;
-- os controles aparecem na tela de bloqueio/Central de Controle e funcionam (play/pause/avançar).
-Se algo falhar, ajuste somente as props/configuração do `react-native-video` 6.19.3 para iOS.
+- os controles aparecem na tela de bloqueio/Central de Controle e funcionam (play/pause/avançar);
+- a **capa da edição** aparece como capa de álbum e o título é "Resumo da manhã/tarde/noite · dia" (seção 0.1).
+Se algo falhar, ajuste somente as props/configuração do `react-native-video` 6.19.3 para iOS. O patch em
+`mobile/patches/` é só do Android (notificação de mídia única, ícone do app, saltos de 15 s).
 
 ### 5.6 [ ] Login social: Google e Apple (código e configuração prontos em 2026-10-18; falta testar no Mac)
 Regra do produto: **Android só tem Google; iPhone tem Google e Apple** (o botão da Apple só aparece no iOS,
@@ -303,6 +348,8 @@ rode o esquema `NewsEngineNative`. O simulador usa a API online. Push não funci
 | App abre mas diz que não conecta ao servidor | Teste `https://api.newzi.app/health` no Safari do iPhone; se falhar, veja `systemctl status newzi-api` na VPS. Com `DEV_API_URL` local: backend parado ou fora de `0.0.0.0:8090` |
 | Erro de assinatura | Team não selecionado ou bundle ID já usado em outra conta |
 | Fonte diferente do Android | Etapa 5.1 incompleta |
+| Erro de compilação no `LiquidGlass` | Xcode anterior ao 26 (as APIs de vidro são do iOS 26 SDK): use o Xcode 26 |
+| "Trocar foto" não abre a câmera | Falta `pod install` (`react-native-image-picker`) ou a permissão de câmera foi negada em Ajustes › Newzi |
 | `pod install` quebra com `Unicode Normalization not appropriate for ASCII-8BIT` | Locale do terminal: rode `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install` |
 | Debug não linka: `Undefined symbols … Sealable`/`getDebugName` | `Pods/React-Core-prebuilt` ficou na versão Release (depois de um archive) sem o arquivo `.last_build_configuration`. Em `mobile/ios/Pods`: `printf Release > React-Core-prebuilt/.last_build_configuration` e `node ../../node_modules/react-native/scripts/replace-rncore-version.js -c Debug -r 0.86.3 -p "$PWD"` |
 
@@ -314,14 +361,18 @@ Marque cada item depois de testar no **aparelho real**, em modo **claro e escuro
 - [ ] Cadastro, login, sair, abrir de novo com a sessão restaurada
 - [ ] Onboarding: escolher assuntos e "acompanhar tudo"
 - [ ] Home: destaque, últimas notícias, selo "Em alta", abrir notícia, salvar, avaliar
-- [ ] Explorar: busca, assuntos com ícones próprios, "Ver mais assuntos", card de futebol → tela Futebol
-      (abas Jogos e Tabelas, filtro por campeonato)
+- [ ] Explorar: busca pelo campo (única busca do app), "Seus assuntos" › Editar, cards "Em alta", ordenação,
+      "Ver mais assuntos", card de futebol → tela Futebol (abas Jogos e Tabelas, filtro por campeonato)
 - [ ] Salvos: lista, organizados por assunto, continuar lendo
-- [ ] Briefing: tocar, pausar, avançar, velocidade, capítulos, tela de bloqueio, segundo plano, silencioso
-- [ ] Perfil: editar perfil, preferências de conteúdo, briefing diário (horário; "Adicionar outro horário"
-      abre o aviso Premium), voz, notificações, aparência (automático/claro/escuro), assinatura e plano
-- [ ] Push: permissão, recebimento com app aberto/em segundo plano/fechado, toque abrindo a tela certa
-- [ ] Sem internet: o app mostra o conteúdo em cache
+- [ ] Briefing: tocar, pausar, −15/+15 s, capítulo anterior/próximo, velocidade, Capítulos (tocar no card leva ao
+      capítulo; pausar pela faixa do topo), mini player, tela de bloqueio com capa, segundo plano, silencioso
+- [ ] Perfil: dados pessoais, editar perfil (foto pela câmera e pela galeria, nome), preferências de conteúdo,
+      resumo diário (horário, tamanho, idioma, cobertura, áudio e voz), notificações, segurança (alterar senha),
+      aparência (automático/claro/escuro). Assinatura e plano ficam escondidos no iOS (5.9)
+- [ ] Push: permissão (onboarding e Perfil), recebimento em segundo plano/fechado (aberto não mostra nada),
+      toque abrindo a tela certa; campanha do Console para o tópico `novidades`
+- [ ] Sem internet: o app mostra o conteúdo em cache (sem faixa amarela)
+- [ ] Barra de navegação: Liquid Glass no iOS 26; nada coberto pela barra
 - [ ] Áreas seguras: nada escondido pelo notch/Dynamic Island nem pela barra inferior; teclado não cobre campos
 - [ ] Imagens: fotos em WebP aparecem (o iOS usa o proxy de WebP em `ArticleImage.tsx`)
 
@@ -369,6 +420,10 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 - Backend e worker rodam na VPS em `https://api.newzi.app` (`deploy/` tem nginx e systemd).
 - Android: configuração de produção, build de release assinado, Crashlytics.
 - Login social: Google no Android; Google e Apple no iPhone (ver 5.6).
+- "Esqueci minha senha" com o app deslogado: decidir depois (provável e-mail de redefinição do próprio Firebase).
+- Fotos de perfil ficam em `/var/lib/newzi/avatars` na VPS e ainda **não entram no backup diário**.
+- Regra 4.5.4 da App Store (push de promoção pede aceite no app): hoje a permissão do sistema é o único filtro;
+  se a revisão reclamar, criar o aceite e o jeito de desistir.
 - Copa do Brasil não está no plano gratuito do football-data.org; a tabela da Libertadores também não.
 
 ---

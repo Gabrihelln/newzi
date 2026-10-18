@@ -34,6 +34,19 @@ Every push also needs `notifications_enabled`. The switches are checked when a j
 
 `NotificationService.enqueue_ready` creates one `DAILY_BRIEFING` job per active device only after the delivery is READY for its selected voice and references a validated audio artifact and narration script for the same edition. The job is unique by delivery, device and notification type. `scheduled_for` uses the delivery's local IANA timezone and `briefing_time`; generation lead time does not move push earlier. A 30-minute late-delivery tolerance admits READY deliveries that finish shortly after the target. `run_once` revalidates the persisted delivery and media file immediately before sending, retries transient failures with bounded backoff and disables invalid tokens. One device failure does not prevent other devices.
 
+## Favourite teams and followed games (worker role `football`)
+
+Esportes › Times favoritos stores favourite teams (`user_favorite_teams`; Básico 1, Premium 10) and the switches
+`team_kickoff_enabled`, `team_goals_enabled`, `team_final_enabled` and `team_news_enabled` (migration 0009, on by
+default). The bell on a game stores it in `user_followed_matches`. The `football` role (`football_alerts.py`) reads
+football-data.org's game list every minute (the same cached call as the API) and compares each game someone cares
+about with `football_match_states`: scheduled → in play sends `TEAM_KICKOFF`, a side's score going up `TEAM_GOAL`,
+→ finished `TEAM_FINAL` (with the person's team place in the table). A game seen for the first time is only
+recorded. Every five minutes, a football article from the last 3 h whose headline names a favourite team sends
+`TEAM_NEWS` (at most `TEAM_NEWS_PER_DAY`, 3, per team, never in quiet hours). They use the Android channel
+`team_alerts` ("Seu time"); game alerts open Esportes, news opens the story. Free-plan limits: no minute, scorers or
+recent form from the provider (the table's last results are computed from the season's games).
+
 ## Announcements and promotions (Firebase console)
 
 General announcements ("Novidades do Newzi") and promotions ("Ofertas e promoções") are not sent by the backend and have no switch in the app: every install joins the FCM topics `novidades` and `promocoes` on launch (`mobile/src/push/topics.ts`), so they reach everyone whose phone allows notifications, signed in or not, whatever the in-app switches say. On Android each has its own channel (`announcements`, `promotions`) that people can mute in the system settings.
