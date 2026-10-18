@@ -217,30 +217,36 @@ O player (`mobile/src/audio/AudioEngine.tsx`) usa `playInBackground`, `playWhenI
 - os controles aparecem na tela de bloqueio/Central de Controle e funcionam (play/pause/avançar).
 Se algo falhar, ajuste somente as props/configuração do `react-native-video` 6.19.3 para iOS.
 
-### 5.6 [ ] Login social: Google e Apple (fazer depois, a pedido do Gabriel)
-Hoje só existe login por e-mail/senha; o botão do Google está desligado (`GOOGLE_WEB_CLIENT_ID` vazio em
-`mobile/src/config/socialAuth.ts`). Os dois logins entram **juntos**: pela **diretriz 4.8** da Apple, um app
-com login do Google precisa oferecer também "Entrar com a Apple", senão a App Store recusa.
+### 5.6 [ ] Login social: Google e Apple (código e configuração prontos em 2026-10-18; falta testar no Mac)
+Regra do produto: **Android só tem Google; iPhone tem Google e Apple** (o botão da Apple só aparece no iOS,
+`appleSignInAvailable` em `mobile/src/services/firebaseAuth.ts`). Pela **diretriz 4.8** da Apple, um app com
+login do Google precisa oferecer também "Entrar com a Apple" no iPhone, e é o que o app faz.
 
-**Google**
-- **[Gabriel]** Firebase › Authentication › *Sign-in method*: ativar **Google**. Depois **baixar de novo** o
-  `GoogleService-Info.plist` do app `app.newzi.ios`: o atual não tem `CLIENT_ID`/`REVERSED_CLIENT_ID`, que só
-  aparecem com o Google ativado. Anotar o *Web client ID* que o Firebase cria.
-- **[Claude]** Preencher `GOOGLE_WEB_CLIENT_ID`; no iOS passar `iosClientId` em `GoogleSignin.configure`
-  (`mobile/src/services/firebaseAuth.ts`, biblioteca `@react-native-google-signin/google-signin` 16.1.4, já
-  instalada) e adicionar o URL scheme `REVERSED_CLIENT_ID` ao `Info.plist`. No Android, conferir o SHA-1 do
-  certificado de release no Firebase.
+**Já feito no código [Claude]**
+- Google: `loginWithGoogle` (`@react-native-google-signin/google-signin` 16.1.4); o `iosClientId` vem sozinho
+  do `GoogleService-Info.plist`.
+- Apple: login nativo com `@invertase/react-native-apple-authentication` 2.5.1 (nonce + `AppleAuthProvider`
+  do Firebase); o nome da pessoa (que a Apple manda só no primeiro acesso) vai para o perfil.
+- Entitlement `com.apple.developer.applesignin` já está em `NewsEngineNative.entitlements`.
+- Excluir conta revoga o acesso da Apple antes (`revokeAppleAccessIfLinked`, exigência 5.1.1(v)).
+- E-mail oculto da Apple (`@privaterelay.appleid.com`) funciona como e-mail normal no backend.
 
-**Apple (Sign in with Apple)**
-- **[Gabriel]** Firebase › Authentication: ativar **Apple**. Para funcionar também no Android: criar na Apple
-  um *Services ID*, uma chave *Sign in with Apple* (`.p8`, fora do Git) e cadastrar a URL de retorno do Firebase.
-- **[Claude]** Capability **Sign in with Apple** no target (entitlement), biblioteca nativa (por exemplo
-  `@invertase/react-native-apple-authentication`, sem Expo), botão "Entrar com a Apple" seguindo o padrão
-  visual da Apple, e login via `OAuthProvider('apple.com')` no Firebase.
-- **Exclusão de conta:** para contas criadas com a Apple, "Excluir conta" também precisa **revogar o token da
-  Apple** (exigência da Apple junto com a 5.1.1(v)); o Firebase tem `revokeToken` para isso.
-- Contas que entram com Apple podem usar o e-mail oculto (`@privaterelay.appleid.com`): o backend precisa
-  aceitar e-mail vazio ou de retransmissão no perfil.
+**[Gabriel] Firebase e Apple — feito em 2026-10-18** (Google já testado no Android; Sign in with Apple marcado no App ID)
+1. Firebase › Authentication › *Sign-in method*: ativar **Google** (e-mail de suporte) e **Apple** (só ativar;
+   para app nativo de iPhone não precisa de Services ID nem chave).
+2. Configurações do projeto › app Android `com.newzi.app` › *Adicionar impressão digital*: SHA-1 de debug
+   `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25` (e, quando existir, o da chave de release).
+3. Baixar de novo `google-services.json` (para `mobile/android/app/`) e `GoogleService-Info.plist` (para
+   `mobile/ios/NewsEngineNative/`): só com o Google ativado eles trazem os IDs de cliente.
+4. Authentication › Google › *Configuração do SDK da Web*: copiar o **ID do cliente da Web** e passar ao Claude.
+
+**[Claude] no Mac**
+1. Feito: `GOOGLE_WEB_CLIENT_ID` em `mobile/src/config/socialAuth.ts`.
+2. Feito: URL scheme `REVERSED_CLIENT_ID` (`com.googleusercontent.apps.300896912437-5puthemqhigh4g5f3v3l1hhqmhesvbga`) no `Info.plist`.
+3. `cd mobile/ios && pod install`; no Xcode, conferir em *Signing & Capabilities* que **Sign in with Apple**
+   aparece (a assinatura automática liga a capability no App ID `app.newzi.ios`).
+4. Testar no iPhone: entrar com Google, entrar com Apple (inclusive "Ocultar meu e-mail"), sair e entrar de
+   novo, e excluir uma conta criada com a Apple.
 
 ### 5.7 [x] Privacidade (PrivacyInfo.xcprivacy)
 O arquivo `mobile/ios/NewsEngineNative/PrivacyInfo.xcprivacy` já existe. Depois do `pod install`, confira se

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api/client';
-import { firebaseAuth } from '../services/firebaseAuth';
+import { firebaseAuth, revokeAppleAccessIfLinked } from '../services/firebaseAuth';
 import type { User } from '../types/api';
 import {spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import { BrandPage, BrandPageHeader, ScreenState, SettingsCard, SettingsSection } from './ScreenPrimitives';
@@ -30,6 +30,14 @@ export function AccountScreen({ onBack, onEditProfile, onAccountDeleted }: { onB
 
   const deleteAccount = useCallback(async () => {
     setDeleting(true);
+    try {
+      // Accounts created with Apple: revoke the app's access first, as Apple requires; cancelling keeps the account.
+      await revokeAppleAccessIfLinked();
+    } catch (error) {
+      setDeleting(false);
+      if (!(error instanceof Error && error.message === 'AUTH_CANCELLED')) Alert.alert('Não foi possível excluir sua conta', 'Confirme o acesso com a Apple e tente novamente.');
+      return;
+    }
     try {
       await api.deleteAccount();
       onAccountDeleted();

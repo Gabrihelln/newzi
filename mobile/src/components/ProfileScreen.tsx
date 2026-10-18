@@ -3,7 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { firebaseAuth } from '../services/firebaseAuth';
 import { updateProfile } from '@react-native-firebase/auth';
-import { resetPasswordWithFirebase, getFirebaseIdToken } from '../services/firebaseAuth';
+import { changePasswordWithFirebase, friendlyFirebaseAuthError, getFirebaseIdToken, hasPasswordSignIn } from '../services/firebaseAuth';
+import { isStrongEnough, passwordChecks } from '../services/passwordRules';
 import { api } from '../api/client';
 import {typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
@@ -184,9 +185,56 @@ export function SecurityPrivacyScreen({ onBack }: { onBack: () => void }) {
   const st = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  const [message, setMessage] = useState(''); const user = firebaseAuth.currentUser;
-  const sendReset = async () => { if (!user?.email) { setMessage('Não há e-mail associado a esta sessão.'); return; } try { await resetPasswordWithFirebase(user.email); setMessage(`Enviamos as instruções para ${user.email}.`); } catch { setMessage('Não foi possível enviar as instruções agora.'); } };
-  return <SecondaryPage title="Segurança e privacidade" onBack={onBack}><Text style={st.pageIntro}>Informações da sua autenticação.</Text><InfoCard label="Métodos de acesso" value={user?.providerData.map(provider => provider.providerId).join(', ') || 'Não disponível'} /><InfoCard label="E-mail da conta" value={user?.email || 'Não disponível'} /><ActionButton title="Redefinir senha por e-mail" onPress={() => void sendReset()} />{!!message && <Text style={st.formMessage}>{message}</Text>}<Text style={st.helper}>Controles avançados de privacidade e sessões não estão disponíveis nesta versão.</Text></SecondaryPage>;
+  const user = firebaseAuth.currentUser;
+  const methods = (user?.providerData || []).map(provider => providerName[provider.providerId] || provider.providerId);
+  return <SecondaryPage title="Segurança e privacidade" onBack={onBack}>
+    <Text style={st.pageIntro}>Informações da sua autenticação.</Text>
+    <InfoCard label="Métodos de acesso" value={methods.join(', ') || 'Não disponível'} />
+    <InfoCard label="E-mail da conta" value={user?.email || 'Não disponível'} />
+    {hasPasswordSignIn() ? <ChangePasswordForm /> : <Text style={[st.helper, { color: colors.tone('#7688A4', colors.secondary) }]}>
+      {`Sua conta entra pelo ${methods[0] || 'login social'}, então não tem uma senha do Newzi para trocar.`}</Text>}
+  </SecondaryPage>;
+}
+
+const providerName: Record<string, string> = { password: 'E-mail e senha', 'google.com': 'Google', 'apple.com': 'Apple' };
+
+/** Current password, new password and its confirmation; saved on Firebase without leaving the app. */
+function ChangePasswordForm() {
+  const st = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const [current, setCurrent] = useState(''); const [next, setNext] = useState(''); const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [done, setDone] = useState(false);
+  const checks = passwordChecks(next);
+  const submit = async () => {
+    setError(''); setDone(false);
+    if (!current) { setError('Digite sua senha atual.'); return; }
+    if (!isStrongEnough(next)) { setError('A nova senha precisa de 8 caracteres, uma letra e um número.'); return; }
+    if (next !== confirm) { setError('A confirmação não é igual à nova senha.'); return; }
+    if (next === current) { setError('A nova senha precisa ser diferente da atual.'); return; }
+    setBusy(true);
+    try { await changePasswordWithFirebase(current, next); setCurrent(''); setNext(''); setConfirm(''); setDone(true); }
+    catch (cause) {
+      const code = typeof cause === 'object' && cause && 'code' in cause ? String((cause as { code?: string }).code) : '';
+      setError(code === 'auth/wrong-password' || code === 'auth/invalid-credential' ? 'A senha atual está incorreta.' : friendlyFirebaseAuthError(cause));
+    } finally { setBusy(false); }
+  };
+  const field = (label: string, value: string, onChange: (value: string) => void, autoComplete: 'current-password' | 'new-password') => <>
+    <Text style={st.formLabel}>{label}</Text>
+    <TextInput accessibilityLabel={label} value={value} onChangeText={text => { onChange(text); setError(''); setDone(false); }} secureTextEntry autoCapitalize="none" autoCorrect={false}
+      autoComplete={autoComplete} textContentType={autoComplete === 'current-password' ? 'password' : 'newPassword'} placeholderTextColor={colors.tone('#8192AE', colors.muted)} style={st.input} />
+  </>;
+  return <View style={{ marginTop: 18 }}>
+    <Text accessibilityRole="header" style={[st.formLabel, { fontSize: 17, marginTop: 0 }]}>Alterar senha</Text>
+    <Text style={st.helper}>Confirme a senha atual e escolha a nova. As outras sessões da sua conta serão encerradas.</Text>
+    {field('Senha atual', current, setCurrent, 'current-password')}
+    {field('Nova senha', next, setNext, 'new-password')}
+    {!!next && <Text style={[st.helper, { color: checks.longEnough && checks.letterAndNumber ? colors.success : colors.tone('#7688A4', colors.secondary) }]}>
+      {`${checks.longEnough ? '✓' : '•'} Pelo menos 8 caracteres   ${checks.letterAndNumber ? '✓' : '•'} Uma letra e um número`}</Text>}
+    {field('Confirmar nova senha', confirm, setConfirm, 'new-password')}
+    {!!error && <Text accessibilityRole="alert" style={[st.formMessage, { color: colors.danger }]}>{error}</Text>}
+    {done && <Text accessibilityRole="alert" style={[st.formMessage, { color: colors.success }]}>Senha alterada. Use a nova senha no próximo acesso.</Text>}
+    <ActionButton title={busy ? 'Salvando…' : 'Salvar nova senha'} disabled={busy} onPress={() => void submit()} />
+  </View>;
 }
 
 export function ProfileInfoScreen({ title, message, onBack }: { title: string; message: string; onBack: () => void }) {

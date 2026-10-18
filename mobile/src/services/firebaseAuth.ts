@@ -1,5 +1,7 @@
-import { createUserWithEmailAndPassword, getAuth, GoogleAuthProvider, OAuthProvider, onAuthStateChanged, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signInWithPopup, signOut, updateProfile, type User as FirebaseUser } from '@react-native-firebase/auth';
-import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
+import { AppleAuthProvider, createUserWithEmailAndPassword, EmailAuthProvider, getAuth, GoogleAuthProvider, onAuthStateChanged, reauthenticateWithCredential, revokeToken, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, updatePassword, updateProfile, type User as FirebaseUser } from '@react-native-firebase/auth';
+import { appleAuth } from '@invertase/react-native-apple-authentication';
+import { GoogleSignin, isErrorWithCode, isSuccessResponse, statusCodes } from '@react-native-google-signin/google-signin';
 import { devLog } from '../config/env';
 import { GOOGLE_WEB_CLIENT_ID } from '../config/socialAuth';
 
@@ -40,13 +42,33 @@ export async function resetPasswordWithFirebase(email: string) {
   await sendPasswordResetEmail(firebaseAuth, email.trim().toLowerCase());
 }
 
+/** Whether the signed-in account has an e-mail password (Google and Apple accounts do not). */
+export function hasPasswordSignIn() {
+  return Boolean(firebaseAuth.currentUser?.providerData.some(provider => provider.providerId === 'password'));
+}
+
+/**
+ * Change the password from inside the app. The current password is checked first, so a phone left
+ * unlocked is not enough to take over the account; Firebase then ends the account's other sessions.
+ */
+export async function changePasswordWithFirebase(currentPassword: string, newPassword: string) {
+  const user = firebaseAuth.currentUser;
+  if (!user?.email || !hasPasswordSignIn()) throw new Error('NO_PASSWORD_ACCOUNT');
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, currentPassword));
+  await updatePassword(user, newPassword);
+}
+
 export async function loginWithGoogle() {
   if (!GOOGLE_WEB_CLIENT_ID) throw new Error('GOOGLE_SIGN_IN_NOT_CONFIGURED');
   authOperationInProgress = true;
   try {
     GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-    const response = await GoogleSignin.signIn();
+    const response = await GoogleSignin.signIn().catch(error => {
+      if (isErrorWithCode(error) && error.code === statusCodes.SIGN_IN_CANCELLED) throw new Error('AUTH_CANCELLED');
+      if (isErrorWithCode(error) && error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) throw new Error('GOOGLE_PLAY_SERVICES_MISSING');
+      throw error;
+    });
     if (!isSuccessResponse(response)) throw new Error('AUTH_CANCELLED');
     const idToken = response.data.idToken;
     if (!idToken) throw new Error('GOOGLE_ID_TOKEN_MISSING');
@@ -57,16 +79,43 @@ export async function loginWithGoogle() {
   } finally { authOperationInProgress = false; }
 }
 
+/** Sign in with Apple exists only on iPhone; Android offers Google alone. */
+export const appleSignInAvailable = Platform.OS === 'ios' && appleAuth.isSupported;
+
+/**
+ * Native Sign in with Apple (iOS 13+). The library sends Apple a hashed nonce and returns the raw one, which
+ * Firebase checks against the identity token. Apple shares the person's name only on the first sign-in.
+ */
+/**
+ * Apple requires that deleting an account also revokes the app's Sign in with Apple access. Apple asks the
+ * person to confirm with Face ID/passcode and returns a fresh authorization code for Firebase to revoke.
+ */
+export async function revokeAppleAccessIfLinked() {
+  if (!appleSignInAvailable || !firebaseAuth.currentUser?.providerData.some(provider => provider.providerId === 'apple.com')) return;
+  try {
+    const response = await appleAuth.performRequest({ requestedOperation: appleAuth.Operation.REFRESH });
+    if (!response.authorizationCode) throw new Error('APPLE_REVOKE_FAILED');
+    await revokeToken(firebaseAuth, response.authorizationCode);
+  } catch (error) {
+    if (typeof error === 'object' && error && 'code' in error && (error as { code?: string }).code === appleAuth.Error.CANCELED) throw new Error('AUTH_CANCELLED');
+    throw error;
+  }
+}
+
 export async function loginWithApple() {
+  if (!appleSignInAvailable) throw new Error('APPLE_SIGN_IN_UNAVAILABLE');
   authOperationInProgress = true;
   try {
-    const provider = new OAuthProvider('apple.com');
-    provider.addScope('email');
-    provider.addScope('name');
-    // RNFirebase's OAuthProvider carries providerId at runtime, but its modular type marks it private.
-    const result = await signInWithPopup(firebaseAuth, provider as unknown as Parameters<typeof signInWithPopup>[1]);
+    const response = await appleAuth.performRequest({ requestedOperation: appleAuth.Operation.LOGIN, requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL] });
+    if (!response.identityToken) throw new Error('APPLE_ID_TOKEN_MISSING');
+    const result = await signInWithCredential(firebaseAuth, AppleAuthProvider.credential(response.identityToken, response.nonce));
+    const name = [response.fullName?.givenName, response.fullName?.familyName].filter(Boolean).join(' ');
+    if (name && !result.user.displayName) await updateProfile(result.user, { displayName: name });
     await getFirebaseIdToken(true);
     return result.user;
+  } catch (error) {
+    if (typeof error === 'object' && error && 'code' in error && (error as { code?: string }).code === appleAuth.Error.CANCELED) throw new Error('AUTH_CANCELLED');
+    throw error;
   } finally { authOperationInProgress = false; }
 }
 
@@ -104,5 +153,9 @@ export function friendlyFirebaseAuthError(error: unknown) {
   if (error instanceof Error && error.message === 'GOOGLE_SIGN_IN_NOT_CONFIGURED') return 'O acesso com Google não está disponível no momento.';
   if (error instanceof Error && error.message === 'AUTH_CANCELLED') return 'A autenticação foi cancelada.';
   if (error instanceof Error && error.message === 'GOOGLE_ID_TOKEN_MISSING') return 'Não foi possível entrar com o Google. Tente novamente.';
+  if (error instanceof Error && error.message === 'GOOGLE_PLAY_SERVICES_MISSING') return 'Atualize o Google Play Services para entrar com o Google.';
+  // DEVELOPER_ERROR: the app's signing key (SHA-1) or the Web client ID is not registered in Firebase.
+  if (code === '10' || code === 'DEVELOPER_ERROR') return 'O acesso com Google não está disponível no momento.';
+  if (error instanceof Error && (error.message === 'APPLE_SIGN_IN_UNAVAILABLE' || error.message === 'APPLE_ID_TOKEN_MISSING')) return 'Não foi possível entrar com a Apple neste aparelho.';
   return messages[code] || 'Não foi possível concluir a operação. Tente novamente.';
 }

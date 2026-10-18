@@ -12,7 +12,20 @@
           "package_name": "com.newzi.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "300896912437-4iir2314pnugmreegbnt5mr32k0d3aba.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.newzi.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "300896912437-f61gf597oo7kqai6i18nj49a7b2j878f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDYy2umBfH4JMAK9C1B4RSBbGL339eKCDU"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "300896912437-f61gf597oo7kqai6i18nj49a7b2j878f.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "300896912437-5puthemqhigh4g5f3v3l1hhqmhesvbga.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "app.newzi.ios"
+              }
+            }
+          ]
         }
       }
     }
