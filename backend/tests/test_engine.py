@@ -273,6 +273,26 @@ def test_common_names_and_templated_descriptions_do_not_join_stories():
     assert len({threads[f"s{n}"] for n in range(len(rows))}) == len(rows)
 
 
+def test_threads_follow_headlines_not_background_in_descriptions():
+    # Production cases: g1 described the pope's call with Putin with his hospital stay, and one
+    # outlet's several pope headlines must still join another outlet's "Papa recebe alta".
+    from newzi_backend.threads import story_threads
+    stay = "Papa Leão XIV celebrou missa dentro do hospital Gemelli após cirurgia para retirar tumor no pulmão."
+    rows = [("Vaticano divulga primeiras FOTOS de papa Leão XIV após cirurgia para retirada de câncer", "g1", stay),
+            ("Papa fala ao telefone com Putin, oferece mediação na guerra e pede corredor humanitário", "g1", stay),
+            ("Papa Leão 14 recebe alta do hospital, podendo voltar ao Vaticano", "dw", ""),
+            ("Papa Leão 14 tem alta hospitalar e volta ao Vaticano", "dw", ""),
+            ("Papa Leão 14 tem alta após cirurgia para tratar câncer", "dw", ""),
+            ("Papa Leão 14 deixa o Gemelli após cirurgia no pulmão", "dw", ""),
+            ("Papa recebe alta do hospital depois de cirurgia para remover câncer no pulmão", "g1", "")]
+    contents = [{"id": f"s{n}", "title": title, "source_id": source, "description": description,
+                 "published_at": f"2026-10-17T{n:02d}:00:00.000Z", "event_id": None}
+                for n, (title, source, description) in enumerate(rows)]
+    threads = story_threads(contents)
+    assert threads["s1"] != threads["s0"]                                         # Putin is another story
+    assert len({threads[f"s{n}"] for n in (0, 2, 3, 4, 5, 6)}) == 1                # one pope's-health story
+
+
 def test_old_stories_never_fill_a_briefing(repo):
     index(repo, "old", "ge", "Botafogo anuncia novo técnico", hours_ago=24 * 5, topic="SPORTS")
     index(repo, "recent", "lance", "Seleção é convocada para amistosos", hours_ago=30, topic="SPORTS")
