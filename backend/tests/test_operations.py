@@ -176,8 +176,8 @@ def test_breaking_push_without_a_description_invites_to_read_and_skips_a_story_a
 def test_breaking_news_rules_skip_weak_old_and_promotional_events(repo):
     from newzi_backend.breaking import BreakingNewsService
     subscribe(repo, "fan")
-    add_event(repo, "four_sources", sources=4)
-    add_event(repo, "slow_story", sources=5, start_minutes_ago=120, title="Prefeitura anuncia novo plano de obras")   # 5 outlets over 2 h
+    add_event(repo, "two_sources", sources=2)
+    add_event(repo, "slow_story", sources=3, start_minutes_ago=120, title="Prefeitura anuncia novo plano de obras")   # 3 outlets over 2 h
     add_event(repo, "old_story", start_minutes_ago=600)
     add_article(repo, "old_story_late_1", "old_story", "late_1", 30)
     add_article(repo, "old_story_late_2", "old_story", "late_2", 20)

@@ -2,7 +2,7 @@
 
 An event (articles the clustering grouped under one ``event_id``) is breaking when:
 
-- at least BREAKING_MIN_SOURCES (5) distinct sources published it within the last
+- at least BREAKING_MIN_SOURCES (3) distinct sources published it within the last
   BREAKING_WINDOW_MINUTES (90), and no article of the event is older than that window (many outlets
   at once, not an old story slowly gaining coverage);
 - its lead article is news, not a deal, guide, review, roundup, how-to or opinion piece.
@@ -53,7 +53,7 @@ def _env_int(name, default):
 def breaking_rules():
     """The rules people see next to the switch ("3 veículos ou mais", "Silêncio 22h–7h"), from the same settings the sender uses."""
     quiet = _quiet_hours(os.getenv("BREAKING_QUIET_HOURS", "22-7"))
-    return {"min_sources": max(2, _env_int("BREAKING_MIN_SOURCES", 5)),
+    return {"min_sources": max(2, _env_int("BREAKING_MIN_SOURCES", 3)),
             "quiet_hours": {"start": quiet[0], "end": quiet[1]} if quiet and quiet[0] != quiet[1] else None}
 
 
@@ -137,7 +137,7 @@ class BreakingNewsService:
     def __init__(self, repo):
         self.repo = repo
         self.enabled = os.getenv("BREAKING_NEWS_ENABLED", "true").lower() not in ("0", "false", "no")
-        self.min_sources = max(2, _env_int("BREAKING_MIN_SOURCES", 5))
+        self.min_sources = max(2, _env_int("BREAKING_MIN_SOURCES", 3))
         self.window = timedelta(minutes=max(10, _env_int("BREAKING_WINDOW_MINUTES", 90)))
         self.min_gap = timedelta(minutes=max(0, _env_int("BREAKING_MIN_GAP_MINUTES", 45)))
         self.daily_limit = max(1, _env_int("BREAKING_DAILY_LIMIT", 5))

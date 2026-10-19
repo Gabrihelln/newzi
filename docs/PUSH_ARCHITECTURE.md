@@ -65,7 +65,7 @@ Quiet hours and frequency are up to whoever sends; nothing limits them automatic
 
 ## Breaking news
 
-The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks every `BREAKING_CHECK_SECONDS` (5 min) for an event, meaning articles the clustering grouped under one `event_id`, that at least `BREAKING_MIN_SOURCES` (5) distinct sources published within the last `BREAKING_WINDOW_MINUTES` (90). The event qualifies only if none of its articles is older than that window, so only many outlets at once count, not an old story slowly gaining coverage, and only if its lead article is news: deals, guides, reviews, roundups, how-tos, explainers and opinion are skipped. Until 2026-10-19 the rule was 3 outlets in 180 minutes with no pacing, which with 220 sources sent too many pushes in a short time.
+The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks every `BREAKING_CHECK_SECONDS` (5 min) for an event, meaning articles the clustering grouped under one `event_id`, that at least `BREAKING_MIN_SOURCES` (3) distinct sources published within the last `BREAKING_WINDOW_MINUTES` (90). The event qualifies only if none of its articles is older than that window, so only many outlets at once count, not an old story slowly gaining coverage, and only if its lead article is news: deals, guides, reviews, roundups, how-tos, explainers and opinion are skipped. Until 2026-10-19 the rule was 3 outlets in 180 minutes with no pacing, which with 220 sources sent too many pushes in a short time. On 2026-10-19 the minimum went back to 3 outlets (5 rarely happened within the hour), keeping the 90-minute window and all the pacing below.
 
 A user gets one `BREAKING_NEWS` job per active device when all of these hold:
 
