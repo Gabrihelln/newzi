@@ -109,6 +109,53 @@ def test_team_news_reaches_fans_once_and_skips_other_teams(repo):
     assert jobs(repo, "other") == []
 
 
+def add_story(repo, article_id, title, published, event_id=None, source="ge", topic="FUTEBOL"):
+    from newzi_backend.timeutil import iso
+    repo.db.execute("""INSERT INTO indexed_content(id,content_hash,title,description,url,source_name,source_id,source_country,source_language,
+        published_at,indexed_at,enrichment_mode,quality_score,event_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (article_id, "h" + article_id, title, "O clube confirmou a contratação nesta tarde, depois de semanas de negociação.",
+                     "https://x/" + article_id, source.title(), source, "BR", "pt-BR", iso(published), iso(published), "test", 5.0, event_id))
+    repo.db.execute("INSERT INTO content_taxonomy(content_id,taxonomy_id,score) VALUES(?,?,?)", (article_id, topic, 8.0))
+    repo.db.commit()
+
+
+def test_team_news_is_one_alert_per_story_whichever_outlet_publishes_next(repo):
+    from newzi_backend.football_alerts import FootballAlertService
+    from newzi_backend.football_favorites import save_favorites
+    save_favorites(repo, "fan", {"team_ids": [1783]})
+    noon = NOW.replace(hour=15)
+    add_story(repo, "g1", "Flamengo anuncia novo técnico para 2027", noon - timedelta(minutes=40), "coach", "ge")
+    service = FootballAlertService(repo, service=FakeFootball())
+    service.run_once(noon, force=True)
+    # Another outlet covers the same story: newer, so it is now the first article the check reads.
+    add_story(repo, "u1", "Flamengo confirma técnico português até 2027", noon - timedelta(minutes=5), "coach", "uol")
+    service.run_once(noon + timedelta(minutes=6), force=True)
+    assert [payload["data"]["story_id"] for kind, payload in jobs(repo)] == ["g1"]
+
+
+def test_team_news_and_breaking_news_never_tell_the_same_story_twice(repo):
+    from newzi_backend.breaking import already_told
+    from newzi_backend.football_alerts import FootballAlertService
+    from newzi_backend.football_favorites import save_favorites
+    from newzi_backend.timeutil import iso
+    save_favorites(repo, "fan", {"team_ids": [1783]})
+    noon = NOW.replace(hour=15)
+    # A breaking push already told the story through another outlet's article.
+    add_story(repo, "b1", "Flamengo demite treinador após derrota", noon - timedelta(minutes=50), "sacked", "g1")
+    add_story(repo, "b2", "Flamengo anuncia saída do técnico", noon - timedelta(minutes=20), "sacked", "uol")
+    payload = {"title": "Flamengo demite treinador após derrota", "body": "…", "data": {"type": "BREAKING_NEWS", "event_id": "sacked", "story_id": "b1"}}
+    repo.db.execute("""INSERT INTO notification_jobs(id,user_id,delivery_id,device_id,notification_type,scheduled_for,status,attempt_count,max_attempts,
+        created_at,updated_at,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    ("n1", "fan", "breaking_sacked", "d1", "BREAKING_NEWS", iso(noon), "SENT", 1, 3, iso(noon - timedelta(minutes=10)),
+                     iso(noon), json.dumps(payload)))
+    repo.db.commit()
+    FootballAlertService(repo, service=FakeFootball()).run_once(noon, force=True)
+    assert [kind for kind, _ in jobs(repo)] == ["BREAKING_NEWS"]
+    # The other way round: a story sent as team news counts for the breaking check (any article of the event).
+    repo.db.execute("UPDATE notification_jobs SET notification_type='TEAM_NEWS'"); repo.db.commit()
+    assert already_told(repo, "fan", {"b2", "b1"}, "Outro título", noon) and not already_told(repo, "fan", {"z9"}, "Outro título", noon)
+
+
 def test_crest_is_downloaded_once_resized_and_served_from_disk(repo, tmp_path, monkeypatch):
     from PIL import Image
     from newzi_backend.football_favorites import crest_file

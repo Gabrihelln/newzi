@@ -10,8 +10,10 @@ state saved last time in ``football_match_states``:
 
 A game seen for the first time is only recorded, so a deploy or a new favourite never replays old events.
 News: a recent football article whose headline names a favourite team (at most TEAM_NEWS_PER_DAY a day per
-team, never during quiet hours). Every alert respects the main switch, its own switch and the device permission,
-and reaches each person once (the job's delivery id is unique per event).
+team, never during quiet hours). A story is one delivery per team whichever outlet's article names the team, and is
+skipped when a breaking-news push (or the alert of another favourite team) already told it. Every alert respects the
+main switch, its own switch and the device permission, and reaches each person once (the job's delivery id is unique
+per event).
 """
 import json
 import logging
@@ -139,10 +141,10 @@ class FootballAlertService:
             return payload
         return {**payload, "body": f"{payload['body']}. {row['team']} está em {row['position']}º com {row['points']} pontos."}
 
-    def _enqueue(self, user_id, kind, key, payload, now):
+    def _enqueue(self, user_id, kind, key, payload, now, delivery_id=None):
         if not wants(self.notifications.settings(user_id), kind):
             return 0
-        delivery_id = f"football:{payload['data'].get('match_id') or payload['data'].get('story_id')}:{key}"
+        delivery_id = delivery_id or f"football:{payload['data'].get('match_id')}:{key}"
         message = {**payload, "data": {"type": kind, **payload["data"]}}
         created = 0
         for device in self.repo.db.execute("SELECT id FROM push_devices WHERE user_id=? AND enabled=1 AND invalidated_at IS NULL", (user_id,)).fetchall():
@@ -158,7 +160,7 @@ class FootballAlertService:
 
     # News
     def check_news(self, teams, now):
-        from .breaking import BreakingNewsService, story_summary
+        from .breaking import BreakingNewsService, already_told, story_summary
         quiet = BreakingNewsService(self.repo)
         if not teams:
             return 0
@@ -171,7 +173,7 @@ class FootballAlertService:
                 WHERE c.published_at>=? AND c.published_at<=? AND (t.taxonomy_id IN ({marks}) OR t.taxonomy_id LIKE 'FUTEBOL%')
                 ORDER BY c.published_at DESC""",
             (iso(now - NEWS_WINDOW), iso(now + timedelta(minutes=10)), *FOOTBALL_TOPICS)).fetchall()
-        sent = 0
+        sent = 0; members = {}
         for team_id, name in names.items():
             pattern = _name_pattern(name)
             seen_events = set()
@@ -182,12 +184,17 @@ class FootballAlertService:
                 if story in seen_events:
                     continue
                 seen_events.add(story)
+                if story not in members:
+                    members[story] = {row[0] for row in self.repo.db.execute(
+                        "SELECT id FROM indexed_content WHERE event_id=?", (article["event_id"],))} | {article["id"]} if article["event_id"] else {article["id"]}
                 payload = {"title": article["title"], "body": story_summary(article["title"], [article["description"]]) or f"Notícia sobre o {name}. Toque para ler.",
                            "data": {"story_id": article["id"], "team_id": str(team_id)}}
                 for user_id in teams[team_id]:
-                    if not quiet._awake(self.repo.get_preferences(user_id) or {}, now) or self._news_today(user_id, team_id, now) >= TEAM_NEWS_PER_DAY:
+                    if (not quiet._awake(self.repo.get_preferences(user_id) or {}, now) or self._news_today(user_id, team_id, now) >= TEAM_NEWS_PER_DAY
+                            or already_told(self.repo, user_id, members[story], article["title"], now)):
                         continue
-                    sent += self._enqueue(user_id, "TEAM_NEWS", f"team:{team_id}:story:{story}", payload, now)
+                    # The delivery id names the story (event), not the article: a new outlet's article is not a new alert.
+                    sent += self._enqueue(user_id, "TEAM_NEWS", None, payload, now, delivery_id=f"football:news:team:{team_id}:story:{story}")
         return sent
 
     def _news_today(self, user_id, team_id, now):

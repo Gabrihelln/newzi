@@ -65,7 +65,7 @@ Quiet hours and frequency are up to whoever sends; nothing limits them automatic
 
 ## Breaking news
 
-The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks every `BREAKING_CHECK_SECONDS` (5 min) for an event, meaning articles the clustering grouped under one `event_id`, that at least `BREAKING_MIN_SOURCES` (3) distinct sources published within the last `BREAKING_WINDOW_MINUTES` (180). The event qualifies only if none of its articles is older than that window, so an old story gaining coverage does not count, and only if its lead article is news: deals, guides, reviews, roundups, how-tos, explainers and opinion are skipped. On the development data this fired about once every two days.
+The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks every `BREAKING_CHECK_SECONDS` (5 min) for an event, meaning articles the clustering grouped under one `event_id`, that at least `BREAKING_MIN_SOURCES` (5) distinct sources published within the last `BREAKING_WINDOW_MINUTES` (90). The event qualifies only if none of its articles is older than that window, so only many outlets at once count, not an old story slowly gaining coverage, and only if its lead article is news: deals, guides, reviews, roundups, how-tos, explainers and opinion are skipped. Until 2026-10-19 the rule was 3 outlets in 180 minutes with no pacing, which with 220 sources sent too many pushes in a short time.
 
 A user gets one `BREAKING_NEWS` job per active device when all of these hold:
 
@@ -73,9 +73,12 @@ A user gets one `BREAKING_NEWS` job per active device when all of these hold:
 - the event matches their topics (a followed domain covers its subjects; `content_scope=all` covers everything) and country scope;
 - their local time is outside `BREAKING_QUIET_HOURS` (`22-7`).
 
-There is no daily cap and no minimum gap: every breaking story of a followed topic is sent, however many there are in a day.
+Pacing keeps it from becoming noise:
 
-Each job stores its title (the lead headline, preferring a Portuguese source), its body and its data in `payload_json`. The body is a short summary of the story taken from the first useful article description (HTML and feed boilerplate removed, a repeated headline dropped, cut at a sentence end); without one it says "Toque para ler a matéria completa no Newzi." The outlets are no longer listed in the body. The data is `type=BREAKING_NEWS`, `event_id`, `story_id` and `url`. Jobs are unique per event and device, and the same story is not sent again under a new event id (re-clustering, a second wave of coverage) within 24 h. They are delivered by the `notifications` role like daily briefings and are cancelled rather than sent once they are older than `BREAKING_MAX_DELAY_MINUTES` (60).
+- at least `BREAKING_MIN_GAP_MINUTES` (45) pass between two breaking pushes to the same user. A story found during the gap waits; each check sends the strongest story still breaking (most distinct sources) first, and a story that fell out of the window meanwhile is dropped;
+- at most `BREAKING_DAILY_LIMIT` (5) a day per user, counted from midnight in their time zone; cancelled (stale) pushes do not count. Past the limit only a story covered by `BREAKING_EXCEPTIONAL_SOURCES` (10) outlets is still sent, after the gap like any other.
+
+Each job stores its title (the lead headline, preferring a Portuguese source), its body and its data in `payload_json`. The body is a short summary of the story taken from the first useful article description (HTML and feed boilerplate removed, a repeated headline dropped, cut at a sentence end); without one it says "Toque para ler a matéria completa no Newzi." The outlets are no longer listed in the body. The data is `type=BREAKING_NEWS`, `event_id`, `story_id` and `url`. Jobs are unique per event and device, and the same story is not sent again within 24 h, whether under a new event id (re-clustering, a second wave of coverage) or because it already went out as a `TEAM_NEWS` alert, and the other way round (`already_told`: the earlier push carried one of the event's articles or the same headline). A team-news alert is keyed by the story's event, not by the article, so another outlet's article on the same story is not a new alert. They are delivered by the `notifications` role like daily briefings and are cancelled rather than sent once they are older than `BREAKING_MAX_DELAY_MINUTES` (60).
 
 Development-only controls are `POST /api/v1/dev/notifications/enqueue` and `POST /api/v1/dev/notifications/run`; they are disabled when `APP_ENV=production`.
 

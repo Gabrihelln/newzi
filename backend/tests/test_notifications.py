@@ -98,7 +98,7 @@ def test_settings_show_briefing_time_and_breaking_rules_and_reject_bad_values(re
     service = NotificationService(repo, provider=RecordingProvider())
     settings = service.public_settings("u1")
     assert settings["briefing_time"] == "06:00" and settings["briefing_size"] == 10 and settings["active_devices"] == 0
-    assert settings["breaking_news_rules"] == {"min_sources": 3, "quiet_hours": {"start": 23, "end": 6}}
+    assert settings["breaking_news_rules"] == {"min_sources": 5, "quiet_hours": {"start": 23, "end": 6}}
     for bad in ({}, {"daily_briefing_enabled": "no"}, {"unknown": True}):
         with pytest.raises(ValueError):
             service.save_settings("u1", bad)
