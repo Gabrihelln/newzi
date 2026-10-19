@@ -646,11 +646,18 @@ class AudioScriptComposer:
                     fields,partial=self._translate_checked(fields, language)
                     if partial:
                         self.translation_warnings.append({"item_id":item.get("id"),"code":"TRANSLATION_PARTIAL"})
+                        if portuguese:
+                            continue  # part of it would be read in English: a Portuguese listener skips the story
                 except Exception as exc:
                     # Translation is optional enrichment; unsafe output or a missing
                     # local translator must not block otherwise valid audio.
                     code=exc.code if isinstance(exc,PermanentAudioError) else "TRANSLATION_UNAVAILABLE"
                     self.translation_warnings.append({"item_id":item.get("id"),"code":code})
+                    if portuguese:
+                        continue  # never narrate a story in English to a Portuguese listener
+            elif portuguese and "SOURCE_LANGUAGE_FALLBACK" in (item.get("warnings") or []):
+                self.translation_warnings.append({"item_id":item.get("id"),"code":"TRANSLATION_UNAVAILABLE"})
+                continue
             headline = spoken_text(fields["headline"])
             summary = spoken_lead(fields["summary"])
             reason = spoken_excerpt(fields["why_it_matters"], max_words=25, max_sentences=1)

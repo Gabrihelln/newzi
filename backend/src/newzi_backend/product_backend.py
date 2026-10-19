@@ -244,8 +244,16 @@ class ProductRepository:
         # Home/Explore candidate; ingestion time never substitutes for it.
         freshness_cutoff=iso(datetime.now(timezone.utc)-timedelta(days=30))
         clauses.append("c.published_at>=?");where_params.append(freshness_cutoff)
+        from .content import world_source_ids
         if prefs.get("country_scope")=="LOCAL": clauses.append("c.source_country='BR'")
-        elif prefs.get("country_scope")=="GLOBAL": clauses.append("(c.source_country IS NULL OR c.source_country<>'BR')")
+        elif prefs.get("country_scope")=="GLOBAL":
+            # Internacional is world news: foreign outlets and the Brazilian outlets' world desks.
+            world=sorted(world_source_ids())
+            clauses.append("(c.source_country IS NULL OR c.source_country<>'BR'"+(" OR c.source_id IN ("+",".join("?" for _ in world)+")" if world else "")+")")
+            where_params.extend(world)
+        # Portuguese readers see Portuguese coverage only (content.readable): a story only in English is not listed.
+        if str(prefs.get("language") or "pt-BR").lower().startswith("pt"):
+            clauses.append("(c.source_language IS NULL OR c.source_language='' OR lower(c.source_language) LIKE 'pt%')")
         if selected_with_children:
             clauses.append("EXISTS (SELECT 1 FROM content_taxonomy interest WHERE interest.content_id=c.id AND interest.taxonomy_id IN ("+",".join("?" for _ in selected_with_children)+"))")
             where_params.extend(selected_with_children)

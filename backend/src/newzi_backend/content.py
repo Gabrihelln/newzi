@@ -5,6 +5,7 @@ import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 
 from newzi_engine.collectors.registry import load_sources
 from newzi_engine.processors.classify import classify_for_index, CLASSIFIER_VERSION
@@ -455,12 +456,39 @@ def _cluster_incremental_content(repo, changed_articles):
             "window_hours":window_hours}
 
 
-def _scope_allowed(country, scope):
+@lru_cache(maxsize=1)
+def world_source_ids():
+    """Brazilian outlets' world desks (g1 Mundo, Folha Mundo, Estadão Internacional): sources whose feed is world news."""
+    return frozenset(source["id"] for source in load_sources() if "world" in (source.get("categories") or []))
+
+
+def _scope_allowed(country, scope, source_id=None):
+    """LOCAL is Brazilian outlets; GLOBAL (Internacional) is world news: foreign outlets and Brazilian world desks."""
     if scope == "LOCAL":
         return country == "BR"
     if scope == "GLOBAL":
-        return country != "BR"
+        return country != "BR" or source_id in world_source_ids()
     return True
+
+
+def event_in_scope(articles, scope):
+    """An event (rows with ``source_country`` and ``source_id``) is in scope when one of its articles is."""
+    return scope not in ("LOCAL", "GLOBAL") or any(_scope_allowed(row["source_country"], scope, row["source_id"]) for row in articles)
+
+
+def _base_language(value):
+    return str(value or "").split("-")[0].lower()
+
+
+def readable(source_language, language):
+    """Portuguese readers get Portuguese coverage only. A story told only in another language is left out
+    everywhere (briefing and its audio, feed, search, trending, pushes) instead of shown or narrated in a
+    language the reader may not follow; a story with Portuguese coverage is told through it."""
+    return _base_language(language) != "pt" or not source_language or _base_language(source_language) == "pt"
+
+
+def event_readable(articles, language):
+    return any(readable(row["source_language"], language) for row in articles)
 
 
 def candidate_counts(repo, interests):
@@ -522,7 +550,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
         (iso(now-briefing_max_age()), iso(now+timedelta(hours=1)))).fetchall()  # feeds' clocks run a little fast
     by_id = {}
     for row in rows:
-        if not _scope_allowed(row["source_country"], country_scope):
+        if not _scope_allowed(row["source_country"], country_scope, row["source_id"]) or not readable(row["source_language"], language):
             continue
         item = by_id.setdefault(row["id"], {"content": dict(row), "tags": {}})
         if row["taxonomy_id"]:

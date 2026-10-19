@@ -7,6 +7,10 @@ from .paths import ENGINE_DATA
 # Bump when the image selection policy changes so recent stories are re-evaluated once.
 IMAGE_ENRICHMENT_VERSION = "image-policy-v2"
 IMAGE_ENRICHMENT_WINDOW_DAYS = 30
+# A site whose article pages fail this many times in a row (bot walls: Poder360, Bloomberg, NYT from the
+# server) is not fetched again for IMAGE_HOST_PAUSE_HOURS, so it stops taking the batch's slots.
+IMAGE_HOST_FAILURES_BEFORE_PAUSE = 5
+IMAGE_HOST_PAUSE_HOURS = 6
 _DEFAULT_ARTWORK = re.compile(r"thumb_|default|coupon|placeholder|banner|fallback|social[-_]?card|og[-_]image|share[-_]image|expo[-_]hall")
 
 class Store:
@@ -20,6 +24,7 @@ class Store:
             if name not in article_columns:
                 self.db.execute(f"ALTER TABLE articles ADD COLUMN {name} TEXT")
         self.db.execute("CREATE TABLE IF NOT EXISTS generic_images(source_id TEXT NOT NULL,image_url TEXT NOT NULL,detected_at TEXT NOT NULL,PRIMARY KEY(source_id,image_url))")
+        self.db.execute("CREATE TABLE IF NOT EXISTS image_host_health(host TEXT PRIMARY KEY,consecutive_failures INTEGER NOT NULL DEFAULT 0,paused_until TEXT,last_failure_at TEXT)")
         self.db.execute("CREATE INDEX IF NOT EXISTS idx_articles_source_image ON articles(source_id,image_url)")
         self.db.commit()
     def upsert_articles(self, articles):
@@ -71,7 +76,10 @@ class Store:
         return [article_from_row(row) for row in rows]
     def articles_needing_image(self, limit=12):
         """Stories users can still see that were never evaluated by the current image policy,
-        lack an image (retried every 3 days), or carry a source-wide generic picture."""
+        lack an image (retried every 3 days), or carry a source-wide generic picture.
+
+        Stories with no picture at all come first: without one they are not listed anywhere, while a
+        story with a feed picture only stands to get a better one."""
         generic_patterns=("%/mascot.%","%/mascot/%","%/new-reading.%","%/new-waving.%","%/new-sunrise.%","%/new-celebrate.%","%/article-fallback.%","%/category-image%","%/category-photo%","%/placeholder.%","%/placeholder/%","%/generic.%","%/generic/%","%/default-image.%","%/random.%","%/favicon%","%/logo.%","%/logo/%","%/logos/%","%/branding/%")
         generic_sql=" OR ".join("lower(a.image_url) LIKE ?" for _ in generic_patterns)
         rows=self.db.execute(f"""SELECT a.* FROM articles a
@@ -80,11 +88,28 @@ class Store:
                 OR (a.image_url IS NULL AND (a.image_checked_at IS NULL OR datetime(a.image_checked_at)<datetime('now','-3 days')))
                 OR EXISTS(SELECT 1 FROM generic_images g WHERE g.source_id=a.source_id AND g.image_url=a.image_url)
                 OR {generic_sql})
-            ORDER BY COALESCE(a.published_at,a.collected_at) DESC LIMIT ?""",
+            ORDER BY (a.image_url IS NULL OR a.image_url='') DESC,COALESCE(a.published_at,a.collected_at) DESC LIMIT ?""",
             (f"-{IMAGE_ENRICHMENT_WINDOW_DAYS} days",IMAGE_ENRICHMENT_VERSION,*generic_patterns,max(1,min(int(limit),5000)))).fetchall()
         return [article_from_row(row) for row in rows]
     def save_article_image(self, article_id, image_url, image_source, checked_at):
         self.db.execute("UPDATE articles SET image_url=?,image_source=?,image_checked_at=?,image_enrichment_version=? WHERE article_id=?",(image_url,image_source,checked_at,IMAGE_ENRICHMENT_VERSION,article_id))
+        self.db.commit()
+    def image_host_paused(self, host, now=None):
+        from datetime import datetime, timezone
+        row=self.db.execute("SELECT paused_until FROM image_host_health WHERE host=?",(host,)).fetchone()
+        return bool(row and row[0] and row[0]>(now or datetime.now(timezone.utc)).isoformat())
+    def record_image_host(self, host, reachable, now=None):
+        """Count consecutive article-page failures per site; pause the site after too many."""
+        from datetime import datetime, timezone, timedelta
+        now=now or datetime.now(timezone.utc)
+        if reachable:
+            self.db.execute("DELETE FROM image_host_health WHERE host=?",(host,)); self.db.commit(); return
+        row=self.db.execute("SELECT consecutive_failures FROM image_host_health WHERE host=?",(host,)).fetchone()
+        failures=(row[0] if row else 0)+1
+        paused=(now+timedelta(hours=IMAGE_HOST_PAUSE_HOURS)).isoformat() if failures>=IMAGE_HOST_FAILURES_BEFORE_PAUSE else None
+        self.db.execute("""INSERT INTO image_host_health(host,consecutive_failures,paused_until,last_failure_at) VALUES(?,?,?,?)
+            ON CONFLICT(host) DO UPDATE SET consecutive_failures=excluded.consecutive_failures,paused_until=excluded.paused_until,last_failure_at=excluded.last_failure_at""",
+            (host,0 if paused else failures,paused,now.isoformat()))
         self.db.commit()
     def is_generic_image(self, source_id, image_url, article_id):
         """True for a source's default artwork rather than the story's own photo.

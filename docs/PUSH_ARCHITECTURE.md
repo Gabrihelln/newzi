@@ -70,7 +70,8 @@ The `breaking` worker role (`backend/src/newzi_backend/breaking.py`) checks ever
 A user gets one `BREAKING_NEWS` job per active device when all of these hold:
 
 - `notifications_enabled` and `breaking_news_enabled` are on;
-- the event matches their topics (a followed domain covers its subjects; `content_scope=all` covers everything) and country scope;
+- the event matches their topics (a followed domain covers its subjects; `content_scope=all` covers everything) and country scope (`GLOBAL` = foreign outlets plus the Brazilian world desks, `content.world_source_ids`);
+- a Portuguese reader only gets a story with Portuguese coverage (`content.readable`): one covered only in English is never pushed, as it is never listed, put in a briefing or narrated;
 - their local time is outside `BREAKING_QUIET_HOURS` (`22-7`).
 
 Pacing keeps it from becoming noise:

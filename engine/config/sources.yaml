@@ -602,7 +602,7 @@ sources:
     categories: [sports, futebol]
     priority: 7
     trust_tier: 1
-    enabled: true
+    enabled: false  # 2026-10-19: the site answers the production server with an empty HTTP 202 (bot wall)
   - id: gazeta_esportiva
     name: Gazeta Esportiva
     url: https://www.gazetaesportiva.com/
@@ -2155,7 +2155,7 @@ sources:
     categories: [televisao, entertainment]
     priority: 6
     trust_tier: 2
-    enabled: true
+    enabled: false  # 2026-10-19: the site answers the production server with 403
   - id: revista_quem
     name: "Quem"
     url: https://revistaquem.globo.com/
@@ -2177,7 +2177,7 @@ sources:
     categories: [world]
     priority: 6
     trust_tier: 2
-    enabled: true
+    enabled: false  # 2026-10-19: the site answers the production server with 404
   - id: observador
     name: "Observador"
     url: https://observador.pt/
@@ -2473,5 +2473,183 @@ sources:
     country: US
     categories: [clima, environment]
     priority: 6
+    trust_tier: 2
+    enabled: true
+  # Portuguese entertainment, series, streaming, TV, celebrities, music and games (added 2026-10-19,
+  # each checked from the production server).
+  - id: pipoca_moderna
+    name: "Pipoca Moderna"
+    url: https://pipocamoderna.com.br/
+    feed_url: "https://pipocamoderna.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [cinema, series, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: cinepop
+    name: "CinePOP"
+    url: https://cinepop.com.br/
+    feed_url: "https://cinepop.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [cinema, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: tangerina
+    name: "Tangerina"
+    url: https://tangerina.uol.com.br/
+    feed_url: "https://tangerina.uol.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [streaming, series, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: critical_hits
+    name: "Critical Hits"
+    url: https://criticalhits.com.br/
+    feed_url: "https://criticalhits.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [cinema, series, games, entertainment]
+    priority: 5
+    trust_tier: 2
+    enabled: true
+  - id: minha_serie
+    name: "Minha Série"
+    url: https://www.estadao.com.br/minha-serie/
+    feed_url: "https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/minha-serie/?body=%7B%22layout%22:%22google-news%22%7D"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [series, streaming, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: mix_de_series
+    name: "Mix de Séries"
+    url: https://www.mixdeseries.com.br/
+    feed_url: "https://www.mixdeseries.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [series, entertainment]
+    priority: 5
+    trust_tier: 2
+    enabled: true
+  - id: serie_maniacos
+    name: "Série Maníacos"
+    url: https://seriemaniacos.tv/
+    feed_url: "https://seriemaniacos.tv/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [series, entertainment]
+    priority: 5
+    trust_tier: 2
+    enabled: true
+  - id: ei_nerd
+    name: "Ei Nerd"
+    url: https://einerd.com.br/
+    feed_url: "https://einerd.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [cinema, series, entertainment]
+    priority: 5
+    trust_tier: 2
+    enabled: true
+  - id: tv_foco
+    name: "TV Foco"
+    url: https://www.otvfoco.com.br/
+    feed_url: "https://www.otvfoco.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [televisao, entertainment]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: hugo_gloss
+    name: "Hugo Gloss"
+    url: https://hugogloss.uol.com.br/
+    feed_url: "https://hugogloss.uol.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [celebridades, entertainment]
+    priority: 5
+    trust_tier: 3
+    enabled: true
+  - id: portal_leo_dias
+    name: "Portal Leo Dias"
+    url: https://portalleodias.com/
+    feed_url: "https://portalleodias.com/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [celebridades, entertainment]
+    priority: 5
+    trust_tier: 3
+    enabled: true
+  - id: popline
+    name: "Popline"
+    url: https://portalpopline.com.br/
+    feed_url: "https://portalpopline.com.br/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [musica, celebridades, entertainment]
+    priority: 5
+    trust_tier: 2
+    enabled: true
+  - id: tenho_mais_discos
+    name: "Tenho Mais Discos Que Amigos"
+    url: https://www.tenhomaisdiscosqueamigos.com/
+    feed_url: "https://www.tenhomaisdiscosqueamigos.com/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [musica, entertainment]
+    priority: 5
+    trust_tier: 2
+    enabled: true
+  - id: ign_brasil
+    name: "IGN Brasil"
+    url: https://br.ign.com/
+    feed_url: "https://br.ign.com/feed.xml"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [games, cinema, series]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: voxel
+    name: "Voxel"
+    url: https://www.estadao.com.br/tecmundo/voxel/
+    feed_url: "https://www.estadao.com.br/arc/outboundfeeds/feeds/rss/sections/voxel/?body=%7B%22layout%22:%22google-news%22%7D"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [games]
+    priority: 6
+    trust_tier: 2
+    enabled: true
+  - id: gamevicio
+    name: "GameVicio"
+    url: https://www.gamevicio.com/
+    feed_url: "https://www.gamevicio.com/feed/"
+    type: rss
+    language: pt-BR
+    country: BR
+    categories: [games]
+    priority: 5
     trust_tier: 2
     enabled: true

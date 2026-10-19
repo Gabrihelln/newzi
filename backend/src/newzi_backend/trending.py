@@ -4,13 +4,15 @@ An event (articles the clustering grouped under one ``event_id``) trends when at
 TRENDING_MIN_SOURCES distinct sources covered it within the last TRENDING_WINDOW_HOURS. Its score adds
 one point per source, decayed by how long ago that source joined (half-life about four hours), so
 coverage that is growing now outranks coverage that piled up earlier. Deals, guides and explainers
-never trend. Unlike the briefing, user topics are ignored; only the country scope applies.
+never trend. Unlike the briefing, user topics are ignored; only the country scope and the reader's language
+apply (a Portuguese reader sees only stories with Portuguese coverage, told through it).
 """
 import math
 import os
 from datetime import timedelta
 
 from .breaking import is_news
+from .content import event_in_scope, event_readable
 from .timeutil import iso, parse, utc_now
 
 DECAY_HOURS = 6.0
@@ -20,15 +22,7 @@ def _env_int(name, default):
     return int(os.getenv(name, str(default)))
 
 
-def _in_scope(countries, scope):
-    if scope == "LOCAL":
-        return "BR" in countries
-    if scope == "GLOBAL":
-        return bool(countries - {"BR"})
-    return True
-
-
-def trending_events(repo, country_scope="BOTH", limit=5, now=None):
+def trending_events(repo, country_scope="BOTH", limit=5, now=None, language="pt-BR"):
     """Ranked trending events: dicts with the lead article id, outlet count and score."""
     now = now or utc_now()
     window = timedelta(hours=max(1, _env_int("TRENDING_WINDOW_HOURS", 12)))
@@ -45,7 +39,7 @@ def trending_events(repo, country_scope="BOTH", limit=5, now=None):
         joined = {}
         for row in articles:  # rows are oldest first: the first article per source is when it joined
             joined.setdefault(row["source_id"], row["published_at"])
-        if len(joined) < min_sources or not _in_scope({row["source_country"] for row in articles}, country_scope):
+        if len(joined) < min_sources or not event_in_scope(articles, country_scope) or not event_readable(articles, language):
             continue
         lead = sorted(articles, key=lambda row: (not str(row["source_language"] or "").startswith("pt"), -(row["quality_score"] or 0), row["published_at"]))[0]
         if not is_news(lead["title"], lead["description"], lead["url"]):
@@ -61,7 +55,7 @@ def trending_stories(repo, uid, limit=5, now=None):
     """Trending events as news items for ``uid`` (labels follow their interests), most trending first."""
     prefs = repo.get_preferences(uid) or {}
     items = []
-    for rank, event in enumerate(trending_events(repo, prefs.get("country_scope") or "BOTH", limit, now), 1):
+    for rank, event in enumerate(trending_events(repo, prefs.get("country_scope") or "BOTH", limit, now, prefs.get("language") or "pt-BR"), 1):
         item = repo.story(uid, event["lead_id"])
         if item:
             items.append({**item, "position": rank, "trending": {"rank": rank, "outlets": event["outlets"]}})

@@ -35,6 +35,7 @@ _IMAGE_SOURCE_RANKS = (
     ("rss:entry-image", 2),
     ("rss:enclosure", 3),
     ("rss:link-enclosure", 3),
+    ("rss:inline-image", 3),
     ("html:", 4),
     ("jsonld:", 4),
 )
@@ -135,6 +136,17 @@ def feed_image_candidates(entry, article_url=""):
         normalized = canonical_image_url(candidate, article_url)
         if normalized:
             yield normalized, "rss:entry-image"
+    # Some feeds (Contigo!, Papelpop, TudoCelular) only carry the photo as an <img> inside the
+    # description or content:encoded, and their pages block robots, so this is the only copy.
+    for html_text in (entry.get("summary"), *(item.get("value") for item in (entry.get("content") or []) if isinstance(item, dict))):
+        for match in _INLINE_IMG.finditer(str(html_text or "")):
+            normalized = canonical_image_url(match.group(1), article_url)
+            if normalized:
+                yield normalized, "rss:inline-image"
+                break
+
+
+_INLINE_IMG = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 
 
 def extract_feed_image(entry, article_url=""):
@@ -437,9 +449,24 @@ def enrich_missing_images(store, limit=12, max_workers=4, timeout_seconds=2.5):
         url, source = resolve_article_image(article, timeout_seconds, diagnostics=diagnostics, exclude=exclude)
         return url, source, diagnostics
 
-    totals = {"image_probe_attempts": 0, "image_probe_timeouts": 0, "article_pages_fetched": 0, "article_page_failures": 0}
+    totals = {"image_probe_attempts": 0, "image_probe_timeouts": 0, "article_pages_fetched": 0, "article_page_failures": 0, "paused_host_skips": 0}
+    # A site that keeps blocking its article pages is paused: its stories keep their feed picture
+    # (if any) without a page fetch and are marked checked, so the batch goes to sites that answer.
+    paused_hosts = {}
+    active = []
+    for article in candidates:
+        host = urlsplit(article.url or "").hostname or ""
+        if host and paused_hosts.setdefault(host, store.image_host_paused(host) if hasattr(store, "image_host_paused") else False):
+            totals["paused_host_skips"] += 1
+            kept = canonical_image_url(article.image_url, article.url) if article.image_url else None
+            timestamp = image_checked_timestamp()
+            store.save_article_image(article.article_id, kept, article.image_source if kept else None, timestamp)
+            article.image_url, article.image_source, article.image_checked_at = kept, article.image_source if kept else None, timestamp
+            updated.append(article)
+            continue
+        active.append(article)
     with ThreadPoolExecutor(max_workers=max(1, min(int(max_workers), 8)), thread_name_prefix="newzi-image") as pool:
-        futures = {pool.submit(discover, article): article for article in candidates}
+        futures = {pool.submit(discover, article): article for article in active}
         for future in as_completed(futures):
             article = futures[future]
             operation_started = time.perf_counter()
@@ -465,6 +492,9 @@ def enrich_missing_images(store, limit=12, max_workers=4, timeout_seconds=2.5):
                     diagnostics[key] = diagnostics.get(key, 0) + value
             for key in totals:
                 totals[key] += diagnostics.get(key, 0)
+            host = urlsplit(article.url or "").hostname or ""
+            if host and diagnostics.get("article_pages_fetched") and hasattr(store, "record_image_host"):
+                store.record_image_host(host, not diagnostics.get("article_page_failures"))
             checked += 1
             failed += int(url is None)
             timestamp = image_checked_timestamp()

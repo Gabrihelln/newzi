@@ -11,8 +11,8 @@ The push carries the lead headline as its title and a short summary of the story
 (``story_summary``); tapping it opens the story.
 
 A user receives it when ``notifications_enabled`` and ``breaking_news_enabled`` are on, the event
-matches their topics (a followed domain covers its subjects; "follow everything" covers all) and
-country scope, and it is outside their quiet hours (local time). To keep it from becoming noise:
+matches their topics (a followed domain covers its subjects; "follow everything" covers all), country
+scope and language (a Portuguese reader only gets stories with Portuguese coverage), and it is outside their quiet hours (local time). To keep it from becoming noise:
 
 - at least BREAKING_MIN_GAP_MINUTES (45) pass between two breaking pushes to the same user. A story
   found during the gap waits; when the gap ends the strongest story still breaking (most sources) goes
@@ -188,10 +188,8 @@ class BreakingNewsService:
 
     @staticmethod
     def matches(prefs, event):
-        scope = prefs.get("country_scope")
-        if scope == "LOCAL" and "BR" not in event["countries"]:
-            return False
-        if scope == "GLOBAL" and not (event["countries"] - {"BR"}):
+        from .content import event_in_scope, event_readable
+        if not event_in_scope(event["articles"], prefs.get("country_scope")) or not event_readable(event["articles"], prefs.get("language") or "pt-BR"):
             return False
         if prefs.get("content_scope") == "all":
             return True

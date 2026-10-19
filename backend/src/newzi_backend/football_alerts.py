@@ -161,6 +161,7 @@ class FootballAlertService:
     # News
     def check_news(self, teams, now):
         from .breaking import BreakingNewsService, already_told, story_summary
+        from .content import readable
         quiet = BreakingNewsService(self.repo)
         if not teams:
             return 0
@@ -168,10 +169,10 @@ class FootballAlertService:
             f"SELECT id,name FROM football_teams WHERE id IN ({','.join('?' for _ in teams)})", tuple(teams))}
         marks = ",".join("?" for _ in FOOTBALL_TOPICS)
         articles = self.repo.db.execute(
-            f"""SELECT DISTINCT c.id,c.title,c.description,c.event_id,c.published_at FROM indexed_content c
+            f"""SELECT DISTINCT c.id,c.title,c.description,c.event_id,c.published_at,c.source_language FROM indexed_content c
                 JOIN content_taxonomy t ON t.content_id=c.id
                 WHERE c.published_at>=? AND c.published_at<=? AND (t.taxonomy_id IN ({marks}) OR t.taxonomy_id LIKE 'FUTEBOL%')
-                ORDER BY c.published_at DESC""",
+                ORDER BY lower(COALESCE(c.source_language,'')) LIKE 'pt%' DESC,c.published_at DESC""",  # a story is told through its Portuguese coverage
             (iso(now - NEWS_WINDOW), iso(now + timedelta(minutes=10)), *FOOTBALL_TOPICS)).fetchall()
         sent = 0; members = {}
         for team_id, name in names.items():
@@ -190,7 +191,8 @@ class FootballAlertService:
                 payload = {"title": article["title"], "body": story_summary(article["title"], [article["description"]]) or f"Notícia sobre o {name}. Toque para ler.",
                            "data": {"story_id": article["id"], "team_id": str(team_id)}}
                 for user_id in teams[team_id]:
-                    if (not quiet._awake(self.repo.get_preferences(user_id) or {}, now) or self._news_today(user_id, team_id, now) >= TEAM_NEWS_PER_DAY
+                    prefs = self.repo.get_preferences(user_id) or {}
+                    if (not readable(article["source_language"], prefs.get("language") or "pt-BR") or not quiet._awake(prefs, now) or self._news_today(user_id, team_id, now) >= TEAM_NEWS_PER_DAY
                             or already_told(self.repo, user_id, members[story], article["title"], now)):
                         continue
                     # The delivery id names the story (event), not the article: a new outlet's article is not a new alert.

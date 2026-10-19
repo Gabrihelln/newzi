@@ -17135,50 +17135,8 @@
    ],
    "latest_news": [
     {
-     "id": "article_00",
-     "position": 1,
-     "headline": "Manchete 0 sobre TECHNOLOGY",
-     "summary": "Resumo da notícia 0 sobre TECHNOLOGY.",
-     "category": "Tecnologia",
-     "primary_taxonomy_id": "TECHNOLOGY",
-     "primary_taxonomy_label": "Tecnologia",
-     "published_at": "<ts>",
-     "image_url": "https://news.example/images/0.jpg",
-     "sources": [
-      {
-       "publisher": "Fonte 0",
-       "url": "https://news.example/0",
-       "article_id": "article_00",
-       "published_at": "<ts>",
-       "image_url": "https://news.example/images/0.jpg"
-      }
-     ],
-     "key_points": []
-    },
-    {
-     "id": "article_02",
-     "position": 2,
-     "headline": "Manchete 2 sobre TECHNOLOGY",
-     "summary": "Resumo da notícia 2 sobre TECHNOLOGY.",
-     "category": "Tecnologia",
-     "primary_taxonomy_id": "TECHNOLOGY",
-     "primary_taxonomy_label": "Tecnologia",
-     "published_at": "<ts>",
-     "image_url": "https://news.example/images/2.jpg",
-     "sources": [
-      {
-       "publisher": "Fonte 2",
-       "url": "https://news.example/2",
-       "article_id": "article_02",
-       "published_at": "<ts>",
-       "image_url": "https://news.example/images/2.jpg"
-      }
-     ],
-     "key_points": []
-    },
-    {
      "id": "article_03",
-     "position": 3,
+     "position": 1,
      "headline": "Manchete 3 sobre ECONOMY",
      "summary": "Resumo da notícia 3 sobre ECONOMY.",
      "category": "Economia",
@@ -17198,29 +17156,8 @@
      "key_points": []
     },
     {
-     "id": "article_04",
-     "position": 4,
-     "headline": "Manchete 4 sobre TECHNOLOGY",
-     "summary": "Resumo da notícia 4 sobre TECHNOLOGY.",
-     "category": "Tecnologia",
-     "primary_taxonomy_id": "TECHNOLOGY",
-     "primary_taxonomy_label": "Tecnologia",
-     "published_at": "<ts>",
-     "image_url": "https://news.example/images/4.jpg",
-     "sources": [
-      {
-       "publisher": "Fonte 1",
-       "url": "https://news.example/4",
-       "article_id": "article_04",
-       "published_at": "<ts>",
-       "image_url": "https://news.example/images/4.jpg"
-      }
-     ],
-     "key_points": []
-    },
-    {
      "id": "article_05",
-     "position": 5,
+     "position": 2,
      "headline": "Manchete 5 sobre ECONOMY",
      "summary": "Resumo da notícia 5 sobre ECONOMY.",
      "category": "Economia",
@@ -17240,29 +17177,8 @@
      "key_points": []
     },
     {
-     "id": "article_06",
-     "position": 6,
-     "headline": "Manchete 6 sobre TECHNOLOGY",
-     "summary": "Resumo da notícia 6 sobre TECHNOLOGY.",
-     "category": "Tecnologia",
-     "primary_taxonomy_id": "TECHNOLOGY",
-     "primary_taxonomy_label": "Tecnologia",
-     "published_at": "<ts>",
-     "image_url": "https://news.example/images/6.jpg",
-     "sources": [
-      {
-       "publisher": "Fonte 0",
-       "url": "https://news.example/6",
-       "article_id": "article_06",
-       "published_at": "<ts>",
-       "image_url": "https://news.example/images/6.jpg"
-      }
-     ],
-     "key_points": []
-    },
-    {
      "id": "article_07",
-     "position": 7,
+     "position": 3,
      "headline": "Manchete 7 sobre ECONOMY",
      "summary": "Resumo da notícia 7 sobre ECONOMY.",
      "category": "Economia",
@@ -18122,29 +18038,8 @@
      "key_points": []
     },
     {
-     "id": "article_04",
-     "position": 2,
-     "headline": "Manchete 4 sobre TECHNOLOGY",
-     "summary": "Resumo da notícia 4 sobre TECHNOLOGY.",
-     "category": "Tecnologia",
-     "primary_taxonomy_id": "TECHNOLOGY",
-     "primary_taxonomy_label": "Tecnologia",
-     "published_at": "<ts>",
-     "image_url": "https://news.example/images/4.jpg",
-     "sources": [
-      {
-       "publisher": "Fonte 1",
-       "url": "https://news.example/4",
-       "article_id": "article_04",
-       "published_at": "<ts>",
-       "image_url": "https://news.example/images/4.jpg"
-      }
-     ],
-     "key_points": []
-    },
-    {
      "id": "article_05",
-     "position": 3,
+     "position": 2,
      "headline": "Manchete 5 sobre ECONOMY",
      "summary": "Resumo da notícia 5 sobre ECONOMY.",
      "category": "Economia",
@@ -18164,29 +18059,8 @@
      "key_points": []
     },
     {
-     "id": "article_06",
-     "position": 4,
-     "headline": "Manchete 6 sobre TECHNOLOGY",
-     "summary": "Resumo da notícia 6 sobre TECHNOLOGY.",
-     "category": "Tecnologia",
-     "primary_taxonomy_id": "TECHNOLOGY",
-     "primary_taxonomy_label": "Tecnologia",
-     "published_at": "<ts>",
-     "image_url": "https://news.example/images/6.jpg",
-     "sources": [
-      {
-       "publisher": "Fonte 0",
-       "url": "https://news.example/6",
-       "article_id": "article_06",
-       "published_at": "<ts>",
-       "image_url": "https://news.example/images/6.jpg"
-      }
-     ],
-     "key_points": []
-    },
-    {
      "id": "article_07",
-     "position": 5,
+     "position": 3,
      "headline": "Manchete 7 sobre ECONOMY",
      "summary": "Resumo da notícia 7 sobre ECONOMY.",
      "category": "Economia",

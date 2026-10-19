@@ -27,6 +27,8 @@ class RSSCollector:
                     if time.perf_counter()-started>self.source_budget: raise TimeoutError(f"source exceeded {self.source_budget:.0f}s request budget")
                     chunks.append(chunk)
                 body=b"".join(chunks)
+            # Bot walls answer 200/202 with an empty body (ESPN Brasil from a datacenter): a failure, not an empty feed.
+            if not body.strip(): raise ValueError(f"empty feed response (HTTP {response.status_code})")
             if time.perf_counter()-started>self.source_budget: raise TimeoutError(f"source exceeded {self.source_budget:.0f}s request budget")
             fetched=time.perf_counter(); parse_started=time.perf_counter(); parsed=feedparser.parse(body); parsed_at=time.perf_counter()
             if parsed.bozo and not parsed.entries: raise ValueError(str(parsed.bozo_exception))
