@@ -535,3 +535,13 @@ migrações `0011_briefing_slots` e `0012_premium_features` rodam sozinhas na pr
   O produto do build se chama `Newzi.app` (`build/dd/Build/Products/Debug-iphoneos/Newzi.app`).
 - `CURRENT_PROJECT_VERSION` 3 → 4; `xcodebuild archive` (Release) e `-exportArchive` com `ExportOptions.plist`:
   upload aceito pelo App Store Connect (versão 1.0, build 4). Falta o Gabriel liberar o build para os testadores.
+
+### 2026-10-19 — Newzi Premium e build 5 no TestFlight
+- Recursos Premium (seção 9) e a extensão `NewziWidgets` (widgets e Live Activity) entraram no projeto. O Xcode
+  registrou sozinho o App Group `group.app.newzi.ios` e o App ID `app.newzi.ios.NewziWidgets` na assinatura
+  automática (`-allowProvisioningUpdates`).
+- `CURRENT_PROJECT_VERSION` 4 → 5 (app e extensão precisam ter o mesmo); archive e upload aceitos (versão 1.0, build 5).
+- **Limite deste Mac:** o iPhone foi para o iOS 27 e o Xcode 26.1 não instala nele pelo cabo (`devicectl` falha com
+  `0xE8000003`; o `xcodebuild` não aceita o aparelho como destino). O Xcode 27 exige macOS Tahoe 26.6 e chip Apple,
+  e o iMac Pro 2017 (Intel) não roda o Tahoe. Daqui em diante, testes no iPhone são pelo TestFlight (ou por um Mac
+  com chip Apple). Compilar para `generic/platform=iOS` e para o simulador continua funcionando.
