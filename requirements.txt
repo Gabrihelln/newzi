@@ -1,5 +1,5 @@
 feedparser==6.0.11
-httpx==0.27.2
+httpx==0.28.1  # firebase-admin 6.9 requires exactly this version
 fastapi>=0.115,<1
 uvicorn>=0.30,<1
 PyYAML==6.0.2
