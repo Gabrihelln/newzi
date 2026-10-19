@@ -21,6 +21,18 @@ async def refresh(request: Request, uid: str = Depends(current_user)):
     return accepted(await call(request, service_of(request).request_refresh, uid))
 
 
+@router.post("/now")
+async def on_demand(request: Request, uid: str = Depends(current_user)):
+    """Premium "Gerar agora": poll /generations/{id} until READY, then open its delivery_id."""
+    return accepted(await call(request, service_of(request).request_on_demand, uid))
+
+
+@router.get("/search")
+async def search(request: Request, uid: str = Depends(current_user), q: str = ""):
+    """Premium: stories of past briefings matching every word of ``q``."""
+    return await call(request, service_of(request).search_briefings, uid, q)
+
+
 @router.get("/generations/{generation_id}")
 async def generation(generation_id: str, request: Request, uid: str = Depends(current_user)):
     return await call(request, service_of(request).generation_status, uid, generation_id)

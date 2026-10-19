@@ -6,6 +6,7 @@ import type { Briefing } from '../types/api';
 import { radius, spacing, typography, useTheme } from '../theme';
 import { EditionCover } from './EditionCover';
 import { Icon } from './Icon';
+import { briefingTitle } from './OnDemandBriefing';
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 const CLOSE_SIZE = 26;
@@ -63,7 +64,7 @@ export function MiniAudioPlayer({ onExpand }: { onExpand: (briefing: Briefing) =
         style={{ flex: 1, minHeight: 66, flexDirection: 'row', alignItems: 'center' }}>
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ marginRight: spacing.md }}><EditionCover briefing={session.briefing} size={58} compact /></View>
         <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Text numberOfLines={1} style={{ color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontWeight: '800', fontSize: 15 }}>Seu resumo diário</Text>
+        <Text numberOfLines={1} style={{ color: colors.textPrimary, fontFamily: typography.fontFamily.ui, fontWeight: '800', fontSize: 15 }}>{briefingTitle(session.briefing)}</Text>
         <Text numberOfLines={1} style={{ color: colors.secondary, fontSize: 12, marginTop: 4 }}>{date} · {clock(playback.position)} / {clock(playback.duration)}</Text>
         <View style={{ height: 4, backgroundColor: colors.track, borderRadius: 3, marginTop: 8, overflow: 'hidden' }}><View style={{ width: `${progress * 100}%`, height: 4, backgroundColor: colors.primary, borderRadius: 3 }} /></View>
         </View>

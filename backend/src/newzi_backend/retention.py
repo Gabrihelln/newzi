@@ -114,6 +114,8 @@ def run_retention(repo, storage=None, now=None):
     result.update(_orphan_audio_files(repo, storage, now - timedelta(days=1)))
     result.update(_telemetry(repo, now - timedelta(days=_days("RETENTION_TELEMETRY_DAYS", 30))))
     result.update(_old_content(repo, now - timedelta(days=_days("RETENTION_CONTENT_DAYS", 90))))
+    from .match_audio import purge_old
+    result.update(purge_old(repo, now))
     repo.db.execute("INSERT INTO content_index_state(key,value,updated_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
                     (STATE_KEY, _iso(now), _iso(now)))
     repo.db.commit()

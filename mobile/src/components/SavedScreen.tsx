@@ -5,14 +5,16 @@ import { api } from '../api/client';
 import { getAudioContext } from '../audio/player';
 import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import { AppHeader, TAB_GUTTER } from './AppHeader';
+import { CollectionsSection } from './Collections';
 import { EditionCover } from './EditionCover';
+import { SavedPremiumTools } from './SavedPremiumTools';
 import { Icon } from './Icon';
 import { ArticleImage } from './ArticleImage';
 import { colorFor, TopicGlyph } from './ExploreScreen';
 import {typography, useStyles, useTheme, type Palette } from '../theme';
-import type { Briefing, BriefingItem, SavedArticle, SavedOverview, SavedOverviewItem, SavedTopicSummary } from '../types/api';
+import type { Briefing, BriefingItem, SavedArticle, SavedCollection, SavedOverview, SavedOverviewItem, SavedTopicSummary } from '../types/api';
 
-type SavedScreenProps = { onDetail: (item: BriefingItem, progress?: number) => void; onAudio: (briefing: Briefing) => void; onProfile: () => void; onSeeAll: () => void; onSeeTopics: () => void; onTopic: (topic: SavedTopicSummary) => void; refreshOnFocus?: boolean };
+type SavedScreenProps = { onDetail: (item: BriefingItem, progress?: number) => void; onAudio: (briefing: Briefing) => void; onProfile: () => void; onSeeAll: () => void; onSeeTopics: () => void; onTopic: (topic: SavedTopicSummary) => void; onCollection?: (collection: SavedCollection) => void; refreshOnFocus?: boolean };
 
 const wordsPerMinute = (item: BriefingItem) => item.reading_time_minutes && item.reading_time_minutes > 0 ? item.reading_time_minutes : Math.max(1, Math.ceil(`${item.headline || ''} ${item.summary || ''}`.trim().split(/\s+/).filter(Boolean).length / 200));
 function topicTone(topic: SavedTopicSummary, index: number, colors: Palette) {
@@ -97,7 +99,7 @@ function SavedSkeleton() {
   return <View><View style={s.countSkeleton} /><SectionTitle title="Continuar lendo" /><View style={[s.skeletonCard, { height: 154 }]} /><SectionTitle title="Organizados por assunto" /><View style={s.skeletonGrid}>{Array.from({ length: 6 }, (_, index) => <View key={index} style={[s.skeletonTopic, { width: '31%' }]} />)}</View><SectionTitle title="Salvos recentemente" /><View style={s.skeletonRecent}>{[1, 2].map(value => <View key={value} style={[s.skeletonCard, { width: 190, height: 216 }]} />)}</View></View>;
 }
 
-export function SavedScreen({ onDetail, onAudio, onProfile, onSeeAll, onSeeTopics, onTopic, refreshOnFocus = true }: SavedScreenProps) {
+export function SavedScreen({ onDetail, onAudio, onProfile, onSeeAll, onSeeTopics, onTopic, onCollection, refreshOnFocus = true }: SavedScreenProps) {
   const s = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
@@ -133,6 +135,8 @@ export function SavedScreen({ onDetail, onAudio, onProfile, onSeeAll, onSeeTopic
       {loading ? <SavedSkeleton /> : error ? <View style={s.errorCard}><Text style={s.errorText}>{error}</Text><Pressable accessibilityRole="button" onPress={() => void load()}><Text style={s.retry}>Tentar novamente</Text></Pressable></View> : !stories && !overview?.recent_items.length ? <View style={s.emptyCard}><View style={s.emptyGlyph}><Icon name="bookmark" size={30} color={colors.primary} /></View><Text style={s.emptyTitle}>Você ainda não salvou nada.</Text><Text style={s.emptySubtitle}>Salve notícias e resumos para encontrar tudo aqui depois.</Text></View> : <>
         <SectionTitle title="Continuar lendo" />
         {continueWithAudio && !continueItem ? <Pressable accessibilityRole="button" accessibilityLabel={`Continuar resumo de ${continueWithAudio.date}`} onPress={() => onAudio(continueWithAudio)} style={s.continueEmpty}><View style={s.emptyGlyph}><Icon name="audio" size={24} color={colors.primary} /></View><View style={{ flex: 1 }}><Text style={s.continueEmptyTitle}>Continuar resumo de {continueWithAudio.date}</Text><Text style={s.continueEmptyText}>Retome a reprodução na posição atual.</Text></View><Icon name="play" size={20} color={colors.primary} /></Pressable> : <ContinueReadingCard item={continueItem || null} onContinue={item => onDetail(item, item.reading_progress)} />}
+        <SavedPremiumTools onAudio={onAudio} storyCount={stories} />
+        {onCollection && <CollectionsSection collections={overview?.collections || []} onOpen={onCollection} onChanged={() => void load()} />}
         <SectionTitle title="Organizados por assunto" onAll={onSeeTopics} />
         {topics.length ? <View style={s.topicGrid}>{topics.map((topic, index) => <TopicCard key={topic.id} topic={topic} index={index} width={topicWidth} onPress={() => onTopic(topic)} />)}</View> : <Text style={s.sectionEmpty}>Seus assuntos salvos aparecerão aqui.</Text>}
         <SectionTitle title="Salvos recentemente" onAll={onSeeAll} />

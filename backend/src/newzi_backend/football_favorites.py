@@ -13,8 +13,8 @@ from .football import COMPETITIONS, CREST_VERSION, crest_path, ensure_competitio
 from .paths import BACKEND_DATA
 from .timeutil import now_iso
 
-FAVORITE_LIMITS = {"basic": 1, "premium": 10}
-ALERT_FIELDS = {"kickoff": "team_kickoff_enabled", "goals": "team_goals_enabled", "final": "team_final_enabled", "news": "team_news_enabled"}
+ALERT_FIELDS = {"kickoff": "team_kickoff_enabled", "goals": "team_goals_enabled", "final": "team_final_enabled", "news": "team_news_enabled",
+                "reminder": "team_reminder_enabled", "live_activities": "live_activities_enabled"}
 CREST_SIZE = 128
 
 
@@ -81,8 +81,8 @@ def _team_out(row):
 
 
 def favorite_limit(repo, uid):
-    from .subscriptions import subscription_for
-    return FAVORITE_LIMITS[subscription_for(repo, uid)["tier"]]
+    from .subscriptions import limit
+    return limit(repo, uid, "favorite_teams")
 
 
 def favorites(repo, uid):

@@ -14,15 +14,16 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..product_backend import ApiError, ProductService
+from ..subscriptions import PremiumRequired
 from .routes import briefings, dev, me, public
 
 log = logging.getLogger("news_engine.product")
 MAX_BODY_BYTES = 1024 * 1024
 
 
-def error_response(code, message, status, request=None):
+def error_response(code, message, status, request=None, **extra):
     request_id = getattr(getattr(request, "state", None), "request_id", None) or "req_" + uuid.uuid4().hex
-    return JSONResponse({"error": {"code": code, "message": message, "request_id": request_id}}, status_code=status)
+    return JSONResponse({"error": {"code": code, "message": message, "request_id": request_id, **extra}}, status_code=status)
 
 
 def create_app(service=None):
@@ -52,6 +53,11 @@ def create_app(service=None):
     @app.exception_handler(ApiError)
     async def api_error(request, exc):
         return error_response(exc.code, exc.message, exc.status, request)
+
+    @app.exception_handler(PremiumRequired)
+    async def premium_required(request, exc):
+        # The app opens the Premium sheet of ``feature``.
+        return error_response("PREMIUM_REQUIRED", str(exc), 403, request, feature=exc.feature)
 
     @app.exception_handler(ValueError)
     async def validation_error(request, exc):

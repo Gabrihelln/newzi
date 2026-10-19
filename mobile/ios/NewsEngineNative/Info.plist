@@ -37,7 +37,22 @@
 				<string>com.googleusercontent.apps.300896912437-5puthemqhigh4g5f3v3l1hhqmhesvbga</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>app.newzi.ios</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Widgets and Live Activities open the app here: newzi://story/ID, newzi://briefing, newzi://football. -->
+				<string>newzi</string>
+			</array>
+		</dict>
 	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>

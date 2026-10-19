@@ -8,6 +8,9 @@ state saved last time in ``football_match_states``:
 - a side's score went up: goal (with the score);
 - anything -> finished: final result (with the team's place in the table when known).
 
+Premium fans also get a reminder REMINDER_MINUTES before kickoff and, when the game ends, a narrated summary of it
+(match_audio.py); their final-result push says it can be heard.
+
 A game seen for the first time is only recorded, so a deploy or a new favourite never replays old events.
 News: a recent football article whose headline names a favourite team (at most TEAM_NEWS_PER_DAY a day per
 team, never during quiet hours). A story is one delivery per team whichever outlet's article names the team, and is
@@ -30,6 +33,7 @@ from .timeutil import iso, utc_now
 
 log = logging.getLogger(__name__)
 TEAM_NEWS_PER_DAY = int(os.getenv("TEAM_NEWS_PER_DAY", "3"))
+REMINDER_MINUTES = int(os.getenv("TEAM_REMINDER_MINUTES", "15"))
 NEWS_WINDOW = timedelta(hours=3)
 # How fans name some clubs in headlines, besides the display name.
 ALIASES = {"Atlético-MG": ["Atlético Mineiro", "Galo"], "Athletico-PR": ["Athletico"], "Red Bull Bragantino": ["Bragantino"],
@@ -52,6 +56,7 @@ class FootballAlertService:
         self.service = service or football_service()
         self.notifications = NotificationService(repo)
         self._last_games = self._last_news = None
+        self._premium_cache = {}
 
     # Audience
     def _interest(self):
@@ -78,14 +83,25 @@ class FootballAlertService:
                 result["game_alerts"] = self.check_games(teams, matches, now)
             except Exception as exc:
                 log.warning("football game alerts failed: %s", exc)
+            try:
+                from .match_audio import generate_pending
+                result["match_audio"] = generate_pending(self.repo)
+            except Exception as exc:
+                log.warning("match audio failed: %s", exc)
         if force or self._last_news is None or time.monotonic() - self._last_news >= 300:
             self._last_news = time.monotonic()
             result["news_alerts"] = self.check_news(teams, now)
         return result
 
     # Games
+    def _premium(self, user_id):
+        from .subscriptions import has_premium_features
+        if user_id not in self._premium_cache:
+            self._premium_cache[user_id] = has_premium_features(self.repo, user_id)
+        return self._premium_cache[user_id]
+
     def check_games(self, teams, followed, now):
-        sent = 0
+        sent = 0; self._premium_cache = {}
         for match in self.service.raw_matches(now):
             home, away = match.get("homeTeam") or {}, match.get("awayTeam") or {}
             users = teams.get(home.get("id"), set()) | teams.get(away.get("id"), set()) | followed.get(match.get("id"), set())
@@ -93,6 +109,7 @@ class FootballAlertService:
                 continue
             full = (match.get("score") or {}).get("fullTime") or {}
             status, home_goals, away_goals = match.get("status"), full.get("home"), full.get("away")
+            sent += self._remind(match, users, status, now)
             previous = self.repo.db.execute("SELECT status,home_goals,away_goals FROM football_match_states WHERE match_id=?", (match["id"],)).fetchone()
             self.repo.db.execute("""INSERT INTO football_match_states(match_id,status,home_goals,away_goals,updated_at) VALUES(?,?,?,?,?)
                 ON CONFLICT(match_id) DO UPDATE SET status=excluded.status,home_goals=excluded.home_goals,away_goals=excluded.away_goals,updated_at=excluded.updated_at""",
@@ -100,10 +117,58 @@ class FootballAlertService:
             self.repo.db.commit()
             if previous is None:
                 continue  # first sight: just remember it
-            for kind, payload, key in self._events(match, previous, status, home_goals, away_goals):
+            events = self._events(match, previous, status, home_goals, away_goals)
+            premium_fans = [user_id for user_id in users if self._premium(user_id)]
+            if any(kind == "TEAM_FINAL" for kind, _, _ in events) and premium_fans:
+                self._queue_audio(match, now)
+            for kind, payload, key in events:
                 for user_id in users:
-                    sent += self._enqueue(user_id, kind, key, self._personal(kind, payload, match, user_id, teams), now)
+                    personal = self._personal(kind, payload, match, user_id, teams)
+                    if kind == "TEAM_FINAL" and user_id in premium_fans:
+                        personal = {**personal, "body": personal["body"].rstrip(".") + ". Ouça o resumo do jogo no Newzi.",
+                                    "data": {**personal["data"], "match_audio": "1"}}
+                    sent += self._enqueue(user_id, kind, key, personal, now)
+            if events and premium_fans:
+                try:
+                    from .live_activities import push_match_update
+                    push_match_update(self.repo, match, premium_fans, now)
+                except Exception as exc:
+                    log.warning("live activity update failed: %s", exc)
         return sent
+
+    def _remind(self, match, users, status, now):
+        """Premium: "Começa em 15 min" once, for a game about to start."""
+        kickoff = _kickoff(match)
+        if status not in UPCOMING or not kickoff or not timedelta(0) < kickoff - now <= timedelta(minutes=REMINDER_MINUTES):
+            return 0
+        home, away = _team(match.get("homeTeam")), _team(match.get("awayTeam"))
+        competition = COMPETITIONS.get((match.get("competition") or {}).get("code"), (match.get("competition") or {}).get("name") or "")
+        minutes = max(1, round((kickoff - now).total_seconds() / 60))
+        payload = {"title": f"Começa em {minutes} min: {home} x {away}", "body": f"{competition}. Acompanhe ao vivo no Newzi." if competition else "Acompanhe ao vivo no Newzi.",
+                   "data": {"match_id": str(match["id"]), "competition": (match.get("competition") or {}).get("code") or ""}}
+        sent = 0
+        for user_id in users:
+            if self._premium(user_id):
+                sent += self._enqueue(user_id, "TEAM_REMINDER", "reminder", payload, now)
+        try:
+            from .live_activities import push_to_start
+            push_to_start(self.repo, match, [user_id for user_id in users if self._premium(user_id)], now)
+        except Exception as exc:
+            log.warning("live activity start failed: %s", exc)
+        return sent
+
+    def _queue_audio(self, match, now):
+        from . import match_audio
+        code = (match.get("competition") or {}).get("code")
+        try:
+            rows = [row for group in self.service.standings(code)["groups"] for row in group["rows"]] if code in COMPETITIONS else []
+        except Exception:
+            rows = []
+        try:
+            headlines = match_audio.news_headlines(self.repo, match, now)
+        except Exception:
+            headlines = []
+        match_audio.queue(self.repo, match, rows, headlines, now)
 
     def _events(self, match, previous, status, home_goals, away_goals):
         home, away = _team(match.get("homeTeam")), _team(match.get("awayTeam"))

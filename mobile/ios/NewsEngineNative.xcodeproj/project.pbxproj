@@ -7,32 +7,79 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B38EDF0505FC9C69B855430 /* MatchActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0ECAABCBD3D5FB1FFF4823 /* MatchActivityAttributes.swift */; };
+		0F12837A88E411959A2C550E /* HeadlinesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46A4BA80E45DBDF518057D1 /* HeadlinesWidget.swift */; };
+		136E048F877CB9035C790A98 /* NewziWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D691D5B0D4FE0AD30C265554 /* NewziWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		143C925D4F4737778EE8F94F /* NewziWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A7DDCE90C00842043618BE /* NewziWidgetsBundle.swift */; };
+		2B6D76993AE76CB712497AFB /* MatchLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA1B99354BA25FE56D74DD6 /* MatchLiveActivity.swift */; };
+		2C835626E0859747184944A2 /* NewziWidgetBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = E570C2F5B393ED8100F9CD4C /* NewziWidgetBridge.m */; };
 		73A542C14324A65BBAB6CDBE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		740A240DC9FA66A195851DC7 /* Pods_NewsEngineNative.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F4750719849BDEB6048A1EBD /* Pods_NewsEngineNative.framework */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		9EA9CFBE20D065E236B3E8B4 /* MatchActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C0ECAABCBD3D5FB1FFF4823 /* MatchActivityAttributes.swift */; };
 		A11D10002CA45674006654EE /* NewziAudioCache.m in Sources */ = {isa = PBXBuildFile; fileRef = A11D10012CA45674006654EE /* NewziAudioCache.m */; };
+		A8E2A3DC185EB3B14A5086D4 /* NewziWidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 278F45A9A9971360AA5AF309 /* NewziWidgetBridge.swift */; };
+		D67621F9E77AB5419BEC0E51 /* ChoiceWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14AE8BA9C0F479745BED1461 /* ChoiceWidgets.swift */; };
 		F0A1B2C30000000000000001 /* Inter.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F0A1B2C30000000000000011 /* Inter.ttf */; };
 		F0A1B2C30000000000000002 /* Newsreader.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F0A1B2C30000000000000012 /* Newsreader.ttf */; };
 		F0A1B2C30000000000000003 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = F0A1B2C30000000000000013 /* GoogleService-Info.plist */; };
+		FBF8F3ADC4D4A844D13B53AB /* WidgetData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC181FA1F98B1C7C0EABE48 /* WidgetData.swift */; };
+		FD42B5F73CBAE41FA32D3279 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 24AD0BCDB2E9B77027CC6B7E /* Foundation.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		50570A4A5EA7D18501F51215 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4D6FB13DEEC12A9117D5D6B4;
+			remoteInfo = NewziWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		469B536D3034F3CADBC2F6E1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				136E048F877CB9035C790A98 /* NewziWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* Newzi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Newzi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = NewsEngineNative/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = NewsEngineNative/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = NewsEngineNative/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		14AE8BA9C0F479745BED1461 /* ChoiceWidgets.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChoiceWidgets.swift; sourceTree = "<group>"; };
+		24AD0BCDB2E9B77027CC6B7E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		278F45A9A9971360AA5AF309 /* NewziWidgetBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NewsEngineNative/NewziWidgetBridge.swift; sourceTree = "<group>"; };
+		30C0C2E4BCAB115D65CDABE1 /* NewziWidgets.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NewziWidgets.entitlements; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-NewsEngineNative.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NewsEngineNative.debug.xcconfig"; path = "Target Support Files/Pods-NewsEngineNative/Pods-NewsEngineNative.debug.xcconfig"; sourceTree = "<group>"; };
+		4C0ECAABCBD3D5FB1FFF4823 /* MatchActivityAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MatchActivityAttributes.swift; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-NewsEngineNative.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NewsEngineNative.release.xcconfig"; path = "Target Support Files/Pods-NewsEngineNative/Pods-NewsEngineNative.release.xcconfig"; sourceTree = "<group>"; };
+		58A7DDCE90C00842043618BE /* NewziWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NewziWidgetsBundle.swift; sourceTree = "<group>"; };
+		5DA1B99354BA25FE56D74DD6 /* MatchLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MatchLiveActivity.swift; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = NewsEngineNative/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = NewsEngineNative/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		9DC181FA1F98B1C7C0EABE48 /* WidgetData.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetData.swift; sourceTree = "<group>"; };
 		A11D10012CA45674006654EE /* NewziAudioCache.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = NewziAudioCache.m; path = NewsEngineNative/NewziAudioCache.m; sourceTree = "<group>"; };
+		B46A4BA80E45DBDF518057D1 /* HeadlinesWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HeadlinesWidget.swift; sourceTree = "<group>"; };
+		D691D5B0D4FE0AD30C265554 /* NewziWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NewziWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E570C2F5B393ED8100F9CD4C /* NewziWidgetBridge.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = NewsEngineNative/NewziWidgetBridge.m; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F0A1B2C30000000000000011 /* Inter.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Inter.ttf; path = NewsEngineNative/Fonts/Inter.ttf; sourceTree = "<group>"; };
 		F0A1B2C30000000000000012 /* Newsreader.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; name = Newsreader.ttf; path = NewsEngineNative/Fonts/Newsreader.ttf; sourceTree = "<group>"; };
 		F0A1B2C30000000000000013 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "NewsEngineNative/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		F4750719849BDEB6048A1EBD /* Pods_NewsEngineNative.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_NewsEngineNative.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		FE25D22F257D9E7CCC4FD22A /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -41,6 +88,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				740A240DC9FA66A195851DC7 /* Pods_NewsEngineNative.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		53A12E6C1BCE94E4BFDEA962 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD42B5F73CBAE41FA32D3279 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -58,6 +113,8 @@
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				F0A1B2C30000000000000020 /* Fonts */,
+				278F45A9A9971360AA5AF309 /* NewziWidgetBridge.swift */,
+				E570C2F5B393ED8100F9CD4C /* NewziWidgetBridge.m */,
 			);
 			name = NewsEngineNative;
 			sourceTree = "<group>";
@@ -67,8 +124,26 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				F4750719849BDEB6048A1EBD /* Pods_NewsEngineNative.framework */,
+				7D04DF3326553FA075F65D4B /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		4EF09CB05F32BC78FF3EEC05 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				4C0ECAABCBD3D5FB1FFF4823 /* MatchActivityAttributes.swift */,
+			);
+			name = Shared;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		7D04DF3326553FA075F65D4B /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				24AD0BCDB2E9B77027CC6B7E /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -86,6 +161,8 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				4EF09CB05F32BC78FF3EEC05 /* Shared */,
+				C7F9002472300B9B42848217 /* NewziWidgets */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -96,6 +173,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* Newzi.app */,
+				D691D5B0D4FE0AD30C265554 /* NewziWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -107,6 +185,21 @@
 				5709B34CF0A7D63546082F79 /* Pods-NewsEngineNative.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		C7F9002472300B9B42848217 /* NewziWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				58A7DDCE90C00842043618BE /* NewziWidgetsBundle.swift */,
+				9DC181FA1F98B1C7C0EABE48 /* WidgetData.swift */,
+				B46A4BA80E45DBDF518057D1 /* HeadlinesWidget.swift */,
+				14AE8BA9C0F479745BED1461 /* ChoiceWidgets.swift */,
+				5DA1B99354BA25FE56D74DD6 /* MatchLiveActivity.swift */,
+				FE25D22F257D9E7CCC4FD22A /* Info.plist */,
+				30C0C2E4BCAB115D65CDABE1 /* NewziWidgets.entitlements */,
+			);
+			name = NewziWidgets;
+			path = NewziWidgets;
 			sourceTree = "<group>";
 		};
 		F0A1B2C30000000000000020 /* Fonts */ = {
@@ -129,6 +222,7 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				469B536D3034F3CADBC2F6E1 /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
@@ -137,11 +231,29 @@
 			buildRules = (
 			);
 			dependencies = (
+				A9FA69CE57B78FE934ED1BE8 /* PBXTargetDependency */,
 			);
 			name = NewsEngineNative;
 			productName = NewsEngineNative;
 			productReference = 13B07F961A680F5B00A75B9A /* Newzi.app */;
 			productType = "com.apple.product-type.application";
+		};
+		4D6FB13DEEC12A9117D5D6B4 /* NewziWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E93558538E152B0154964761 /* Build configuration list for PBXNativeTarget "NewziWidgets" */;
+			buildPhases = (
+				2434D7CBE7FBB480956E1996 /* Sources */,
+				53A12E6C1BCE94E4BFDEA962 /* Frameworks */,
+				D32981C34D9C3D4E67C41496 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NewziWidgets;
+			productName = NewziWidgets;
+			productReference = D691D5B0D4FE0AD30C265554 /* NewziWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -170,6 +282,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* NewsEngineNative */,
+				4D6FB13DEEC12A9117D5D6B4 /* NewziWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -185,6 +298,13 @@
 				F0A1B2C30000000000000002 /* Newsreader.ttf in Resources */,
 				F0A1B2C30000000000000003 /* GoogleService-Info.plist in Resources */,
 				73A542C14324A65BBAB6CDBE /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D32981C34D9C3D4E67C41496 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,10 +405,35 @@
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 				A11D10002CA45674006654EE /* NewziAudioCache.m in Sources */,
+				A8E2A3DC185EB3B14A5086D4 /* NewziWidgetBridge.swift in Sources */,
+				2C835626E0859747184944A2 /* NewziWidgetBridge.m in Sources */,
+				9EA9CFBE20D065E236B3E8B4 /* MatchActivityAttributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2434D7CBE7FBB480956E1996 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				143C925D4F4737778EE8F94F /* NewziWidgetsBundle.swift in Sources */,
+				FBF8F3ADC4D4A844D13B53AB /* WidgetData.swift in Sources */,
+				0F12837A88E411959A2C550E /* HeadlinesWidget.swift in Sources */,
+				D67621F9E77AB5419BEC0E51 /* ChoiceWidgets.swift in Sources */,
+				2B6D76993AE76CB712497AFB /* MatchLiveActivity.swift in Sources */,
+				0B38EDF0505FC9C69B855430 /* MatchActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A9FA69CE57B78FE934ED1BE8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NewziWidgets;
+			target = 4D6FB13DEEC12A9117D5D6B4 /* NewziWidgets */;
+			targetProxy = 50570A4A5EA7D18501F51215 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
@@ -299,7 +444,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NewsEngineNative/NewsEngineNative.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 3253WT48Q3;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = NewsEngineNative/Info.plist;
@@ -332,7 +477,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NewsEngineNative/NewsEngineNative.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 3253WT48Q3;
 				INFOPLIST_FILE = NewsEngineNative/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -354,6 +499,35 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
+		};
+		328ABCC31C3DB26800CB95EF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = NewziWidgets/NewziWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 3253WT48Q3;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NewziWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.newzi.ios.NewziWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
 		};
 		83CBBA201A601CBA00E9B192 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -543,6 +717,36 @@
 			};
 			name = Release;
 		};
+		A84E95DBF0658053C8639151 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = NewziWidgets/NewziWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 3253WT48Q3;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NewziWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.newzi.ios.NewziWidgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -560,6 +764,15 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E93558538E152B0154964761 /* Build configuration list for PBXNativeTarget "NewziWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A84E95DBF0658053C8639151 /* Release */,
+				328ABCC31C3DB26800CB95EF /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

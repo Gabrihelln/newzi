@@ -40,11 +40,12 @@ def jobs(repo, uid="fan"):
             repo.db.execute("SELECT notification_type,payload_json FROM notification_jobs WHERE user_id=? ORDER BY created_at,id", (uid,))]
 
 
-def test_favourites_respect_the_plan_and_save_alert_switches(repo):
+def test_favourites_respect_the_plan_and_save_alert_switches(repo, monkeypatch):
+    monkeypatch.setenv("PREMIUM_ENFORCED", "true")
     from newzi_backend.football_favorites import FavoritesError, favorites, save_favorites
     saved = save_favorites(repo, "fan", {"team_ids": [1783], "alerts": {"goals": False}})
     assert [team["name"] for team in saved["teams"]] == ["Flamengo"] and saved["teams"][0]["crest"] == "/api/v1/football/crests/1783.png?v=2"
-    assert saved["limit"] == 1 and saved["alerts"] == {"kickoff": True, "goals": False, "final": True, "news": True}
+    assert saved["limit"] == 1 and saved["alerts"] == {"kickoff": True, "goals": False, "final": True, "news": True, "reminder": True, "live_activities": True}
     with pytest.raises(FavoritesError) as limit:
         save_favorites(repo, "fan", {"team_ids": [1783, 1769]})
     assert limit.value.code == "FAVORITES_LIMIT"
@@ -53,7 +54,8 @@ def test_favourites_respect_the_plan_and_save_alert_switches(repo):
     assert [team["id"] for team in favorites(repo, "fan")["teams"]] == [1783]
 
 
-def test_game_alerts_follow_the_score_once_and_never_replay_old_events(repo):
+def test_game_alerts_follow_the_score_once_and_never_replay_old_events(repo, monkeypatch):
+    monkeypatch.setenv("PREMIUM_ENFORCED", "true")   # Básico: the Premium extras are tested in test_premium.py
     from newzi_backend.football_alerts import FootballAlertService
     from newzi_backend.football_favorites import follow_match, save_favorites
     save_favorites(repo, "fan", {"team_ids": [1783]})

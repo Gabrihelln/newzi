@@ -577,9 +577,15 @@ def test_subscription_plans_and_access(tmp_path, monkeypatch):
     uid = repo.create_dev_user()["id"]
     now = datetime(2026, 10, 14, 12, 0, tzinfo=timezone.utc)
     monkeypatch.delenv("BILLING_ENABLED", raising=False)
+    monkeypatch.delenv("PREMIUM_ENFORCED", raising=False)
     basic = subscription_for(repo, uid, now)
-    assert basic["tier"] == "basic" and basic["limits"] == {"briefing_times": 1, "favorite_teams": 1} and not basic["purchases_enabled"]
+    assert basic["tier"] == "basic" and basic["limits"]["briefing_times"] == 1 and basic["limits"]["favorite_teams"] == 1 and not basic["purchases_enabled"]
     assert [plan["id"] for plan in basic["plans"]] == ["annual", "monthly"] and not basic["will_renew"]
+    # Until purchases work the limits are not enforced: everyone keeps every feature.
+    assert basic["entitlements"]["premium"] and not basic["entitlements"]["enforced"] and basic["entitlements"]["features"]["keyword_alerts"]
+    monkeypatch.setenv("PREMIUM_ENFORCED", "true")
+    locked = subscription_for(repo, uid, now)["entitlements"]
+    assert not locked["premium"] and not any(locked["features"].values()) and locked["limits"]["history_days"] == 7
 
     def store(status, expires_at, auto_renew=1):
         repo.db.execute("INSERT INTO subscriptions(user_id,period,status,store,expires_at,auto_renew,updated_at) VALUES(?,?,?,?,?,?,?) "
@@ -588,7 +594,8 @@ def test_subscription_plans_and_access(tmp_path, monkeypatch):
         repo.db.commit()
     store("active", "2027-10-14T12:00:00.000000+00:00")
     premium = subscription_for(repo, uid, now)
-    assert premium["tier"] == "premium" and premium["period"] == "annual" and premium["will_renew"] and premium["limits"]["briefing_times"] == 4
+    assert premium["tier"] == "premium" and premium["period"] == "annual" and premium["will_renew"] and premium["limits"]["briefing_times"] == 3
+    assert premium["entitlements"]["premium"] and premium["entitlements"]["limits"]["favorite_teams"] == 10
     store("grace", "2026-10-21T12:00:00.000000+00:00")
     assert subscription_for(repo, uid, now)["payment_issue"]
     store("canceled", "2026-11-01T12:00:00.000000+00:00", 0)

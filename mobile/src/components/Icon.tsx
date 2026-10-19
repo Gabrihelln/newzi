@@ -2,7 +2,7 @@ import React from 'react';
 import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { useTheme } from '../theme';
 
-export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor' | 'trash' | 'flag' | 'layers' | 'mic' | 'shield' | 'bellOff' | 'bolt' | 'info' | 'mail' | 'phone' | 'pin' | 'star' | 'plus' | 'apple' | 'google' | 'replay15' | 'forward15' | 'filter';
+export type IconName = 'ball' | 'trending' | 'moon' | 'search' | 'bell' | 'chevron' | 'chevronDown' | 'close' | 'calendar' | 'bookmark' | 'clock' | 'play' | 'pause' | 'audio' | 'home' | 'explore' | 'saved' | 'profile' | 'topic' | 'settings' | 'sun' | 'lock' | 'card' | 'help' | 'message' | 'camera' | 'edit' | 'share' | 'more' | 'dots' | 'headphones' | 'speed' | 'article' | 'check' | 'checkCircle' | 'arrowUpRight' | 'stop' | 'radio' | 'radioActive' | 'globe' | 'rewind' | 'forward' | 'previous' | 'next' | 'volume' | 'cpu' | 'brain' | 'growth' | 'coins' | 'landmark' | 'heart' | 'leaf' | 'sparkles' | 'image' | 'ratingGreat' | 'ratingGood' | 'ratingNeutral' | 'ratingBad' | 'ratingPoor' | 'trash' | 'flag' | 'layers' | 'mic' | 'shield' | 'bellOff' | 'bolt' | 'info' | 'mail' | 'phone' | 'pin' | 'star' | 'plus' | 'apple' | 'google' | 'replay15' | 'forward15' | 'filter' | 'download' | 'folder' | 'queue' | 'downloaded';
 
 /** `filled` paints the whole shape (a saved bookmark); otherwise icons are outlines. */
 export function Icon({ name, color: requested, size = 22, filled = false }: { name: IconName; color?: string; size?: number; filled?: boolean }) {
@@ -23,6 +23,10 @@ export function Icon({ name, color: requested, size = 22, filled = false }: { na
     {name === 'replay15' && <><Path d="M5.2 8.6A8 8 0 1 1 4 12.8" {...stroke} /><Path d="M4.6 4.4v4.6h4.6" {...stroke} /><SvgText x="12.4" y="15.6" fontSize="8.4" fontWeight="800" fill={color} textAnchor="middle">15</SvgText></>}
     {name === 'forward15' && <><Path d="M18.8 8.6A8 8 0 1 0 20 12.8" {...stroke} /><Path d="M19.4 4.4v4.6h-4.6" {...stroke} /><SvgText x="11.6" y="15.6" fontSize="8.4" fontWeight="800" fill={color} textAnchor="middle">15</SvgText></>}
     {name === 'filter' && <Path d="M4 7h16M7 12h10M10 17h4" {...stroke} />}
+    {name === 'download' && <><Path d="M12 3v12m-5-5 5 5 5-5" {...stroke} /><Path d="M5 20h14" {...stroke} /></>}
+    {name === 'downloaded' && <><Circle cx="12" cy="12" r="9" {...stroke} /><Path d="M12 7v7m-3-3 3 3 3-3M8.5 17h7" {...stroke} /></>}
+    {name === 'folder' && <Path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" {...stroke} />}
+    {name === 'queue' && <><Path d="M4 6h12M4 11h12M4 16h7" {...stroke} /><Path d="m15 14 5 3-5 3Z" fill={color} /></>}
     {name === 'bellOff' && <><Path d="M8.7 3.9A6 6 0 0 1 18 9c0 3.2.6 5 1.3 6.2M6.3 6.3A6 6 0 0 0 6 9c0 7-3 7-3 9h15" {...stroke} /><Path d="M10 21h4M3 3l18 18" {...stroke} /></>}
     {name === 'shield' && <><Path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6Z" {...stroke} /><Path d="m8.8 12 2.2 2.2 4.3-4.4" {...stroke} /></>}
     {name === 'bolt' && <Path d="M13 2.5 4.5 13.5H12l-1 8 8.5-11H12Z" {...stroke} />}

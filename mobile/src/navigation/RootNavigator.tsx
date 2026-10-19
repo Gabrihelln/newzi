@@ -7,7 +7,9 @@ import { createBottomTabNavigator, type BottomTabBarProps, type BottomTabNavigat
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { Briefing, BriefingItem, SavedTopicSummary, Topic, User } from '../types/api';
+import type { Briefing, BriefingItem, SavedCollection, SavedTopicSummary, Topic, User } from '../types/api';
+import { CollectionScreen } from '../components/Collections';
+import { KeywordAlertsScreen } from '../components/PersonalAlerts';
 import { useTheme } from '../theme';
 import { VoiceSettingsScreen } from '../components/VoiceSettingsScreen';
 import { OnboardingScreen } from '../components/OnboardingScreen';
@@ -24,9 +26,12 @@ import { FavoriteTeamsScreen } from '../components/FavoriteTeamsScreen';
 import { SubscriptionScreen } from '../components/SubscriptionScreen';
 import { getAudioContext, sameBriefing, subscribeAudio } from '../audio/player';
 import { startContentRevisionMonitor } from '../services/contentRevision';
+import { PremiumHost, startEntitlementsMonitor } from '../services/premium';
+import { startIosWidgets } from '../services/iosWidgets';
+import '../audio/queue';
 import { TopicFeedScreen } from '../components/HomeScreen';
 import { BrandPage, BrandPageHeader, ScreenState } from '../components/ScreenPrimitives';
-import { navigationRef, setMainFlowReady } from './notificationRouting';
+import { listenForDeepLinks, navigationRef, setMainFlowReady } from './notificationRouting';
 import { Icon } from '../components/Icon';
 import { ProfileScreen, SecurityPrivacyScreen } from '../components/ProfileScreen';
 import { DailyBriefingSettingsScreen } from '../components/DailyBriefingSettingsScreen';
@@ -35,7 +40,7 @@ import { ContentPreferencesScreen } from '../components/ContentPreferencesScreen
 import { AudioExpandedScreen, DetailScreen, ExploreScreen, SavedContentScreen, SavedScreen, SavedTopicsScreen, TodayScreen } from '../screens/ScreenViews';
 
 export type RootAuthState = 'BOOTING' | 'AUTHENTICATED' | 'UNAUTHENTICATED';
-export type MainStackParamList = { Tabs: undefined; Detail: { item?: BriefingItem; storyId?: string; trackReadingProgress?: boolean; readingProgress?: number }; SavedTopics: undefined; SavedContent: { topic?: SavedTopicSummary }; EditProfile: undefined; ContentPreferences: undefined; DailyBriefing: undefined; SecurityPrivacy: undefined; Subscription: undefined; AudioExpanded: { briefing?: Briefing; briefingId?: string }; History: undefined; TopicFeed: { topic: Topic }; NotificationSettings: undefined; Appearance: undefined; VoiceSettings: undefined; Football: undefined; FootballTables: { code?: string } | undefined; FavoriteTeams: undefined; Account: undefined };
+export type MainStackParamList = { Tabs: undefined; Detail: { item?: BriefingItem; storyId?: string; trackReadingProgress?: boolean; readingProgress?: number }; SavedTopics: undefined; SavedContent: { topic?: SavedTopicSummary }; EditProfile: undefined; ContentPreferences: undefined; DailyBriefing: undefined; SecurityPrivacy: undefined; Subscription: undefined; AudioExpanded: { briefing?: Briefing; briefingId?: string }; History: undefined; TopicFeed: { topic: Topic }; NotificationSettings: undefined; Appearance: undefined; VoiceSettings: undefined; Football: { matchAudio?: number } | undefined; FootballTables: { code?: string } | undefined; FavoriteTeams: undefined; Account: undefined; SavedCollection: { collection: SavedCollection }; KeywordAlerts: undefined };
 type MainTabParamList = { Inicio: undefined; Explorar: undefined; Salvos: undefined; Perfil: undefined };
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const OnboardingStack = createNativeStackNavigator();
@@ -127,7 +132,7 @@ function TodayTab({ onAuthExpired, user, onLatestBriefing }: { onAuthExpired: ()
     onTopic={topic => parent?.navigate('TopicFeed', { topic })} />;
 }
 function ExploreTab({ user }: { user: User | null }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ExploreScreen user={user} onTopic={topic => parent?.navigate('TopicFeed', { topic })} onDetail={item => parent?.navigate('Detail', { item })} onProfile={() => parent?.navigate('Account')} onFootball={() => parent?.navigate('Football')} onEditTopics={() => parent?.navigate('ContentPreferences')} />; }
-function SavedTab() { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); const focused = useIsFocused(); return <SavedScreen refreshOnFocus={focused} onDetail={(item, progress) => parent?.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => parent?.navigate('AudioExpanded', { briefing })} onProfile={() => parent?.navigate('Account')} onSeeAll={() => parent?.navigate('SavedContent', {})} onSeeTopics={() => parent?.navigate('SavedTopics')} onTopic={topic => parent?.navigate('SavedContent', { topic })} />; }
+function SavedTab() { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); const focused = useIsFocused(); return <SavedScreen refreshOnFocus={focused} onDetail={(item, progress) => parent?.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => parent?.navigate('AudioExpanded', { briefing })} onProfile={() => parent?.navigate('Account')} onSeeAll={() => parent?.navigate('SavedContent', {})} onSeeTopics={() => parent?.navigate('SavedTopics')} onTopic={topic => parent?.navigate('SavedContent', { topic })} onCollection={collection => parent?.navigate('SavedCollection', { collection })} />; }
 function ProfileTab({ user, onLogout }: { user: User | null; onLogout: () => void }) { const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>(); const parent = navigation.getParent<NativeStackNavigationProp<MainStackParamList>>(); return <ProfileScreen user={user} onNavigate={route => parent?.navigate(route as never)} onLogout={onLogout} />; }
 function DetailScreenRoute({ route, navigation }: any) {
   const [item, setItem] = React.useState<BriefingItem | null>(route.params?.item || null);
@@ -151,7 +156,7 @@ function DetailScreenRoute({ route, navigation }: any) {
 }
 
 /** The briefing player, also reachable from a daily-briefing push that carries only the delivery id. */
-function AudioExpandedRoute({ briefing, briefingId, ...actions }: { briefing?: Briefing; briefingId?: string; onBack: () => void; onDetail: (item: BriefingItem) => void; onHome: () => void; onSchedule: () => void }) {
+function AudioExpandedRoute({ briefing, briefingId, ...actions }: { briefing?: Briefing; briefingId?: string; onBack: () => void; onDetail: (item: BriefingItem) => void; onHome: () => void; onSchedule: () => void; onAdvance: (briefing: Briefing) => void }) {
   const [loaded, setLoaded] = React.useState<Briefing | null>(briefing || null);
   const [error, setError] = React.useState(false);
   const [retry, setRetry] = React.useState(0);
@@ -172,6 +177,9 @@ function AudioExpandedRoute({ briefing, briefingId, ...actions }: { briefing?: B
 
 function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpired: () => void; onLogout: () => void; onUserUpdated: (user: User) => void; user: User | null }) {
   React.useEffect(() => startContentRevisionMonitor(), []);
+  React.useEffect(() => startEntitlementsMonitor(), []);
+  React.useEffect(() => startIosWidgets(), []);
+  React.useEffect(() => listenForDeepLinks(), []);
   React.useEffect(() => { setMainFlowReady(true); return () => setMainFlowReady(false); }, []);
   return <><MainStack.Navigator screenOptions={{ headerShown: false }}>
     <MainStack.Screen name="Tabs">{() => <MainTabs user={user} onAuthExpired={onAuthExpired} onLogout={onLogout} />}</MainStack.Screen>
@@ -182,6 +190,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
     <MainStack.Screen name="SecurityPrivacy">{({ navigation }) => <SecurityPrivacyScreen onBack={() => navigation.goBack()} />}</MainStack.Screen>
     <MainStack.Screen name="Subscription">{({ navigation }) => <SubscriptionScreen onBack={() => navigation.goBack()} />}</MainStack.Screen>
     <MainStack.Screen name="SavedTopics">{({ navigation }) => <SavedTopicsScreen onBack={() => navigation.goBack()} onSelect={topic => navigation.navigate('SavedContent', { topic })} />}</MainStack.Screen>
+    <MainStack.Screen name="SavedCollection">{({ route, navigation }) => <CollectionScreen collection={route.params.collection} onBack={() => navigation.goBack()} onDetail={(item, progress) => navigation.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} />}</MainStack.Screen>
     <MainStack.Screen name="SavedContent">{({ route, navigation }) => <SavedContentScreen topic={route.params.topic} onBack={() => navigation.goBack()} onDetail={(item, progress) => navigation.navigate('Detail', { item, trackReadingProgress: true, readingProgress: progress })} onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} />}</MainStack.Screen>
     <MainStack.Screen name="Detail">
       {({ route, navigation }) => <DetailScreenRoute route={route} navigation={navigation} />}
@@ -190,17 +199,20 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
       {({ route, navigation }) => <AudioExpandedRoute briefing={route.params.briefing} briefingId={route.params.briefingId} onBack={() => navigation.goBack()}
         onDetail={item => navigation.navigate('Detail', { item })}
         onHome={() => navigation.navigate('Tabs' as never, { screen: 'Inicio' } as never)}
-        onSchedule={() => navigation.navigate('DailyBriefing')} />}
+        onSchedule={() => navigation.navigate('DailyBriefing')}
+        onAdvance={next => navigation.setParams({ briefing: next, briefingId: undefined })} />}
     </MainStack.Screen>
     <MainStack.Screen name="History">
       {({ navigation }) => <HistoryScreen onBack={() => navigation.goBack()}
-        onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} />}
+        onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} onDetail={item => navigation.navigate('Detail', { item })} />}
     </MainStack.Screen>
     <MainStack.Screen name="NotificationSettings">
-      {({ navigation }) => <NotificationSettingsScreen onBack={() => navigation.goBack()} />}
+      {({ navigation }) => <NotificationSettingsScreen onBack={() => navigation.goBack()} onKeywords={() => navigation.navigate('KeywordAlerts')} />}
     </MainStack.Screen>
+    <MainStack.Screen name="KeywordAlerts">{({ navigation }) => <KeywordAlertsScreen onBack={() => navigation.goBack()} />}</MainStack.Screen>
     <MainStack.Screen name="Football">
-      {({ navigation }) => <FootballScreen onBack={() => navigation.goBack()} onTables={code => navigation.navigate('FootballTables', { code })} onFavorites={() => navigation.navigate('FavoriteTeams')} />}
+      {({ navigation, route }) => <FootballScreen onBack={() => navigation.goBack()} onTables={code => navigation.navigate('FootballTables', { code })} onFavorites={() => navigation.navigate('FavoriteTeams')}
+        matchAudio={route.params?.matchAudio} onAudio={briefing => navigation.navigate('AudioExpanded', { briefing })} />}
     </MainStack.Screen>
     <MainStack.Screen name="FootballTables">{({ navigation, route }) => <FootballTablesScreen initialCode={route.params?.code} onBack={() => navigation.goBack()} />}</MainStack.Screen>
     <MainStack.Screen name="FavoriteTeams">{({ navigation }) => <FavoriteTeamsScreen onBack={() => navigation.goBack()} onSubscription={() => navigation.navigate('Subscription')} />}</MainStack.Screen>
@@ -213,7 +225,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
     <MainStack.Screen name="Account">
       {({ navigation }) => <AccountScreen onBack={() => navigation.goBack()} onEditProfile={() => navigation.navigate('EditProfile')} onAccountDeleted={onLogout} />}
     </MainStack.Screen>
-  </MainStack.Navigator></>;
+  </MainStack.Navigator><PremiumHost /></>;
 }
 /** Screen backgrounds during transitions follow the app theme (no white flash in dark mode). */
 function navigationTheme(theme: ReturnType<typeof useTheme>): NavigationTheme {

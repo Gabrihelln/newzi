@@ -71,7 +71,7 @@ def validate_briefing_time(value):
 
 
 def validate_preferences(data, defaults=None):
-    base = {"topics": [row["id"] for row in topic_rows() if row["enabled"]][:3], "content_scope": "selected", "language": "pt-BR", "country_scope": "BOTH", "briefing_time": "06:00", "timezone": "America/Sao_Paulo", "briefing_size": 10, "audio_enabled": False, "audio_voice_id": None}
+    base = {"topics": [row["id"] for row in topic_rows() if row["enabled"]][:3], "content_scope": "selected", "language": "pt-BR", "country_scope": "BOTH", "briefing_time": "06:00", "timezone": "America/Sao_Paulo", "briefing_size": 10, "audio_enabled": False, "audio_voice_id": None, "briefing_length": "standard"}
     if defaults: base.update(defaults)
     base.update(data or {})
     if base["language"] not in {"pt-BR", "en"}: raise ValueError("unsupported language")
@@ -82,6 +82,8 @@ def validate_preferences(data, defaults=None):
     base["topics"] = list(canonical)
     if base["country_scope"] not in {"LOCAL", "GLOBAL", "BOTH"}: raise ValueError("invalid country_scope")
     if base["briefing_size"] not in {5, 10, 15}: raise ValueError("briefing_size must be 5, 10, or 15")
+    base["briefing_length"]=base.get("briefing_length") or "standard"
+    if base["briefing_length"] not in {"standard", "extended"}: raise ValueError("briefing_length must be standard or extended")
     from .audio import VOICE_CATALOG
     known_voices={voice["id"] for voices in VOICE_CATALOG.values() for voice in voices}
     if base["audio_voice_id"] is not None and base["audio_voice_id"] not in known_voices: raise ValueError("unsupported audio_voice_id")
@@ -211,11 +213,12 @@ class ProductRepository:
                 if count: self.db.execute("INSERT INTO taxonomy_resolution_metrics(name,count) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET count=taxonomy_resolution_metrics.count+excluded.count",(name,count))
             if alias_count or unknown_count: self.db.commit()
         prefs=validate_preferences(data, self.get_preferences(uid) or {}); t=now_iso(); self.db.execute("""INSERT INTO user_preferences
-            (user_id,topics_json,language,country_scope,briefing_time,timezone,briefing_size,audio_enabled,updated_at,audio_voice_id,content_scope)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET topics_json=excluded.topics_json,language=excluded.language,
+            (user_id,topics_json,language,country_scope,briefing_time,timezone,briefing_size,audio_enabled,updated_at,audio_voice_id,content_scope,briefing_length)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET topics_json=excluded.topics_json,language=excluded.language,
             country_scope=excluded.country_scope,briefing_time=excluded.briefing_time,timezone=excluded.timezone,briefing_size=excluded.briefing_size,
-            audio_enabled=excluded.audio_enabled,updated_at=excluded.updated_at,audio_voice_id=excluded.audio_voice_id,content_scope=excluded.content_scope""",
-            (uid,json.dumps(prefs["topics"]),prefs["language"],prefs["country_scope"],prefs["briefing_time"],prefs["timezone"],prefs["briefing_size"],int(prefs["audio_enabled"]),t,prefs["audio_voice_id"],prefs["content_scope"])); self.db.commit(); return self.get_preferences(uid)
+            audio_enabled=excluded.audio_enabled,updated_at=excluded.updated_at,audio_voice_id=excluded.audio_voice_id,content_scope=excluded.content_scope,
+            briefing_length=excluded.briefing_length""",
+            (uid,json.dumps(prefs["topics"]),prefs["language"],prefs["country_scope"],prefs["briefing_time"],prefs["timezone"],prefs["briefing_size"],int(prefs["audio_enabled"]),t,prefs["audio_voice_id"],prefs["content_scope"],prefs.get("briefing_length") or "standard")); self.db.commit(); return self.get_preferences(uid)
     def set_onboarding_status(self, uid, status):
         self.db.execute("UPDATE users SET onboarding_status=?,updated_at=? WHERE id=?",(status,now_iso(),uid)); self.db.commit()
     def list_topics(self):
@@ -440,7 +443,8 @@ class ProductRepository:
         topics.sort(key=lambda topic:(-topic["count"],topic["order"],topic["id"]))
         if counts.get("__OTHER__"):
             topics.append({"id":"__OTHER__","name":"Outros","count":counts["__OTHER__"],"order":10**9})
-        return {"saved_count":len(stories),"continue_reading":continue_reading,"topic_summary":topics,"recent_items":recent[:12]}
+        from .collections import list_collections
+        return {"saved_count":len(stories),"continue_reading":continue_reading,"topic_summary":topics,"recent_items":recent[:12],"collections":list_collections(self,uid)}
 
     def save_story(self, uid, story):
         clean=self._canonical_article_image(self._saved_story(story))
@@ -448,6 +452,8 @@ class ProductRepository:
         self.db.commit(); return clean
 
     def remove_saved_story(self, uid, story_id):
+        # A story leaves its collections with Salvos.
+        self.db.execute("DELETE FROM saved_collection_items WHERE user_id=? AND story_id=?",(uid,story_id))
         cursor=self.db.execute("DELETE FROM saved_stories WHERE user_id=? AND story_id=?",(uid,story_id)); self.db.commit(); return cursor.rowcount>0
 
     def article_feedback(self, uid, story_id, rating=None):
@@ -485,7 +491,8 @@ class ProductRepository:
             "saved_story_progress", "saved_stories", "article_feedback", "saved_briefings", "briefing_listening_progress",
             "generation_jobs", "user_briefing_deliveries", "manual_refresh_requests", "notification_jobs", "push_devices",
             "notification_settings", "subscriptions", "auth_sessions", "user_preferences", "user_favorite_teams",
-            "user_followed_matches")),
+            "user_followed_matches", "briefing_slots", "saved_collection_items", "saved_collections", "keyword_alerts",
+            "followed_stories", "live_activity_tokens", "live_activity_starts")),
         "DELETE FROM users WHERE id=?",
     )
 
@@ -619,18 +626,25 @@ class ProductService:
         return {**prefs,"next_briefing":self.next_briefing(uid,prefs)} if prefs else prefs
 
     def save_preferences(self, uid, data):
+        if isinstance(data,dict) and data.get("briefing_length")=="extended":
+            from .subscriptions import require
+            require(self.repo,uid,"extended_briefing")
         previous=self.repo.get_preferences(uid); saved=self.repo.save_preferences(uid,data)
         self.preferences_updated(uid,previous,saved)
         return {**saved,"next_briefing":self.next_briefing(uid,saved)}
 
     def next_briefing(self, uid, prefs):
-        """When the next new briefing arrives. There is one per day: once today's is made, the next one is tomorrow."""
-        now=self.clock.now(prefs["timezone"]) if self.clock else datetime.now(ZoneInfo(prefs["timezone"])); today=now.date(); hour,minute=map(int,prefs["briefing_time"].split(":"))
-        made=self.repo.db.execute("""SELECT 1 FROM user_briefing_deliveries WHERE user_id=? AND local_date=?
-            UNION ALL SELECT 1 FROM generation_jobs WHERE user_id=? AND briefing_date=? AND status NOT IN ('PENDING','RETRY') LIMIT 1""",
-            (uid,today.isoformat(),uid,today.isoformat())).fetchone()
-        day=today if not made and (now.hour,now.minute)<(hour,minute) else today+timedelta(days=1)
-        return {"date":day.isoformat(),"time":prefs["briefing_time"],"day":"TODAY" if day==today else "TOMORROW"}
+        """When the next new briefing arrives: the soonest of the day's briefings not made yet, else tomorrow's first."""
+        from .briefing_slots import scheduled_slots
+        now=self.clock.now(prefs["timezone"]) if self.clock else datetime.now(ZoneInfo(prefs["timezone"])); today=now.date()
+        made={row[0] for row in self.repo.db.execute("""SELECT slot FROM user_briefing_deliveries WHERE user_id=? AND local_date=?
+            UNION ALL SELECT slot FROM generation_jobs WHERE user_id=? AND briefing_date=? AND status NOT IN ('PENDING','RETRY')""",
+            (uid,today.isoformat(),uid,today.isoformat()))}
+        slots=sorted(scheduled_slots(self.repo,uid,prefs),key=lambda slot:slot["time"])
+        upcoming=[slot for slot in slots if slot["slot"] not in made and slot["time"]>now.strftime("%H:%M")]
+        slot=upcoming[0] if upcoming else slots[0]
+        day=today if upcoming else today+timedelta(days=1)
+        return {"date":day.isoformat(),"time":slot["time"],"day":"TODAY" if day==today else "TOMORROW",**({"slot":slot["slot"]} if slot["slot"]!=1 else {})}
 
     def onboarding(self, uid):
         user=self.repo.get_user(uid)
@@ -647,8 +661,14 @@ class ProductService:
         # Following everything has no topic list but is still a profile: changing its language, size or
         # coverage must also build a new briefing.
         has_profile=lambda prefs: bool(prefs.get("topics")) or prefs.get("content_scope")=="all"
-        old_profile=BriefingProfile.from_preferences(previous).key() if has_profile(previous) else None
-        new_profile=BriefingProfile.from_preferences(current).key() if has_profile(current) else None
+        # The extended narration is part of the profile (Premium only); the plan is only read when it is involved.
+        wants_extended=any(prefs.get("briefing_length")=="extended" for prefs in (previous,current))
+        if wants_extended:
+            from .subscriptions import has_premium_features
+            wants_extended=has_premium_features(self.repo,uid)
+        narration=lambda prefs: (prefs.get("briefing_length") or "standard") if wants_extended else "standard"
+        old_profile=BriefingProfile.from_preferences(previous,narration(previous)).key() if has_profile(previous) else None
+        new_profile=BriefingProfile.from_preferences(current,narration(current)).key() if has_profile(current) else None
         if onboarding:
             return self.scheduler.schedule_user_now(uid)
         if old_profile!=new_profile:
@@ -656,9 +676,10 @@ class ProductService:
         if previous.get("briefing_time")!=current.get("briefing_time") or previous.get("timezone")!=current.get("timezone"):
             # Only a briefing not made yet follows the new time. One already made keeps its own time
             # (re-announcing it later would present old news as the next briefing); the new time starts tomorrow.
-            self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid)); self.repo.db.commit()
+            self.repo.db.execute("UPDATE generation_jobs SET delivery_time=?,timezone=? WHERE user_id=? AND slot=1 AND status IN ('PENDING','RETRY')",(current["briefing_time"],current["timezone"],uid))
+            self.repo.db.execute("UPDATE generation_jobs SET timezone=? WHERE user_id=? AND status IN ('PENDING','RETRY')",(current["timezone"],uid)); self.repo.db.commit()
         if previous.get("audio_voice_id")!=current.get("audio_voice_id"):
-            delivery=self.repo.db.execute("SELECT id,edition_id,status FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC LIMIT 1",(uid,)).fetchone()
+            delivery=self.repo.db.execute("SELECT id,edition_id,status FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC,created_at DESC LIMIT 1",(uid,)).fetchone()
             if delivery:
                 language=self.repo.db.execute("SELECT language FROM briefing_editions WHERE id=?",(delivery["edition_id"],)).fetchone()["language"]
                 result=self.audio.queue_voice_for_delivery(delivery["id"],current.get("audio_voice_id"),language)
@@ -710,12 +731,14 @@ class ProductService:
     # ------------------------------------------------------------- briefings
     def client_briefing(self, uid, local_date=None):
         local_date=local_date or self.local_date(self.repo.get_preferences(uid))
-        delivery=self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? AND local_date=? ORDER BY created_at DESC LIMIT 1",(uid,local_date)).fetchone()
+        delivery=self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? AND local_date=? ORDER BY CASE WHEN status='READY' THEN 0 ELSE 1 END,created_at DESC LIMIT 1",(uid,local_date)).fetchone()
         if delivery:
             from .scheduling import serialize_edition, BriefingProfile
             edition=serialize_edition(self.repo,delivery["edition_id"]); items=[]
             for item in (edition or {}).get("items",[]): items.append({k:item.get(k) for k in ("id","position","headline","summary","why_it_matters","key_points","confidence","evidence_quality","sources","warnings","summary_provider","primary_taxonomy_id","primary_taxonomy_label","image_url")})
-            current_key=BriefingProfile.from_preferences(self.repo.get_preferences(uid)).key()
+            from .briefing_slots import slot_for
+            prefs=self.repo.get_preferences(uid)
+            current_key=BriefingProfile.for_slot(prefs,slot_for(self.repo,uid,delivery["slot"] or 1,prefs) or {}).key()
             status=delivery["status"]; audio_status=delivery["audio_status"]; audio_metadata=None
             if status=="READY":
                 if not delivery["audio_artifact_id"]: status="CONTENT_READY"; audio_status="PENDING"
@@ -725,19 +748,36 @@ class ProductService:
             audio_url=None
             if audio_metadata and audio_metadata.get("status")=="READY":
                 audio_url=("/api/v1/me/briefings/"+delivery["id"]+"/audio/file?v="+audio_metadata["asset_version"]+"&voice="+audio_metadata["voice"])
-            return {"id":delivery["id"],"delivery_id":delivery["id"],"edition_id":delivery["edition_id"],"date":local_date,"status":status,"content_status":(edition or {}).get("status"),"audio_status":audio_status,"selected_voice_id":delivery["selected_voice_id"],"active_voice_id":delivery["active_voice_id"],"voice_fallback_reason":delivery["voice_fallback_reason"],"audio_variant_id":delivery["audio_artifact_id"],"active_audio_variant_id":delivery["audio_artifact_id"],"audio_url":audio_url,"audio_duration_ms":audio_metadata.get("duration_ms") if audio_url else None,"script_id":delivery["script_id"],"generation_stage":delivery["generation_stage"],"generation_started_at":delivery["generation_started_at"],"generation_updated_at":delivery["generation_updated_at"],"generation_error_code":delivery["generation_error_code"],"generated_at":(edition or {}).get("generated_at"),"items":items,"profile_stale":bool(edition and edition["profile_key"]!=current_key and not edition["profile_key"].startswith((current_key+"_manual_",current_key+"_user_"))),"fallback_levels":sorted({w for item in items for w in item.get("warnings",[]) if isinstance(w,str) and w.startswith("FALLBACK_")})}
-        job=self.repo.db.execute("SELECT status,error_code FROM generation_jobs WHERE user_id=? AND briefing_date=?",(uid,local_date)).fetchone()
+            return {"id":delivery["id"],"delivery_id":delivery["id"],"edition_id":delivery["edition_id"],"date":local_date,"status":status,"content_status":(edition or {}).get("status"),"audio_status":audio_status,"selected_voice_id":delivery["selected_voice_id"],"active_voice_id":delivery["active_voice_id"],"voice_fallback_reason":delivery["voice_fallback_reason"],"audio_variant_id":delivery["audio_artifact_id"],"active_audio_variant_id":delivery["audio_artifact_id"],"audio_url":audio_url,"audio_duration_ms":audio_metadata.get("duration_ms") if audio_url else None,"script_id":delivery["script_id"],"generation_stage":delivery["generation_stage"],"generation_started_at":delivery["generation_started_at"],"generation_updated_at":delivery["generation_updated_at"],"generation_error_code":delivery["generation_error_code"],"generated_at":(edition or {}).get("generated_at"),"items":items,"profile_stale":bool(edition and edition["profile_key"]!=current_key and not edition["profile_key"].startswith((current_key+"_manual_",current_key+"_user_"))),"fallback_levels":sorted({w for item in items for w in item.get("warnings",[]) if isinstance(w,str) and w.startswith("FALLBACK_")}),**self._slot_fields(delivery,edition)}
+        job=self.repo.db.execute("SELECT status,error_code FROM generation_jobs WHERE user_id=? AND briefing_date=? AND slot=1",(uid,local_date)).fetchone()
         return {"date":local_date,"status":"FAILED" if job and job["status"]=="FAILED" else "PENDING","generated_at":None,"items":[],"error_code":job["error_code"] if job and job["status"]=="FAILED" else None}
+
+    @staticmethod
+    def _slot_fields(delivery, edition):
+        """Which of the day's briefings a delivery is: its slot, kind (SCHEDULED, EXTRA, ON_DEMAND), theme and time."""
+        theme=delivery["theme"]
+        label=taxonomy().nodes.get(theme,{}).get("name") if theme else None
+        return {"slot":delivery["slot"] or 1,"kind":delivery["kind"] or "SCHEDULED","theme":theme,"theme_label":label,
+                "delivery_time":delivery["delivery_time"],"narration":(edition or {}).get("narration") or "standard"}
+
+    def _history_cutoff(self, uid):
+        """The first local date a Básico account still sees in its history (None: all of it)."""
+        from .subscriptions import limit
+        days=limit(self.repo,uid,"history_days")
+        if days is None: return None
+        prefs=self.repo.get_preferences(uid)
+        return (datetime.fromisoformat(self.local_date(prefs))-timedelta(days=days-1)).date().isoformat()
 
     def client_history(self, uid, limit=20, offset=0, include_audio=False):
         from .scheduling import serialize_edition
-        deliveries=list(self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC LIMIT ? OFFSET ?",(uid,limit+1,offset)))
+        cutoff=self._history_cutoff(uid)
+        deliveries=list(self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? AND local_date>=? ORDER BY local_date DESC,created_at DESC LIMIT ? OFFSET ?",(uid,cutoff or "",limit+1,offset)))
         progress_by_delivery={row["delivery_id"]:row for row in self.repo.db.execute(
             "SELECT delivery_id,progress_seconds,duration_seconds,completed_at FROM briefing_listening_progress WHERE user_id=?",(uid,))}
         result=[]
         for delivery in deliveries[:limit]:
             edition=serialize_edition(self.repo,delivery["edition_id"])
-            row={"id":delivery["id"],"delivery_id":delivery["id"],"edition_id":delivery["edition_id"],"date":delivery["local_date"],"status":delivery["status"],"audio_status":delivery["audio_status"],"selected_voice_id":delivery["selected_voice_id"],"active_voice_id":delivery["active_voice_id"],"audio_variant_id":delivery["audio_artifact_id"],"script_id":delivery["script_id"],"generation_stage":delivery["generation_stage"],"generation_started_at":delivery["generation_started_at"],"generation_updated_at":delivery["generation_updated_at"],"generation_error_code":delivery["generation_error_code"],"generated_at":(edition or {}).get("generated_at"),"items":[{k:item.get(k) for k in ("id","position","headline","summary","why_it_matters","key_points","confidence","evidence_quality","sources","primary_taxonomy_id","primary_taxonomy_label","image_url")} for item in (edition or {}).get("items",[])]}
+            row={"id":delivery["id"],"delivery_id":delivery["id"],"edition_id":delivery["edition_id"],"date":delivery["local_date"],"status":delivery["status"],"audio_status":delivery["audio_status"],"selected_voice_id":delivery["selected_voice_id"],"active_voice_id":delivery["active_voice_id"],"audio_variant_id":delivery["audio_artifact_id"],"script_id":delivery["script_id"],"generation_stage":delivery["generation_stage"],"generation_started_at":delivery["generation_started_at"],"generation_updated_at":delivery["generation_updated_at"],"generation_error_code":delivery["generation_error_code"],"generated_at":(edition or {}).get("generated_at"),"items":[{k:item.get(k) for k in ("id","position","headline","summary","why_it_matters","key_points","confidence","evidence_quality","sources","primary_taxonomy_id","primary_taxonomy_label","image_url")} for item in (edition or {}).get("items",[])],**self._slot_fields(delivery,edition)}
             progress=progress_by_delivery.get(delivery["id"])
             if progress:
                 row.update(listening_progress_seconds=progress["progress_seconds"],listening_duration_seconds=progress["duration_seconds"],completed_at=progress["completed_at"])
@@ -755,7 +795,35 @@ class ProductService:
     def history_page(self, uid, limit, cursor):
         limit=max(1,min(int(limit),50)); offset=int(cursor or 0)
         page,next_cursor=self.client_history(uid,limit,offset,include_audio=True)
-        return {"items":page,"next_cursor":next_cursor}
+        out={"items":page,"next_cursor":next_cursor}
+        cutoff=self._history_cutoff(uid)
+        if cutoff and not next_cursor:
+            # The end of a Básico history: say when older briefings exist (the app offers Premium there).
+            older=self.repo.db.execute("SELECT COUNT(*) FROM user_briefing_deliveries WHERE user_id=? AND local_date<?",(uid,cutoff)).fetchone()[0]
+            out["limited"]={"days":(datetime.fromisoformat(self.local_date(self.repo.get_preferences(uid)))-datetime.fromisoformat(cutoff)).days+1,"older_count":older}
+        return out
+
+    def search_briefings(self, uid, query, limit=30):
+        """Premium: stories of the person's past briefings whose headline or summary has every word of ``query``."""
+        from .subscriptions import require
+        require(self.repo,uid,"briefing_search")
+        from .scheduling import serialize_edition
+        import unicodedata
+        fold=lambda value:"".join(ch for ch in unicodedata.normalize("NFD",(value or "").casefold()) if unicodedata.category(ch)!="Mn")
+        words=[word for word in fold(query).split() if len(word)>1]
+        if not words: raise ApiError("VALIDATION_ERROR","type at least one word to search",400)
+        results=[]; seen=set()
+        for delivery in self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC,created_at DESC LIMIT 400",(uid,)).fetchall():
+            edition=serialize_edition(self.repo,delivery["edition_id"])
+            for item in (edition or {}).get("items",[]):
+                text=fold(" ".join(str(item.get(key) or "") for key in ("headline","summary")))
+                key=item.get("event_id") or item.get("headline")
+                if key in seen or not all(word in text for word in words): continue
+                seen.add(key)
+                results.append({"briefing_id":delivery["id"],"date":delivery["local_date"],**self._slot_fields(delivery,edition),
+                    "item":{k:item.get(k) for k in ("id","position","headline","summary","sources","primary_taxonomy_id","primary_taxonomy_label","image_url")}})
+                if len(results)>=limit: return {"items":results}
+        return {"items":results}
 
     def trending(self, uid, limit=5):
         from .trending import trending_stories
@@ -806,6 +874,28 @@ class ProductService:
         self.repo.db.commit()
         return {"generation_id":generation_id,"reason":"MANUAL_REFRESH","status":"PENDING","stage":"QUEUED","coalesced":False}
 
+    def request_on_demand(self, uid):
+        """Premium "Gerar agora": a new briefing right away with what is new since the day's earlier ones."""
+        from .subscriptions import limit, require
+        from .briefing_slots import ON_DEMAND_FIRST_SLOT
+        require(self.repo,uid,"on_demand_briefing")
+        prefs=self.repo.get_preferences(uid)
+        if not prefs or (prefs.get("content_scope", "selected") != "all" and not prefs.get("topics")):
+            raise ApiError("PREFERENCES_INCOMPLETE","configure topics before generating",409)
+        active=self.repo.db.execute("SELECT id,status,stage FROM manual_refresh_requests WHERE user_id=? AND reason='ON_DEMAND' AND status IN ('PENDING','GENERATING') ORDER BY requested_at DESC LIMIT 1",(uid,)).fetchone()
+        if active: return {"generation_id":active["id"],"reason":"ON_DEMAND","status":active["status"],"stage":active["stage"],"coalesced":True}
+        local_date=self.local_date(prefs)
+        start=datetime.combine(datetime.fromisoformat(local_date).date(),datetime.min.time(),ZoneInfo(prefs["timezone"])).astimezone(timezone.utc)
+        used=self.repo.db.execute("SELECT COUNT(*) FROM manual_refresh_requests WHERE user_id=? AND reason='ON_DEMAND' AND status<>'FAILED' AND requested_at>=?",(uid,iso(start))).fetchone()[0]
+        allowed=limit(self.repo,uid,"on_demand_per_day")
+        if used>=allowed: raise ApiError("ON_DEMAND_LIMIT",f"you can make {allowed} briefing(s) on request a day",429)
+        taken=[row[0] for row in self.repo.db.execute("SELECT slot FROM user_briefing_deliveries WHERE user_id=? AND local_date=? AND slot>=? UNION SELECT slot FROM manual_refresh_requests WHERE user_id=? AND slot IS NOT NULL AND requested_at>=?",(uid,local_date,ON_DEMAND_FIRST_SLOT,uid,iso(start)))]
+        slot=max([ON_DEMAND_FIRST_SLOT-1,*taken])+1
+        generation_id="generation_"+uuid.uuid4().hex; requested=now_iso()
+        self.repo.db.execute("INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,selected_voice_id,slot) VALUES(?,?,'ON_DEMAND','PENDING','QUEUED',?,?,?,?)",(generation_id,uid,requested,requested,prefs.get("audio_voice_id"),slot))
+        self.repo.db.commit()
+        return {"generation_id":generation_id,"reason":"ON_DEMAND","status":"PENDING","stage":"QUEUED","coalesced":False,"remaining_today":allowed-used-1}
+
     def generation_status(self, uid, generation_id):
         row=self.repo.db.execute("SELECT * FROM manual_refresh_requests WHERE id=? AND user_id=?",(generation_id,uid)).fetchone()
         if not row: raise not_found("generation not found")
@@ -816,7 +906,13 @@ class ProductService:
         ingestion=self.repo.db.execute("SELECT * FROM content_ingestion_runs WHERE id=?",(row["ingestion_run_id"],)).fetchone() if row["ingestion_run_id"] else None
         ingestion_summary={"run_id":ingestion["id"],"status":ingestion["status"],"started_at":ingestion["started_at"],"completed_at":ingestion["completed_at"],"sources_attempted":ingestion["sources_attempted"],"sources_successful":ingestion["sources_successful"],"articles_seen":ingestion["articles_seen"],"articles_new":ingestion["articles_new"],"articles_updated":ingestion["articles_updated"],"articles_unchanged":ingestion["articles_unchanged"],"source_errors":len(json.loads(ingestion["errors_json"] or "{}"))} if ingestion else None
         safe_message=("A atualização falhou durante a etapa de áudio." if audio_status=="FAILED" else "A atualização não foi concluída. Tente novamente mais tarde.") if row["status"]=="FAILED" else None
-        return {"generation_id":row["id"],"reason":row["reason"],"status":row["status"],"stage":row["stage"],"requested_at":row["requested_at"],"started_at":row["started_at"],"updated_at":row["updated_at"],"ingestion_run_id":row["ingestion_run_id"],"ingestion":ingestion_summary,"edition_id":row["edition_id"],"content_ready":bool(row["edition_id"]),"audio_status":audio_status,"audio_job_id":row["audio_job_id"],"selected_voice_id":row["selected_voice_id"],"audio_variant_id":row["audio_variant_id"],"error_code":row["error_code"],"error_message_safe":safe_message,"ready_at":row["finished_at"] if row["status"]=="READY" else None}
+        return {"generation_id":row["id"],"reason":row["reason"],"status":row["status"],"stage":row["stage"],"requested_at":row["requested_at"],"started_at":row["started_at"],"updated_at":row["updated_at"],"ingestion_run_id":row["ingestion_run_id"],"ingestion":ingestion_summary,"edition_id":row["edition_id"],"content_ready":bool(row["edition_id"]),"audio_status":audio_status,"audio_job_id":row["audio_job_id"],"selected_voice_id":row["selected_voice_id"],"audio_variant_id":row["audio_variant_id"],"error_code":row["error_code"],"error_message_safe":safe_message,"ready_at":row["finished_at"] if row["status"]=="READY" else None,"delivery_id":self._generation_delivery(row)}
+
+    def _generation_delivery(self, row):
+        """The briefing a finished generation made (the app opens it)."""
+        if row["status"]!="READY" or not row["edition_id"]: return None
+        found=self.repo.db.execute("SELECT id FROM user_briefing_deliveries WHERE user_id=? AND edition_id=? ORDER BY created_at DESC LIMIT 1",(row["user_id"],row["edition_id"])).fetchone()
+        return found["id"] if found else None
 
     def retry_generation_audio(self, uid, generation_id):
         row=self.repo.db.execute("SELECT * FROM manual_refresh_requests WHERE id=? AND user_id=?",(generation_id,uid)).fetchone()
@@ -914,9 +1010,9 @@ class ProductService:
 
     # ------------------------------------------------------------- development
     def pipeline_diagnostic(self, uid):
-        delivery=self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC LIMIT 1",(uid,)).fetchone()
+        delivery=self.repo.db.execute("SELECT * FROM user_briefing_deliveries WHERE user_id=? ORDER BY local_date DESC,created_at DESC LIMIT 1",(uid,)).fetchone()
         if not delivery: return {"delivery":None}
-        job=self.repo.db.execute("SELECT id,status,attempt_count,max_attempts,scheduled_for,started_at,finished_at,error_code,error_message,profile_key FROM generation_jobs WHERE user_id=? AND briefing_date=?",(uid,delivery["local_date"])).fetchone()
+        job=self.repo.db.execute("SELECT id,status,attempt_count,max_attempts,scheduled_for,started_at,finished_at,error_code,error_message,profile_key FROM generation_jobs WHERE user_id=? AND briefing_date=? AND slot=?",(uid,delivery["local_date"],delivery["slot"] or 1)).fetchone()
         audio_job=self.repo.db.execute("SELECT id,status,stage,voice,script_version,attempt_count,max_attempts,created_at,started_at,updated_at,finished_at,error_code,error_message FROM audio_generation_jobs WHERE edition_id=? AND voice=? ORDER BY created_at DESC LIMIT 1",(delivery["edition_id"],delivery["selected_voice_id"] or delivery["active_voice_id"] or "")).fetchone()
         artifact=self.repo.db.execute("SELECT id,status,provider,voice,language,mime_type,storage_path,duration_ms,size_bytes,checksum,created_at FROM audio_artifacts WHERE id=?",(delivery["audio_artifact_id"],)).fetchone() if delivery["audio_artifact_id"] else None
         phases=list(self.repo.db.execute("SELECT phase,duration_ms,recorded_at FROM generation_job_phases WHERE job_id=? ORDER BY id",(job["id"],))) if job else []
@@ -930,13 +1026,13 @@ class ProductService:
         canonical,unknown=taxonomy().canonicalize(json.loads(raw["topics_json"]) if raw else [])
         prefs=self.repo.get_preferences(uid)
         profile=BriefingProfile.from_preferences(prefs); local_date=self.local_date(prefs)
-        job=self.repo.db.execute("SELECT status,error_code,error_message FROM generation_jobs WHERE user_id=? AND briefing_date=?",(uid,local_date)).fetchone()
-        edition=self.repo.db.execute("SELECT e.status,e.item_count FROM briefing_editions e JOIN user_briefing_deliveries d ON d.edition_id=e.id WHERE d.user_id=? AND d.local_date=?",(uid,local_date)).fetchone()
+        job=self.repo.db.execute("SELECT status,error_code,error_message FROM generation_jobs WHERE user_id=? AND briefing_date=? AND slot=1",(uid,local_date)).fetchone()
+        edition=self.repo.db.execute("SELECT e.status,e.item_count FROM briefing_editions e JOIN user_briefing_deliveries d ON d.edition_id=e.id WHERE d.user_id=? AND d.local_date=? AND d.slot=1",(uid,local_date)).fetchone()
         fallback=[]; diagnostic_items=[]
         for item in self.repo.db.execute("""SELECT i.event_id,i.sources_json,i.warnings_json,i.primary_taxonomy_id,
             i.primary_taxonomy_label,i.primary_taxonomy_reason,i.matched_taxonomy_ids_json,i.user_interest_matches_json
             FROM briefing_edition_items i JOIN user_briefing_deliveries d ON d.edition_id=i.edition_id
-            WHERE d.user_id=? AND d.local_date=? ORDER BY i.position""",(uid,local_date)):
+            WHERE d.user_id=? AND d.local_date=? AND d.slot=1 ORDER BY i.position""",(uid,local_date)):
             fallback.extend(w for w in json.loads(item["warnings_json"]) if isinstance(w,str) and w.startswith("FALLBACK_"))
             sources=json.loads(item["sources_json"])
             first=sources[0] if sources else None

@@ -17,10 +17,10 @@ export function TodayScreen(props: Partial<HomeScreenProps> & Pick<HomeScreenPro
     onSchedule={props.onSchedule || noop} onTopic={props.onTopic || noop} onLatestBriefing={props.onLatestBriefing || noop} />;
 }
 
-export function AudioExpandedScreen({ briefing, onBack, onDetail, onHome, onSchedule }: {
-  briefing: Briefing; onBack: () => void; onDetail: (item: BriefingItem) => void; onHome: () => void; onSchedule: () => void;
+export function AudioExpandedScreen({ briefing, onBack, onDetail, onHome, onSchedule, onAdvance }: {
+  briefing: Briefing; onBack: () => void; onDetail: (item: BriefingItem) => void; onHome: () => void; onSchedule: () => void; onAdvance?: (briefing: Briefing) => void;
 }) {
-  return <BriefingAudioScreen briefing={briefing} onBack={onBack} onDetail={onDetail} onHome={onHome} onSchedule={onSchedule} />;
+  return <BriefingAudioScreen briefing={briefing} onBack={onBack} onDetail={onDetail} onHome={onHome} onSchedule={onSchedule} onAdvance={onAdvance} />;
 }
 
 export function DetailScreen({ item, onBack, onRelated, onTopic, onBriefing, trackReadingProgress = false, readingProgress = 0 }: {

@@ -1,29 +1,33 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, ClientError } from '../api/client';
 import { PREMIUM_OFFERED } from '../config/store';
-import type { FootballAlerts, FootballTeam } from '../types/api';
+import { requestPremium, usePremiumFeature } from '../services/premium';
+import type { FootballAlerts, FootballTeam, PremiumFeatureId } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { COMPETITIONS, competitionInfo, TeamCrest } from './FootballParts';
 import { SettingSwitch } from './NotificationParts';
-import { PremiumSheet } from './PremiumSheet';
 import { ScreenState } from './ScreenPrimitives';
-import { Card, IconBox, SaveBar, SectionHeading, SettingsPage, type Tint } from './SettingsKit';
+import { Badge, Card, IconBox, SaveBar, SectionHeading, SettingsPage, type Tint } from './SettingsKit';
 
 /** Four crests per row that fill the grid exactly (a percentage plus the gaps used to overflow and wrap at three). */
 const GRID_COLUMNS = 4, GRID_GAP = 8;
 const tileWidth = (width: number) => width > 0 ? Math.floor((width - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS) : '23%';
 
-const ALERTS: { key: keyof FootballAlerts; title: string; text: string; icon: IconName; tint: Tint }[] = [
+type AlertRow = { key: keyof FootballAlerts; title: string; text: string; icon: IconName; tint: Tint; premium?: PremiumFeatureId };
+const ALERTS: AlertRow[] = [
+  { key: 'reminder', title: 'Começa em 15 min', text: 'Um lembrete antes do jogo', icon: 'bell', tint: 'purple', premium: 'team_reminders' },
   { key: 'kickoff', title: 'Início do jogo', text: 'Quando a bola rolar', icon: 'clock', tint: 'blue' },
   { key: 'goals', title: 'Gols', text: 'A cada gol, com o placar', icon: 'ball', tint: 'green' },
-  { key: 'final', title: 'Resultado final', text: 'Placar e posição na tabela', icon: 'article', tint: 'orange' },
+  { key: 'final', title: 'Resultado final', text: 'Placar, posição na tabela e, no Premium, o resumo do jogo em áudio', icon: 'article', tint: 'orange' },
   { key: 'news', title: 'Notícias do time', text: 'Quando sair algo importante sobre o seu time', icon: 'bolt', tint: 'red' },
+  // The score on the lock screen and Dynamic Island is an iPhone feature (ActivityKit).
+  ...(Platform.OS === 'ios' ? [{ key: 'live_activities' as const, title: 'Placar na tela de bloqueio', text: 'O jogo ao vivo na tela de bloqueio e na Dynamic Island', icon: 'phone' as const, tint: 'teal' as const, premium: 'live_activities' as const }] : []),
 ];
 
 /** Esportes › Times favoritos: search, your teams, a crest grid per competition, the team alerts. Saves at once. */
-export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => void; onSubscription: () => void }) {
+export function FavoriteTeamsScreen({ onBack }: { onBack: () => void; onSubscription?: () => void }) {
   const s = useStyles(makeStyles);
   const { colors } = useTheme();
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
@@ -38,8 +42,11 @@ export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => 
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [upsell, setUpsell] = useState(false);
   const [gridWidth, setGridWidth] = useState(0);
+  const reminders = usePremiumFeature('team_reminders');
+  const live = usePremiumFeature('live_activities');
+  const rowFeature = (row: AlertRow) => row.premium === 'live_activities' ? live : row.premium ? reminders : null;
+  const alertRows = ALERTS.filter(row => !row.premium || rowFeature(row)?.visible);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -64,13 +71,13 @@ export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => 
   }, [query]);
 
   const ids = useMemo(() => selected.map(team => team.id), [selected]);
-  const dirty = Boolean(saved && (ids.join(',') !== saved.ids.join(',') || (Object.keys(alerts) as (keyof FootballAlerts)[]).some(key => alerts[key] !== saved.alerts[key])));
+  const dirty = Boolean(saved && (ids.join(',') !== saved.ids.join(',') || (Object.keys(alerts) as (keyof FootballAlerts)[]).some(key => Boolean(alerts[key]) !== Boolean(saved.alerts[key]))));
   const toggle = (team: FootballTeam) => {
     setError('');
     if (ids.includes(team.id)) { setSelected(current => current.filter(item => item.id !== team.id)); return; }
     if (selected.length >= limit) {
       // Básico follows one team: picking another swaps it; more than one is a Premium feature.
-      if (limit === 1) { setSelected([team]); if (PREMIUM_OFFERED) setUpsell(true); return; }
+      if (limit === 1) { setSelected([team]); if (PREMIUM_OFFERED) requestPremium('favorite_teams'); return; }
       setError(`Seu plano permite até ${limit} times.`); return;
     }
     setSelected(current => [...current, team]);
@@ -140,11 +147,15 @@ export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => 
 
     <SectionHeading title="Avisos dos seus times" subtitle="Também valem para os jogos em que você tocar no sino." />
     <Card style={{ paddingVertical: 4 }}>
-      {ALERTS.map((item, index) => <View key={item.key} style={[s.alert, index < ALERTS.length - 1 && s.alertDivider]}>
-        <IconBox icon={item.icon} tint={item.tint} size={44} />
-        <View style={{ flex: 1 }}><Text style={s.alertTitle}>{item.title}</Text><Text style={s.alertText}>{item.text}</Text></View>
-        <SettingSwitch label={item.title} value={alerts[item.key]} onChange={value => setAlerts(current => ({ ...current, [item.key]: value }))} />
-      </View>)}
+      {alertRows.map((item, index) => {
+        const locked = item.premium && !rowFeature(item)?.unlocked;
+        return <View key={item.key} style={[s.alert, index < alertRows.length - 1 && s.alertDivider]}>
+          <IconBox icon={item.icon} tint={item.tint} size={44} />
+          <View style={{ flex: 1 }}><Text style={s.alertTitle}>{item.title}</Text><Text style={s.alertText}>{item.text}</Text></View>
+          {locked ? <Pressable accessibilityRole="button" accessibilityLabel={`${item.title}. Recurso Premium`} onPress={() => requestPremium(item.premium!)} hitSlop={8}><Badge label="PREMIUM" tint="orange" /></Pressable>
+            : <SettingSwitch label={item.title} value={alerts[item.key] !== false} onChange={value => setAlerts(current => ({ ...current, [item.key]: value }))} />}
+        </View>;
+      })}
     </Card>
     <Text style={s.note}>Os avisos chegam se as notificações do Newzi estiverem ligadas (Perfil › Notificações).</Text>
 
@@ -160,7 +171,6 @@ export function FavoriteTeamsScreen({ onBack, onSubscription }: { onBack: () => 
         </Pressable>
       </Pressable>
     </Modal>
-    {PREMIUM_OFFERED && <PremiumSheet feature="favorite_teams" visible={upsell} onClose={() => setUpsell(false)} onSeePlans={onSubscription} />}
   </SettingsPage>;
 }
 

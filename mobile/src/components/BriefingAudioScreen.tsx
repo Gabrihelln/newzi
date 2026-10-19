@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, PanResponder, Pressable, SafeAreaView, ScrollView, Share, StatusBar, Switch, Text, View, useWindowDimensions } from 'react-native';
 import { api } from '../api/client';
-import { briefingArtwork, briefingAudioTitle, sameBriefing, getAudioContext, getAudioProgress, loadAudio, pauseAudio, playAudio, seekAudio, seekTo, setAudioContext, setPlaybackSpeed, subscribeAudio, subscribeAudioContext } from '../audio/player';
+import { subscribeQueueAdvance } from '../audio/queue';
+import { briefingArtwork, briefingAudioTitle, isBriefingAudio, sameBriefing, getAudioContext, getAudioProgress, loadAudio, pauseAudio, playAudio, seekAudio, seekTo, setAudioContext, setPlaybackSpeed, subscribeAudio, subscribeAudioContext } from '../audio/player';
 import type { AudioContext, PlaybackState } from '../audio/player';
 import { nextBriefingLabel } from '../config/dateTime';
 import type { AudioMetadata, Briefing, BriefingItem, Preferences } from '../types/api';
@@ -9,7 +10,9 @@ import {typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 import { AudioChaptersScreen } from './AudioChaptersScreen';
+import { AudioQueueSection } from './AudioQueueSection';
 import { EditionCover } from './EditionCover';
+import { briefingTitle } from './OnDemandBriefing';
 
 const initialPlayback: PlaybackState = { position: 0, duration: 0, playing: false, paused: false, ended: false, buffering: false, loaded: false, started: false, speed: 1 };
 const speeds = [0.75, 1, 1.25, 1.5, 2];
@@ -98,8 +101,10 @@ function CompletionView({ briefing, timeLabel, onHome, onReplay, onSchedule }: {
   </ScrollView>;
 }
 
-export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSchedule }: {
+export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSchedule, onAdvance }: {
   briefing: Briefing; onBack: () => void; onDetail: (item: BriefingItem) => void; onHome: () => void; onSchedule?: () => void;
+  /** The listening queue started another audio: show it instead. */
+  onAdvance?: (briefing: Briefing) => void;
 }) {
   const a = useStyles(makeStyles);
   const theme = useTheme();
@@ -131,6 +136,8 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
   const realDuration = duration > 0 ? `${Math.round(duration / 60)} min` : 'A duração será exibida quando o áudio estiver pronto';
 
   useEffect(() => subscribeAudio(setPlayback), []);
+  useEffect(() => onAdvance ? subscribeQueueAdvance(onAdvance) : undefined, [onAdvance]);
+  const deliveredBriefing = isBriefingAudio(briefing);
   useEffect(() => subscribeAudioContext(value => {
     setSession(value);
     if (value && sameBriefing(value.briefing, briefing)) {
@@ -143,6 +150,7 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
     let active = true; let timer: ReturnType<typeof setTimeout> | undefined;
     const current = getAudioContext();
     if (current && sameBriefing(current.briefing, briefing)) { setAudio(current.metadata); setActiveAudio(current.metadata); setLoading(false); return () => { active = false; }; }
+    if (!isBriefingAudio(briefing)) { setAudio({ status: 'OFFLINE' }); return () => { active = false; }; }
     setActiveAudio(null);
     const refresh = async () => {
       try {
@@ -179,6 +187,7 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
   }, []);
   useEffect(() => {
     let active = true;
+    if (!isBriefingAudio(briefing)) return () => { active = false; };
     api.savedBriefings().then(({ items }) => { if (active) setSaved(items.some(savedBriefing => savedBriefing.id === briefing.id)); }).catch(() => undefined);
     return () => { active = false; };
   }, [briefing.id]);
@@ -220,8 +229,8 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
     </View>
     {isCompleted ? <CompletionView briefing={briefing} timeLabel={nextTime} onHome={onHome} onReplay={() => void replay()} onSchedule={onSchedule} /> : <ScrollView contentContainerStyle={a.playerContent} showsVerticalScrollIndicator={false}>
       <EditionCover briefing={briefing} size={coverSize} durationSeconds={duration || undefined} />
-      <Text style={a.title}>Seu resumo do dia</Text>
-      <Text style={a.description}>As principais notícias do mundo, em um resumo claro e objetivo.</Text>
+      <Text style={a.title}>{briefingTitle(briefing)}</Text>
+      <Text style={a.description}>{briefing.id?.startsWith('saved:') ? 'As matérias que você salvou, narradas em sequência.' : briefing.id?.startsWith('match:') ? 'O placar, a tabela e as notícias do jogo.' : briefing.narration === 'extended' ? 'Versão estendida, com mais contexto em cada notícia.' : 'As principais notícias do mundo, em um resumo claro e objetivo.'}</Text>
       {currentIndex >= 0 && <View style={a.nowPill}><View style={a.nowDot} /><Text numberOfLines={1} style={a.currentChapter}>Agora: {currentSegment?.type === 'INTRO' ? 'Abertura' : currentSegment?.type === 'OUTRO' ? 'Encerramento' : currentItem?.primary_taxonomy_label || currentItem?.category || currentItem?.headline || 'Notícia'} · {currentIndex + 1} de {segments.length}</Text></View>}
       <View style={a.metadata}>
         <View style={a.metadataItem}><Icon name="calendar" color={colors.ink} size={21} /><View><Text style={a.metadataLabel}>Último resumo</Text><Text style={a.metadataValue}>{formatEditionDate(briefing, timezone)}</Text></View></View>
@@ -244,8 +253,9 @@ export function BriefingAudioScreen({ briefing, onBack, onDetail, onHome, onSche
       <View style={a.actions}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Velocidade ${String(playback.speed || 1).replace('.', ',')} vezes`} onPress={() => setSheet('speed')} style={a.actionButton}><Text style={a.actionValue}>{String(playback.speed || 1).replace('.', ',')}x</Text><Text style={a.actionLabel}>Velocidade</Text></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Abrir capítulos e transcrição" onPress={() => setSheet('chapters')} style={a.actionButton}><Icon name="article" color={colors.tone('#0A1E44', colors.ink)} size={21} /><Text style={a.actionLabel}>Capítulos</Text></Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover resumo dos salvos' : 'Salvar resumo'} accessibilityState={{ selected: saved, disabled: saving || !briefing.items.length }} disabled={saving || !briefing.items.length} onPress={() => void saveBriefing()} style={a.actionButton}><Icon name="bookmark" filled={saved} color={saved ? colors.primary : colors.tone('#0A1E44', colors.ink)} size={21} /><Text style={a.actionLabel}>{saved ? 'Salvo' : 'Salvar'}</Text></Pressable>
+        {deliveredBriefing && <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remover resumo dos salvos' : 'Salvar resumo'} accessibilityState={{ selected: saved, disabled: saving || !briefing.items.length }} disabled={saving || !briefing.items.length} onPress={() => void saveBriefing()} style={a.actionButton}><Icon name="bookmark" filled={saved} color={saved ? colors.primary : colors.tone('#0A1E44', colors.ink)} size={21} /><Text style={a.actionLabel}>{saved ? 'Salvo' : 'Salvar'}</Text></Pressable>}
       </View>
+      <AudioQueueSection />
       {!!saveError && <Text accessibilityRole="alert" style={a.saveError}>{saveError}</Text>}
       {briefing.items[0] && !canControl && <Pressable accessibilityRole="button" onPress={() => onDetail(briefing.items[0])} style={a.readFallback}><Text style={a.readFallbackText}>Ler as notícias deste resumo</Text><Icon name="chevron" color={colors.primary} size={17} /></Pressable>}
       <NextBriefingCard timeLabel={nextTime} onPress={onSchedule} />

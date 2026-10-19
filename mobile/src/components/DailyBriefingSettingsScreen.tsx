@@ -4,24 +4,24 @@ import { useFocusEffect } from '@react-navigation/native';
 import Video from 'react-native-video';
 import { api } from '../api/client';
 import { pauseAudio } from '../audio/player';
-import { PREMIUM_OFFERED } from '../config/store';
 import { isValidBriefingTime } from '../config/time';
 import { getDeviceTimezone } from '../config/timezone';
 import { getFirebaseIdToken } from '../services/firebaseAuth';
-import type { AudioVoice, NextBriefing, Preferences } from '../types/api';
+import { handlePremiumError, requestPremium, usePremiumFeature } from '../services/premium';
+import type { AudioVoice, BriefingLength, NextBriefing, Preferences } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon, type IconName } from './Icon';
 import { SettingSwitch } from './NotificationParts';
-import { PremiumSheet } from './PremiumSheet';
+import { ExtraBriefingsCard, extraDraftOf, sameExtras, type ExtraDraft } from './ExtraBriefingsCard';
 import { ScreenState } from './ScreenPrimitives';
-import { Badge, Card, Divider, IconBox, SaveBar, SectionHeading, Segmented, SettingsPage } from './SettingsKit';
+import { Card, Divider, IconBox, SaveBar, SectionHeading, Segmented, SettingsPage } from './SettingsKit';
 import { TimeWheel } from './TimeWheel';
 
-type Draft = Pick<Preferences, 'briefing_time' | 'briefing_size' | 'language' | 'country_scope' | 'audio_enabled'>;
+type Draft = Pick<Preferences, 'briefing_time' | 'briefing_size' | 'language' | 'country_scope' | 'audio_enabled'> & { briefing_length: BriefingLength };
 const SIZES: { value: Preferences['briefing_size']; label: string; minutes: number }[] = [
   { value: 5, label: 'Rápido', minutes: 3 }, { value: 10, label: 'Essencial', minutes: 5 }, { value: 15, label: 'Completo', minutes: 8 },
 ];
-const draftOf = (prefs: Preferences): Draft => ({ briefing_time: prefs.briefing_time, briefing_size: prefs.briefing_size, language: prefs.language, country_scope: prefs.country_scope, audio_enabled: prefs.audio_enabled });
+const draftOf = (prefs: Preferences): Draft => ({ briefing_time: prefs.briefing_time, briefing_size: prefs.briefing_size, language: prefs.language, country_scope: prefs.country_scope, audio_enabled: prefs.audio_enabled, briefing_length: prefs.briefing_length || 'standard' });
 const sameDraft = (a: Draft, b: Draft) => (Object.keys(a) as (keyof Draft)[]).every(key => a[key] === b[key]);
 const minutesOf = (time: string) => { const [hour, minute] = time.split(':').map(Number); return hour * 60 + minute; };
 
@@ -35,7 +35,7 @@ function nextDay(time: string, saved: NextBriefing | undefined) {
   return !todayDone && minutesOf(time) > now.getHours() * 60 + now.getMinutes() ? 'Hoje' : 'Amanhã';
 }
 
-export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }: { onBack: () => void; onVoice: () => void; onSubscription: () => void }) {
+export function DailyBriefingSettingsScreen({ onBack, onVoice }: { onBack: () => void; onVoice: () => void; onSubscription?: () => void }) {
   const s = useStyles(makeStyles);
   const { colors } = useTheme();
   const timezone = getDeviceTimezone();
@@ -43,8 +43,10 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
   const [saved, setSaved] = useState<Preferences | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [voices, setVoices] = useState<AudioVoice[]>([]);
-  const [premium, setPremium] = useState(false);
-  const [upsell, setUpsell] = useState(false);
+  const [extras, setExtras] = useState<ExtraDraft[]>([]);
+  const [savedExtras, setSavedExtras] = useState<ExtraDraft[]>([]);
+  const [slotLimit, setSlotLimit] = useState(1);
+  const extended = usePremiumFeature('extended_briefing');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const preview = useVoicePreview();
@@ -52,31 +54,44 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      const [prefs, catalog] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] as AudioVoice[] }))]);
-      setSaved(prefs); setDraft(draftOf(prefs)); setVoices(catalog.voices); setStatus('loaded');
+      const [prefs, catalog, slots] = await Promise.all([api.preferences(), api.audioVoices().catch(() => ({ voices: [] as AudioVoice[] })), api.briefingSlots().catch(() => null)]);
+      setSaved(prefs); setDraft(draftOf(prefs)); setVoices(catalog.voices);
+      if (slots) { const drafts = extraDraftOf(slots.extra); setExtras(drafts); setSavedExtras(drafts); setSlotLimit(slots.limit); }
+      setStatus('loaded');
     } catch { setStatus('error'); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { if (PREMIUM_OFFERED) api.subscription().then(plan => setPremium(plan.tier === 'premium')).catch(() => undefined); }, []);
   // The voice is chosen on its own screen: show it when coming back, without touching the other unsaved choices.
   useFocusEffect(useCallback(() => {
     api.preferences().then(prefs => setSaved(current => current ? { ...current, audio_voice_id: prefs.audio_voice_id } : current)).catch(() => undefined);
     return () => preview.stop();
   }, [])); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const dirty = Boolean(saved && draft && !sameDraft(draftOf(saved), draft));
+  const prefsDirty = Boolean(saved && draft && !sameDraft(draftOf(saved), draft));
+  const extrasDirty = !sameExtras(extras, savedExtras);
+  const dirty = prefsDirty || extrasDirty;
   const update = (change: Partial<Draft>) => { setDraft(current => current && { ...current, ...change }); setError(''); };
-  // Extra briefing times are Premium; Básico readers see what Premium offers. The extra times themselves arrive with purchases.
-  const addTime = () => premium ? Alert.alert('Em breve', 'Os horários extras do Premium chegam em uma próxima versão.') : setUpsell(true);
 
   const save = async () => {
     if (!draft || !saved) return;
     if (!isValidBriefingTime(draft.briefing_time)) { setError('Use um horário válido entre 00:00 e 23:59.'); return; }
+    const times = [draft.briefing_time, ...extras.filter(item => item.enabled).map(item => item.time)];
+    if (new Set(times).size !== times.length) { setError('Cada resumo precisa de um horário diferente.'); return; }
     setBusy(true); setError('');
     try {
-      const result = await api.savePreferences({ ...draft, timezone });
-      setSaved({ ...saved, ...draft, timezone, next_briefing: result?.next_briefing });
-    } catch { setError('Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.'); }
+      if (prefsDirty) {
+        const result = await api.savePreferences({ ...draft, timezone });
+        setSaved({ ...saved, ...draft, timezone, next_briefing: result?.next_briefing });
+      }
+      if (extrasDirty) {
+        const slots = await api.saveBriefingSlots(extras);
+        const drafts = extraDraftOf(slots.extra); setExtras(drafts); setSavedExtras(drafts);
+        const prefs = await api.preferences().catch(() => null);
+        if (prefs) setSaved(current => current && { ...current, next_briefing: prefs.next_briefing });
+      }
+    } catch (cause) {
+      if (!handlePremiumError(cause)) setError('Não foi possível salvar as alterações. Verifique sua conexão e tente novamente.');
+    }
     finally { setBusy(false); }
   };
 
@@ -117,18 +132,18 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
       </View>
       <View style={s.wheel}><TimeWheel large value={draft.briefing_time} onChange={briefing_time => update({ briefing_time })} /></View>
       <View style={s.timezone}><Icon name="pin" color={colors.muted} size={16} /><Text style={s.timezoneText}>Fuso automático pelo aparelho · {timezone}</Text></View>
-      {PREMIUM_OFFERED && <>
-        <Divider />
-        <Pressable accessibilityRole="button" accessibilityLabel="Adicionar outro horário de resumo. Recurso Premium" onPress={addTime} style={({ pressed }) => [s.headRow, pressed && { opacity: .75 }]}>
-          <IconBox icon="plus" tint="blue" />
-          <View style={{ flex: 1 }}><Text style={[s.rowTitle, { color: colors.primary }]}>Adicionar outro horário</Text><Text style={s.rowText}>Um segundo resumo no dia</Text></View>
-          <Badge label="PREMIUM" tint="orange" />
-        </Pressable>
-      </>}
     </Card>
+    <ExtraHeading />
+    <ExtraBriefingsCard value={extras} onChange={value => { setExtras(value); setError(''); }} mainTime={draft.briefing_time} limit={slotLimit} />
 
     <SectionHeading title="Conteúdo" subtitle="Quanto e o que entra no seu resumo." />
     <Card>
+      {extended.visible && <>
+        <Label icon="layers" text="Duração" />
+        <Segmented label="Duração do resumo" value={draft.briefing_length} onChange={briefing_length => extended.unlocked || briefing_length === 'standard' ? update({ briefing_length }) : requestPremium('extended_briefing')}
+          options={[{ value: 'standard', label: 'Padrão', detail: 'Os destaques' }, { value: 'extended', label: extended.unlocked ? 'Estendido' : 'Estendido ★', detail: 'Mais contexto' }]} />
+        <Divider />
+      </>}
       <Label icon="article" text="Tamanho" />
       <Segmented label="Tamanho do resumo" value={draft.briefing_size} onChange={briefing_size => update({ briefing_size })}
         options={SIZES.map(item => ({ value: item.value, label: item.label, detail: `${item.value} · ${item.minutes} min` }))} />
@@ -167,8 +182,13 @@ export function DailyBriefingSettingsScreen({ onBack, onVoice, onSubscription }:
       {!!preview.error && <Text accessibilityRole="alert" style={s.previewError}>{preview.error}</Text>}
     </Card>
     {preview.element}
-    <PremiumSheet feature="briefing_times" visible={upsell} onClose={() => setUpsell(false)} onSeePlans={onSubscription} />
   </SettingsPage>;
+}
+
+function ExtraHeading() {
+  const extras = usePremiumFeature('extra_briefings');
+  if (!extras.visible) return null;
+  return <SectionHeading title="Mais resumos no dia" subtitle="Receba até 3 resumos por dia, cada um com seu horário. Escolha um tema para um resumo só de Esportes, Economia ou outro assunto." />;
 }
 
 function Label({ icon, text }: { icon: IconName; text: string }) {

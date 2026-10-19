@@ -25,15 +25,23 @@ class BriefingProfile:
     language: str
     briefing_size: int
     country_scope: str
+    narration: str = "standard"
     def key(self):
         raw={"profile_schema_version":PROFILE_SCHEMA_VERSION,"topics":taxonomy().canonicalize(self.topics)[0],"language":self.language,"briefing_size":self.briefing_size,"country_scope":self.country_scope}
+        # Only the extended narration is part of the key: standard profiles keep the keys they always had.
+        if self.narration!="standard": raw["narration"]=self.narration
         return "profile_"+hashlib.sha256(json.dumps(raw,sort_keys=True,ensure_ascii=False).encode()).hexdigest()[:20]
     @classmethod
-    def from_preferences(cls, prefs):
+    def from_preferences(cls, prefs, narration=None):
         # Following everything means every domain: composition then gives each one a slot, instead of
         # filling the briefing with whichever few domains publish the most.
         topics = tuple(taxonomy().roots()) if prefs.get("content_scope") == "all" else taxonomy().canonicalize(prefs["topics"])[0]
-        return cls(topics,prefs["language"],int(prefs["briefing_size"]),prefs["country_scope"])
+        return cls(topics,prefs["language"],int(prefs["briefing_size"]),prefs["country_scope"],narration or "standard")
+    @classmethod
+    def for_slot(cls, prefs, slot):
+        """The profile of one of the day's briefings (see briefing_slots): its theme and its length."""
+        from .briefing_slots import slot_preferences
+        return cls.from_preferences(slot_preferences(prefs, slot), (slot or {}).get("length"))
 
 
 class Clock:
@@ -58,14 +66,14 @@ def _elapsed_ms(started, finished):
         return None
 
 
-def user_edition_key(profile, user_id):
+def user_edition_key(profile, user_id, slot=1):
     """Edition key of one user's scheduled briefing: the profile says what to select, the user owns the edition."""
-    return profile.key()+"_user_"+user_id
+    return profile.key()+"_user_"+user_id+("" if slot==1 else f"_slot{slot}")
 
 
 class FixtureBriefingGenerator:
     def __init__(self,path=None): self.path=Path(path or (ENGINE_ROOT / "fixtures" / "briefing.json")); self.calls=0
-    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None, tz=None):
+    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None, tz=None, since_today=False):
         self.calls+=1
         data=json.loads(self.path.read_text(encoding="utf-8")); items=data.get("items",[])[:briefing_size]
         return {"status":"READY" if items else "PARTIAL","generated_at":data.get("generated_at"),"engine_version":"phase_3.3-fixture","items":items}
@@ -73,14 +81,14 @@ class FixtureBriefingGenerator:
 
 class EngineBriefingGenerator:
     def __init__(self, repo=None): self.calls=0; self.repo=repo; self.last_sync=None; self.sync_metrics={}; self.last_phase_durations={}
-    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None, tz=None):
+    def generate(self, topics, language, briefing_size, date, country_scope="BOTH", user_id=None, tz=None, since_today=False):
         self.calls+=1
         try:
             from .content import compose
             if self.repo is None: raise GenerationError("CONFIG_ERROR", "content repository unavailable")
             now=datetime.now(timezone.utc)
             self.last_phase_durations.setdefault("CONTENT_REFRESH",0)
-            phase=time.monotonic(); result=compose(self.repo,topics,language,briefing_size,country_scope,now,briefing_date=date,user_id=user_id,tz=tz)
+            phase=time.monotonic(); result=compose(self.repo,topics,language,briefing_size,country_scope,now,briefing_date=date,user_id=user_id,tz=tz,since_today=since_today)
             self.last_phase_durations["CONTENT_COMPOSITION"]=int((time.monotonic()-phase)*1000)
             return result
         except GenerationError: raise
@@ -106,8 +114,8 @@ class BriefingScheduler:
             return max(1,min(180,(p95+59_999)//60_000+safety))
         except database.OperationalError:
             self.repo.db.rollback(); return fallback
-    def _eligible(self,prefs, now):
-        local=now.astimezone(ZoneInfo(prefs["timezone"])); delivery=datetime.combine(local.date(),datetime.strptime(prefs["briefing_time"],"%H:%M").time(),ZoneInfo(prefs["timezone"])); return local >= delivery-timedelta(minutes=self.lead_minutes), local.date().isoformat(), delivery
+    def _eligible(self,prefs, now, time=None):
+        local=now.astimezone(ZoneInfo(prefs["timezone"])); delivery=datetime.combine(local.date(),datetime.strptime(time or prefs["briefing_time"],"%H:%M").time(),ZoneInfo(prefs["timezone"])); return local >= delivery-timedelta(minutes=self.lead_minutes), local.date().isoformat(), delivery
     def _current_lead_minutes(self):
         if self._lead_override is not None: return int(self._lead_override)
         # The p95 reads up to 500 timing rows; it changes slowly, so refresh it every few minutes.
@@ -119,17 +127,24 @@ class BriefingScheduler:
         run_id="scheduler_"+uuid.uuid4().hex; discovered=created=skipped=0; now=self.clock.now("UTC")
         # One query for all preferences and one for today's existing jobs, instead of two per user.
         due=[]
+        from .briefing_slots import scheduled_slots
+        extra=self._extra_slots_by_user()
         for uid,prefs in self.repo.active_preferences():
-            eligible,local_date,delivery=self._eligible(prefs,now)
-            if eligible: due.append((uid,prefs,local_date,delivery))
+            # The daily briefing, plus the extra ones of a Premium account (each at its own time).
+            slots=scheduled_slots(self.repo,uid,prefs) if uid in extra else [{"slot":1,"time":prefs["briefing_time"],"theme":None,"length":prefs.get("briefing_length") or "standard"}]
+            for slot in slots:
+                eligible,local_date,delivery=self._eligible(prefs,now,slot["time"])
+                if eligible: due.append((uid,prefs,local_date,delivery,slot))
         dates=sorted({item[2] for item in due})
         existing_jobs={}
         if dates:
-            for job in self.repo.db.execute("SELECT id,user_id,briefing_date,profile_key,status FROM generation_jobs WHERE briefing_date IN ("+",".join("?" for _ in dates)+")",dates):
-                existing_jobs[(job["user_id"],job["briefing_date"])]=job
-        for uid,prefs,local_date,delivery in due:
-            discovered+=1; existing=existing_jobs.get((uid,local_date))
-            profile=BriefingProfile.from_preferences(prefs)
+            for job in self.repo.db.execute("SELECT id,user_id,briefing_date,profile_key,status,slot FROM generation_jobs WHERE briefing_date IN ("+",".join("?" for _ in dates)+")",dates):
+                existing_jobs[(job["user_id"],job["briefing_date"],job["slot"])]=job
+        for uid,prefs,local_date,delivery,slot in due:
+            discovered+=1; existing=existing_jobs.get((uid,local_date,slot["slot"]))
+            if slot["slot"]==1 and prefs.get("briefing_length")=="extended" and uid not in extra:
+                slot={**slot,"length":"standard"}  # the extended briefing is Premium
+            profile=BriefingProfile.for_slot(prefs,slot)
             if existing:
                 if existing["profile_key"]!=profile.key() and existing["status"]!="RUNNING":
                     self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING", [(profile.key(), topic) for topic in profile.topics])
@@ -137,20 +152,29 @@ class BriefingScheduler:
                 else: skipped+=1
                 continue
             self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING", [(profile.key(), topic) for topic in profile.topics])
-            scheduled=iso(delivery-timedelta(minutes=self.lead_minutes)); self.repo.db.execute("INSERT INTO generation_jobs(id,user_id,briefing_date,scheduled_for,delivery_time,timezone,status,attempt_count,max_attempts,created_at,started_at,finished_at,next_retry_at,error_code,error_message,profile_key,worker_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",("job_"+uuid.uuid4().hex,uid,local_date,scheduled,prefs["briefing_time"],prefs["timezone"],"PENDING",0,self.max_attempts,now_iso(),None,None,None,None,None,profile.key(),None)); created+=1
+            scheduled=iso(delivery-timedelta(minutes=self.lead_minutes)); self.repo.db.execute("INSERT INTO generation_jobs(id,user_id,briefing_date,scheduled_for,delivery_time,timezone,status,attempt_count,max_attempts,created_at,started_at,finished_at,next_retry_at,error_code,error_message,profile_key,worker_id,slot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",("job_"+uuid.uuid4().hex,uid,local_date,scheduled,slot["time"],prefs["timezone"],"PENDING",0,self.max_attempts,now_iso(),None,None,None,None,None,profile.key(),None,slot["slot"])); created+=1
         self.repo.db.commit(); return {"scheduler_run_id":run_id,"jobs_discovered":discovered,"jobs_created":created,"jobs_skipped_existing":skipped,"lead_minutes":self.lead_minutes}
+
+    def _extra_slots_by_user(self):
+        """Accounts whose Premium features are open and that have extra briefings (one query, not one per user)."""
+        from .subscriptions import has_premium_features, premium_enforced
+        users={row["user_id"] for row in self.repo.db.execute("SELECT DISTINCT user_id FROM briefing_slots WHERE enabled=1")}
+        if premium_enforced():
+            users|={row["user_id"] for row in self.repo.db.execute("SELECT user_id FROM user_preferences WHERE briefing_length='extended'")}
+            return {uid for uid in users if has_premium_features(self.repo,uid)}
+        return users|{row["user_id"] for row in self.repo.db.execute("SELECT user_id FROM user_preferences WHERE briefing_length='extended'")}
 
     def schedule_user_now(self, user_id):
         """Idempotently schedule a first/current-day edition after onboarding or profile changes."""
         prefs=self.repo.get_preferences(user_id)
         if not prefs or (prefs.get("content_scope", "selected") != "all" and not prefs.get("topics")):
             return {"scheduled":False,"reason":"PREFERENCES_INCOMPLETE"}
-        from .scheduling import BriefingProfile
-        profile=BriefingProfile.from_preferences(prefs)
+        from .briefing_slots import slot_for
+        profile=BriefingProfile.for_slot(prefs,slot_for(self.repo,user_id,1,prefs))
         local_now=self.clock.now("UTC").astimezone(ZoneInfo(prefs["timezone"]))
         local_date=local_now.date().isoformat()
         self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING",[(profile.key(),topic) for topic in profile.topics])
-        existing=self.repo.db.execute("SELECT id,profile_key,status FROM generation_jobs WHERE user_id=? AND briefing_date=?",(user_id,local_date)).fetchone()
+        existing=self.repo.db.execute("SELECT id,profile_key,status FROM generation_jobs WHERE user_id=? AND briefing_date=? AND slot=1",(user_id,local_date)).fetchone()
         if existing:
             if existing["profile_key"]==profile.key() and existing["status"] in ("PENDING","RUNNING","COMPLETED"):
                 self.repo.db.commit(); return {"scheduled":False,"reason":"ALREADY_SCHEDULED","job_id":existing["id"]}
@@ -174,14 +198,15 @@ class BriefingScheduler:
             return {"scheduled":False,"reason":"PREFERENCES_INCOMPLETE"}
         if not self.repo.config.audio_enabled:
             return self.schedule_user_now(user_id)
-        profile=BriefingProfile.from_preferences(prefs)
+        from .briefing_slots import slot_for
+        profile=BriefingProfile.for_slot(prefs,slot_for(self.repo,user_id,1,prefs))
         now=datetime.now(timezone.utc); stamp=iso(now)
         local_date=now.astimezone(ZoneInfo(prefs["timezone"])).date().isoformat()
         self.repo.db.executemany("INSERT INTO profile_taxonomy(profile_key,taxonomy_id) VALUES(?,?) ON CONFLICT DO NOTHING",[(profile.key(),topic) for topic in profile.topics])
         # Regenerations built from older preferences must not be published after this one.
         self.repo.db.execute("UPDATE manual_refresh_requests SET status='FAILED',stage='FAILED_FINAL',error_code='SUPERSEDED',error_message='superseded by newer preferences',updated_at=?,finished_at=? WHERE user_id=? AND status IN ('PENDING','GENERATING')",(stamp,stamp,user_id))
         # Today's scheduled job must not re-run with a cached edition and overwrite the regenerated one.
-        job=self.repo.db.execute("SELECT id,status,scheduled_for FROM generation_jobs WHERE user_id=? AND briefing_date=?",(user_id,local_date)).fetchone()
+        job=self.repo.db.execute("SELECT id,status,scheduled_for FROM generation_jobs WHERE user_id=? AND briefing_date=? AND slot=1",(user_id,local_date)).fetchone()
         if job and job["status"]!="RUNNING":
             due=job["scheduled_for"]<=stamp
             self.repo.db.execute("UPDATE generation_jobs SET profile_key=?,status=?,finished_at=COALESCE(finished_at,?),next_retry_at=NULL,error_code=NULL,error_message=NULL WHERE id=?",
@@ -371,8 +396,11 @@ class BriefingGenerationWorker:
             prefs=self.repo.get_preferences(request['user_id'])
             if not prefs or (prefs.get('content_scope', 'selected') != 'all' and not prefs.get('topics')):
                 raise GenerationError('PREFERENCES_INCOMPLETE','briefing preferences are unavailable')
-            profile=BriefingProfile.from_preferences(prefs)
-            if request.get('reason')=='PREFERENCES_CHANGED':
+            from .briefing_slots import slot_for
+            slot_number=request.get('slot') or 1
+            on_demand=request.get('reason')=='ON_DEMAND'
+            profile=BriefingProfile.for_slot(prefs,slot_for(self.repo,request['user_id'],slot_number,prefs))
+            if request.get('reason') in ('PREFERENCES_CHANGED','ON_DEMAND'):
                 # Speed matters here: compose from the shared index the periodic refresh keeps current
                 # (no ingestion is owned by this request, so failures never touch an ingestion run).
                 ingestion_id=None
@@ -381,7 +409,8 @@ class BriefingGenerationWorker:
             self.repo.db.execute("UPDATE manual_refresh_requests SET ingestion_run_id=?,stage='COMPOSITION',updated_at=? WHERE id=?",(ingestion_id,now_iso(),request_id)); self.repo.db.commit()
             from .content import compose
             local_date=datetime.now(ZoneInfo(prefs['timezone'])).date().isoformat()
-            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'],tz=prefs['timezone'])
+            # "Gerar agora" tells what is new since the day's earlier briefings.
+            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'],tz=prefs['timezone'],since_today=on_demand)
             if not payload.get('items'):
                 raise GenerationError('NO_ELIGIBLE_CONTENT','fresh ingestion produced no eligible briefing items')
             edition_profile=profile.key()+'_manual_'+request_id
@@ -414,13 +443,19 @@ class BriefingGenerationWorker:
             metadata=self.audio_service.audio_for_edition(row['edition_id'],voice=row['selected_voice_id'])
             now=now_iso()
             if metadata.get('status')=='READY' and metadata.get('artifact_id'):
-                prefs=self.repo.get_preferences(row['user_id']); local_date=datetime.now(ZoneInfo(prefs['timezone'])).date().isoformat()
-                delivery=self.repo.db.execute("SELECT id FROM user_briefing_deliveries WHERE user_id=? AND local_date=?",(row['user_id'],local_date)).fetchone()
-                if delivery:
+                prefs=self.repo.get_preferences(row['user_id']); local_now=datetime.now(ZoneInfo(prefs['timezone'])); local_date=local_now.date().isoformat()
+                slot=row['slot'] or 1
+                delivery=self.repo.db.execute("SELECT id FROM user_briefing_deliveries WHERE user_id=? AND local_date=? AND slot=?",(row['user_id'],local_date,slot)).fetchone()
+                if slot!=1:
+                    from .briefing_slots import kind_of
+                    # A briefing made on request is delivered now, as a briefing of its own.
+                    self.repo.db.execute("INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at,delivered_at,selected_voice_id,active_voice_id,audio_artifact_id,audio_status,generation_stage,generation_started_at,generation_updated_at,script_id,slot,kind) VALUES(?,?,?,?,?,?,'READY',?,?,?,?,?,'READY','READY',?,?,?,?,?) ON CONFLICT(user_id,local_date,slot) DO NOTHING",
+                        ('delivery_'+uuid.uuid4().hex,row['user_id'],row['edition_id'],local_date,local_now.strftime('%H:%M'),prefs['timezone'],now,now,row['selected_voice_id'],row['selected_voice_id'],metadata['artifact_id'],now,now,metadata['script_id'],slot,kind_of(slot)))
+                elif delivery:
                     self.repo.db.execute("UPDATE user_briefing_deliveries SET edition_id=?,status='READY',audio_status='READY',selected_voice_id=?,active_voice_id=?,audio_artifact_id=?,script_id=?,generation_stage='READY',generation_updated_at=?,generation_error_code=NULL,generation_error_message=NULL,delivered_at=? WHERE id=?",
                         (row['edition_id'],row['selected_voice_id'],row['selected_voice_id'],metadata['artifact_id'],metadata['script_id'],now,now,delivery['id']))
                 else:
-                    self.repo.db.execute("INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at,delivered_at,selected_voice_id,active_voice_id,audio_artifact_id,audio_status,generation_stage,generation_started_at,generation_updated_at,script_id) VALUES(?,?,?,?,?,?,'READY',?,?,?,?,?,'READY','READY',?,?,?)",
+                    self.repo.db.execute("INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at,delivered_at,selected_voice_id,active_voice_id,audio_artifact_id,audio_status,generation_stage,generation_started_at,generation_updated_at,script_id) VALUES(?,?,?,?,?,?,'READY',?,?,?,?,?,'READY','READY',?,?,?) ON CONFLICT(user_id,local_date,slot) DO NOTHING",
                         ('delivery_'+uuid.uuid4().hex,row['user_id'],row['edition_id'],local_date,prefs['briefing_time'],prefs['timezone'],now,now,row['selected_voice_id'],row['selected_voice_id'],metadata['artifact_id'],now,now,metadata['script_id']))
                 self.repo.db.execute("UPDATE manual_refresh_requests SET status='READY',stage='READY',audio_variant_id=?,updated_at=?,finished_at=?,error_code=NULL,error_message=NULL WHERE id=?",(metadata['artifact_id'],now,now,row['id']))
             elif metadata.get('status')=='FAILED':
@@ -430,7 +465,7 @@ class BriefingGenerationWorker:
         edition_profile_key=edition_profile_key or profile.key()
         existing=self.repo.db.execute("SELECT * FROM briefing_editions WHERE profile_key=? AND edition_date=?",(edition_profile_key,job["briefing_date"])).fetchone()
         if existing and existing["status"]=="READY": return existing["id"],False
-        eid=existing["id"] if existing else "edition_"+uuid.uuid4().hex; t=now_iso(); items=payload.get("items",[]); status="READY" if len(items)>=MINIMUM_DELIVERABLE_ITEMS else ("PARTIAL" if items else "FAILED"); self.repo.db.execute("INSERT INTO briefing_editions(id,profile_key,edition_date,language,status,generated_at,item_count,engine_version,created_at,user_id) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,generated_at=excluded.generated_at,item_count=excluded.item_count,engine_version=excluded.engine_version,created_at=excluded.created_at,user_id=excluded.user_id",(eid,edition_profile_key,job["briefing_date"],profile.language,status,payload.get("generated_at",t),len(items),payload.get("engine_version","phase_4.2"),t,user_id)); self.repo.db.execute("DELETE FROM briefing_edition_items WHERE edition_id=?",(eid,))
+        eid=existing["id"] if existing else "edition_"+uuid.uuid4().hex; t=now_iso(); items=payload.get("items",[]); status="READY" if len(items)>=MINIMUM_DELIVERABLE_ITEMS else ("PARTIAL" if items else "FAILED"); self.repo.db.execute("INSERT INTO briefing_editions(id,profile_key,edition_date,language,status,generated_at,item_count,engine_version,created_at,user_id,narration) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,generated_at=excluded.generated_at,item_count=excluded.item_count,engine_version=excluded.engine_version,created_at=excluded.created_at,user_id=excluded.user_id,narration=excluded.narration",(eid,edition_profile_key,job["briefing_date"],profile.language,status,payload.get("generated_at",t),len(items),payload.get("engine_version","phase_4.2"),t,user_id,profile.narration)); self.repo.db.execute("DELETE FROM briefing_edition_items WHERE edition_id=?",(eid,))
         for pos,item in enumerate(items,1):
             warnings=list(item.get("warnings",[])); warnings.append("__summary_provider__:"+item.get("summary_provider",item.get("provenance",{}).get("summary_provider","ollama")))
             self.repo.db.execute("""INSERT INTO briefing_edition_items
@@ -452,9 +487,13 @@ class BriefingGenerationWorker:
         if not job: return result
         total_started=time.monotonic()
         try:
-            prefs=self.repo.get_preferences(job["user_id"]); profile=BriefingProfile.from_preferences(prefs)
+            from .briefing_slots import kind_of, slot_for
+            prefs=self.repo.get_preferences(job["user_id"]); slot_number=job.get("slot") or 1
+            slot=slot_for(self.repo,job["user_id"],slot_number,prefs)
+            if slot is None: raise GenerationError("SLOT_REMOVED","the extra briefing no longer exists")
+            profile=BriefingProfile.for_slot(prefs,slot)
             # Every user gets an edition composed at their own briefing time, never one built hours earlier for someone else.
-            edition_key=user_edition_key(profile,job["user_id"])
+            edition_key=user_edition_key(profile,job["user_id"],slot_number)
             existing=self.repo.db.execute("SELECT id FROM briefing_editions WHERE profile_key=? AND edition_date=? AND status='READY'",(edition_key,job["briefing_date"])).fetchone()
             if existing: eid=existing["id"]; generated=False
             else:
@@ -463,32 +502,32 @@ class BriefingGenerationWorker:
                 if isinstance(self.generator,EngineBriefingGenerator):
                     self._refresh_content_index()
                     self.generator.last_phase_durations['CONTENT_REFRESH']=int((time.monotonic()-refresh_started)*1000)
-                payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope,user_id=job["user_id"],tz=job["timezone"])
+                payload=self.generator.generate(profile.topics,profile.language,profile.briefing_size,job["briefing_date"],profile.country_scope,user_id=job["user_id"],tz=job["timezone"],since_today=slot_number!=1)
                 for phase_name,duration in getattr(self.generator,"last_phase_durations",{}).items():
                     self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],phase_name,int(duration),now_iso()))
                 self.repo.db.commit()
                 if not payload.get("items"):
                     from .content import compose
                     if self.repo.db.execute("SELECT 1 FROM indexed_content LIMIT 1").fetchone():
-                        fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=job["briefing_date"],user_id=job["user_id"],tz=job["timezone"])
+                        fallback=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=job["briefing_date"],user_id=job["user_id"],tz=job["timezone"],since_today=slot_number!=1)
                         if fallback.get("items"): payload=fallback
                 eid,generated=self._persist_edition(job,profile,payload,edition_profile_key=edition_key,user_id=job["user_id"])
                 self.repo.db.execute("INSERT INTO generation_job_phases(job_id,phase,duration_ms,recorded_at) VALUES(?,?,?,?) ON CONFLICT(job_id,phase) DO UPDATE SET duration_ms=excluded.duration_ms,recorded_at=excluded.recorded_at",(job["id"],"EDITION_PERSISTENCE",int((time.monotonic()-compose_started)*1000),now_iso())); self.repo.db.commit()
             edition=self.repo.db.execute("SELECT status,item_count FROM briefing_editions WHERE id=?",(eid,)).fetchone()
             if not edition or edition["status"]!="READY" or int(edition["item_count"] or 0)<MINIMUM_DELIVERABLE_ITEMS:
                 raise GenerationError("NO_DELIVERABLE_ITEMS","edition has no deliverable items")
-            t=now_iso(); delivery=self.repo.db.execute("SELECT id FROM user_briefing_deliveries WHERE user_id=? AND local_date=?",(job["user_id"],job["briefing_date"])).fetchone()
+            t=now_iso(); delivery=self.repo.db.execute("SELECT id FROM user_briefing_deliveries WHERE user_id=? AND local_date=? AND slot=?",(job["user_id"],job["briefing_date"],slot_number)).fetchone()
             delivery_id=delivery["id"] if delivery else "delivery_"+uuid.uuid4().hex
             self.repo.db.execute("""INSERT INTO user_briefing_deliveries
                 (id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at,delivered_at,
                  selected_voice_id,active_voice_id,audio_artifact_id,audio_status,generation_stage,
-                 generation_started_at,generation_updated_at,generation_error_code,generation_error_message,script_id)
-                VALUES(?,?,?,?,?,?,?, ?,NULL,?,NULL,NULL,'PENDING','AUDIO_QUEUED',?,?,NULL,NULL,NULL)
-                ON CONFLICT(user_id,local_date) DO UPDATE SET edition_id=excluded.edition_id,status='AUDIO_QUEUED',
+                 generation_started_at,generation_updated_at,generation_error_code,generation_error_message,script_id,slot,kind,theme)
+                VALUES(?,?,?,?,?,?,?, ?,NULL,?,NULL,NULL,'PENDING','AUDIO_QUEUED',?,?,NULL,NULL,NULL,?,?,?)
+                ON CONFLICT(user_id,local_date,slot) DO UPDATE SET edition_id=excluded.edition_id,status='AUDIO_QUEUED',
                 selected_voice_id=excluded.selected_voice_id,audio_status='PENDING',generation_stage='AUDIO_QUEUED',
                 generation_started_at=COALESCE(user_briefing_deliveries.generation_started_at,excluded.generation_started_at),
                 generation_updated_at=excluded.generation_updated_at,generation_error_code=NULL,generation_error_message=NULL""",
-                (delivery_id,job["user_id"],eid,job["briefing_date"],job["delivery_time"],job["timezone"],"AUDIO_QUEUED",t,prefs.get("audio_voice_id"),t,t))
+                (delivery_id,job["user_id"],eid,job["briefing_date"],job["delivery_time"],job["timezone"],"AUDIO_QUEUED",t,prefs.get("audio_voice_id"),t,t,slot_number,kind_of(slot_number),slot.get("theme")))
             self.repo.db.execute("UPDATE generation_jobs SET status='COMPLETED',finished_at=?,error_code=NULL,error_message=NULL WHERE id=?",(t,job["id"])); self.repo.db.commit()
             scheduled=parse(job["scheduled_for"])
             queue_ms=max(0,int((datetime.now(timezone.utc)-scheduled.astimezone(timezone.utc)).total_seconds()*1000))
@@ -577,6 +616,8 @@ class BriefingDeliveryWorker:
         self.breaking=BreakingNewsService(repo)
         from .football_alerts import FootballAlertService
         self.football=FootballAlertService(repo)
+        from .alerts import PersonalAlertService
+        self.personal_alerts=PersonalAlertService(repo)
         self.interval_seconds=max(1.0,float(interval_seconds or os.getenv("DELIVERY_WORKER_POLL_SECONDS","15")))
         self.batch_size=max(1,int(batch_size or os.getenv("WORKER_BATCH_SIZE","20")))
         self.notification_batch=max(1,int(os.getenv("NOTIFICATION_BATCH_SIZE","200")))
@@ -621,7 +662,9 @@ class BriefingDeliveryWorker:
             result["audio_jobs_enqueued"]=self.audio.enqueue_ready_editions()
             result["audio"]=self.audio.generate_batch()
         if "generation" in roles: self.generation._publish_manual_refreshes()
-        if "breaking" in roles: result["breaking_news"]=self.breaking.run_once()
+        if "breaking" in roles:
+            result["breaking_news"]=self.breaking.run_once()
+            result["personal_alerts"]=self.personal_alerts.run_once()
         if "football" in roles: result["football_alerts"]=self.football.run_once()
         if "notifications" in roles:
             result["notifications_enqueued"]=self.notifications.enqueue_ready()

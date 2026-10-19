@@ -4,11 +4,12 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/client';
-import type { FootballMatch, FootballOverview, FootballTeam } from '../types/api';
+import type { Briefing, FootballMatch, FootballOverview, FootballTeam } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import { CompetitionBadge, TeamCrest } from './FootballParts';
 import { dayLabel, isLive, timeLabel } from './LiveMatchCard';
+import { MatchAudioBanner } from './MatchAudioBanner';
 
 const REFRESH_MS = 60_000;
 
@@ -17,7 +18,7 @@ const REFRESH_MS = 60_000;
  * by day and competition, with every team's crest. The star marks your teams; the bell turns on the alerts of
  * one game. Tables and favourites have their own screens.
  */
-export function FootballScreen({ onBack, onTables, onFavorites }: { onBack: () => void; onTables: (code?: string) => void; onFavorites: () => void }) {
+export function FootballScreen({ onBack, onTables, onFavorites, matchAudio, onAudio }: { onBack: () => void; onTables: (code?: string) => void; onFavorites: () => void; matchAudio?: number; onAudio?: (briefing: Briefing) => void }) {
   const s = useStyles(makeStyles);
   const { colors, statusBar } = useTheme();
   const [data, setData] = useState<FootballOverview | null>(null);
@@ -82,6 +83,7 @@ export function FootballScreen({ onBack, onTables, onFavorites }: { onBack: () =
       </Pressable>
     </View>
     <ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={colors.primary} />}>
+      {!!matchAudio && <MatchAudioBanner matchId={matchAudio} onOpen={briefing => onAudio?.(briefing)} />}
       <View style={s.sectionRow}>
         <Text style={s.sectionTitle}>Meus times</Text>
         <Pressable accessibilityRole="button" onPress={onFavorites} hitSlop={8} style={s.link}><Text style={s.linkText}>Editar</Text><Icon name="chevron" color={colors.primary} size={15} /></Pressable>

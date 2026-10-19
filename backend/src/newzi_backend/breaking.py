@@ -40,7 +40,7 @@ from .timeutil import iso, parse, utc_now
 
 NOTIFICATION_TYPE = "BREAKING_NEWS"
 # News pushes that tell a story: one story reaches a person through at most one of them.
-STORY_TYPES = ("BREAKING_NEWS", "TEAM_NEWS")
+STORY_TYPES = ("BREAKING_NEWS", "TEAM_NEWS", "KEYWORD_ALERT", "STORY_UPDATE")
 # The engine genre classifier only knows English titles.
 _NOT_NEWS_PT = re.compile(r"^(como|veja como|por que|entenda|guia|review|análise|opinião|teste)\b|\b(melhores|ofertas?|promoç(ão|ões)|cupons?|desconto)\b",
                           re.IGNORECASE)

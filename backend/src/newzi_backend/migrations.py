@@ -353,6 +353,87 @@ def _ingestion_owner(db):
         db.execute("ALTER TABLE content_ingestion_runs ADD COLUMN owner TEXT")
 
 
+def _rebuild_unique(db, table, old_columns, new_columns, extra_columns):
+    """Replace a table's UNIQUE(old_columns) with UNIQUE(new_columns), adding ``extra_columns`` first.
+
+    PostgreSQL drops and adds the constraint; SQLite cannot, so the table is copied into a new one."""
+    existing = list(db.table_columns(table))
+    if db.dialect == POSTGRES:
+        for column, declaration in extra_columns:
+            if column not in existing:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {render_column(declaration, db.dialect)}")
+        for row in db.execute("""SELECT c.conname FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid
+                WHERE t.relname=? AND c.contype='u'""", (table,)).fetchall():
+            columns = [r[0] for r in db.execute("""SELECT a.attname FROM pg_constraint c JOIN pg_attribute a ON a.attrelid=c.conrelid
+                AND a.attnum=ANY(c.conkey) WHERE c.conname=? ORDER BY a.attnum""", (row[0],))]
+            if sorted(columns) == sorted(old_columns):
+                db.execute(f'ALTER TABLE {table} DROP CONSTRAINT "{row[0]}"')
+        db.execute(f"ALTER TABLE {table} ADD CONSTRAINT {table}_{'_'.join(new_columns)}_key UNIQUE({','.join(new_columns)})")
+        return
+    declared = dict(BASELINE_TABLES[table][0])
+    columns = [(name, declared.get(name, "TEXT")) for name in existing] + [item for item in extra_columns if item[0] not in existing]
+    body = [f"{name} {render_column(declaration, db.dialect)}" for name, declaration in columns] + [f"UNIQUE({','.join(new_columns)})"]
+    db.execute(f"CREATE TABLE {table}_rebuild({','.join(body)})")
+    db.execute(f"INSERT INTO {table}_rebuild({','.join(existing)}) SELECT {','.join(existing)} FROM {table}")
+    db.execute(f"DROP TABLE {table}")
+    db.execute(f"ALTER TABLE {table}_rebuild RENAME TO {table}")
+
+
+def _briefing_slots(db):
+    """Up to three briefings a day (Premium): each job and delivery belongs to a slot of the day.
+
+    Slot 1 is the daily briefing of the preferences; 2 and 3 are the extra ones of ``briefing_slots`` (own time,
+    optional theme and length); 10 and above are briefings made on request ("Gerar agora")."""
+    integer = render_column("INTEGER", db.dialect)
+    _rebuild_unique(db, "generation_jobs", ["user_id", "briefing_date"], ["user_id", "briefing_date", "slot"],
+                    [("slot", "INTEGER NOT NULL DEFAULT 1")])
+    _rebuild_unique(db, "user_briefing_deliveries", ["user_id", "local_date"], ["user_id", "local_date", "slot"],
+                    [("slot", "INTEGER NOT NULL DEFAULT 1"), ("kind", "TEXT NOT NULL DEFAULT 'SCHEDULED'"), ("theme", "TEXT")])
+    # The rebuilt tables lost their indexes on SQLite.
+    db.execute("CREATE INDEX IF NOT EXISTS idx_generation_jobs_queue ON generation_jobs(status,scheduled_for)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_deliveries_edition_voice ON user_briefing_deliveries(edition_id,selected_voice_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_deliveries_user_date ON user_briefing_deliveries(user_id,local_date)")
+    db.execute(f"""CREATE TABLE IF NOT EXISTS briefing_slots(user_id TEXT NOT NULL, slot {integer} NOT NULL, delivery_time TEXT NOT NULL,
+        theme TEXT, length TEXT NOT NULL DEFAULT 'standard', enabled {integer} NOT NULL DEFAULT 1, created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL, PRIMARY KEY(user_id,slot))""")
+    if "briefing_length" not in set(db.table_columns("user_preferences")):
+        db.execute("ALTER TABLE user_preferences ADD COLUMN briefing_length TEXT NOT NULL DEFAULT 'standard'")
+    if "narration" not in set(db.table_columns("briefing_editions")):
+        db.execute("ALTER TABLE briefing_editions ADD COLUMN narration TEXT NOT NULL DEFAULT 'standard'")
+    if "slot" not in set(db.table_columns("manual_refresh_requests")):
+        db.execute(f"ALTER TABLE manual_refresh_requests ADD COLUMN slot {integer}")
+
+
+def _premium_features(db):
+    """Collections of saved stories, keyword alerts, followed stories, match audio and Live Activity tokens,
+    and the switches of the new alerts."""
+    integer = render_column("INTEGER", db.dialect)
+    db.execute(f"""CREATE TABLE IF NOT EXISTS saved_collections(id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL,
+        position {integer} NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_saved_collections_user ON saved_collections(user_id,position)")
+    db.execute("""CREATE TABLE IF NOT EXISTS saved_collection_items(collection_id TEXT NOT NULL, user_id TEXT NOT NULL, story_id TEXT NOT NULL,
+        added_at TEXT NOT NULL, PRIMARY KEY(collection_id,story_id))""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_collection_items_user ON saved_collection_items(user_id,story_id)")
+    db.execute("""CREATE TABLE IF NOT EXISTS keyword_alerts(id TEXT PRIMARY KEY, user_id TEXT NOT NULL, keyword TEXT NOT NULL,
+        created_at TEXT NOT NULL, UNIQUE(user_id,keyword))""")
+    db.execute("""CREATE TABLE IF NOT EXISTS followed_stories(user_id TEXT NOT NULL, story_id TEXT NOT NULL, event_id TEXT, headline TEXT NOT NULL,
+        created_at TEXT NOT NULL, last_update_at TEXT NOT NULL, last_notified_at TEXT, expires_at TEXT NOT NULL, PRIMARY KEY(user_id,story_id))""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_followed_stories_event ON followed_stories(event_id)")
+    db.execute(f"""CREATE TABLE IF NOT EXISTS football_match_audio(match_id BIGINT PRIMARY KEY, status TEXT NOT NULL, script TEXT,
+        storage_path TEXT, mime_type TEXT, duration_ms {integer}, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)""")
+    # kind 'start': the phone's push-to-start token (iOS 17.2+); 'update': one running activity's token. FCM needs the
+    # phone's registration token (fcm_token) next to the APNs token of the activity.
+    db.execute(f"""CREATE TABLE IF NOT EXISTS live_activity_tokens(id TEXT PRIMARY KEY, user_id TEXT NOT NULL, kind TEXT NOT NULL, token TEXT NOT NULL,
+        fcm_token TEXT NOT NULL, match_id BIGINT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(token))""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_live_activity_tokens_user ON live_activity_tokens(user_id,kind)")
+    db.execute(f"""CREATE TABLE IF NOT EXISTS live_activity_starts(user_id TEXT NOT NULL, match_id BIGINT NOT NULL, created_at TEXT NOT NULL,
+        PRIMARY KEY(user_id,match_id))""")
+    columns = set(db.table_columns("notification_settings"))
+    for name in ("keyword_alerts_enabled", "story_updates_enabled", "team_reminder_enabled", "live_activities_enabled"):
+        if name not in columns:
+            db.execute(f"ALTER TABLE notification_settings ADD COLUMN {name} {render_column('INTEGER NOT NULL DEFAULT 1', db.dialect)}")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -364,6 +445,8 @@ MIGRATIONS = [
     ("0008_user_avatars", _user_avatars),
     ("0009_football_favorites", _football_favorites),
     ("0010_ingestion_owner", _ingestion_owner),
+    ("0011_briefing_slots", _briefing_slots),
+    ("0012_premium_features", _premium_features),
 ]
 
 

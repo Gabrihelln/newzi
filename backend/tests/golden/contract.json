@@ -11075,6 +11075,7 @@
    "updated_at": "<ts>",
    "content_scope": "selected",
    "audio_voice_id": null,
+   "briefing_length": "standard",
    "topics": [
     "ARTIFICIAL_INTELLIGENCE",
     "BUSINESS",
@@ -11140,6 +11141,7 @@
     "updated_at": "<ts>",
     "content_scope": "selected",
     "audio_voice_id": null,
+    "briefing_length": "standard",
     "topics": [
      "ARTIFICIAL_INTELLIGENCE",
      "BUSINESS",
@@ -11165,6 +11167,7 @@
     "updated_at": "<ts>",
     "content_scope": "selected",
     "audio_voice_id": "newzi_lucas",
+    "briefing_length": "standard",
     "topics": [
      "ECONOMY",
      "TECHNOLOGY"
@@ -11321,7 +11324,13 @@
     }
    ],
    "profile_stale": false,
-   "fallback_levels": []
+   "fallback_levels": [],
+   "slot": 1,
+   "kind": "SCHEDULED",
+   "theme": null,
+   "theme_label": null,
+   "delivery_time": "07:00",
+   "narration": "standard"
   }
  },
  {
@@ -11456,7 +11465,13 @@
     }
    ],
    "profile_stale": false,
-   "fallback_levels": []
+   "fallback_levels": [],
+   "slot": 1,
+   "kind": "SCHEDULED",
+   "theme": null,
+   "theme_label": null,
+   "delivery_time": "07:00",
+   "narration": "standard"
   }
  },
  {
@@ -11475,6 +11490,7 @@
     "updated_at": "<ts>",
     "content_scope": "selected",
     "audio_voice_id": "newzi_lucas",
+    "briefing_length": "standard",
     "topics": [
      "ECONOMY",
      "TECHNOLOGY"
@@ -11601,7 +11617,13 @@
      }
     ],
     "profile_stale": false,
-    "fallback_levels": []
+    "fallback_levels": [],
+    "slot": 1,
+    "kind": "SCHEDULED",
+    "theme": null,
+    "theme_label": null,
+    "delivery_time": "07:00",
+    "narration": "standard"
    },
    "latest_briefing": {
     "id": "<delivery#1>",
@@ -11719,7 +11741,13 @@
      }
     ],
     "profile_stale": false,
-    "fallback_levels": []
+    "fallback_levels": [],
+    "slot": 1,
+    "kind": "SCHEDULED",
+    "theme": null,
+    "theme_label": null,
+    "delivery_time": "07:00",
+    "narration": "standard"
    },
    "topics": [
     {
@@ -17308,6 +17336,12 @@
        "image_url": null
       }
      ],
+     "slot": 1,
+     "kind": "SCHEDULED",
+     "theme": null,
+     "theme_label": null,
+     "delivery_time": "07:00",
+     "narration": "standard",
      "audio_duration_ms": 2000
     }
    ],
@@ -17685,6 +17719,12 @@
        "image_url": null
       }
      ],
+     "slot": 1,
+     "kind": "SCHEDULED",
+     "theme": null,
+     "theme_label": null,
+     "delivery_time": "07:00",
+     "narration": "standard",
      "listening_progress_seconds": 1.0,
      "listening_duration_seconds": 3.0,
      "completed_at": null,
@@ -18614,7 +18654,8 @@
      },
      "reading_progress": 40.0
     }
-   ]
+   ],
+   "collections": []
   }
  },
  {
@@ -18857,6 +18898,10 @@
    "team_goals_enabled": true,
    "team_final_enabled": true,
    "team_news_enabled": true,
+   "team_reminder_enabled": true,
+   "keyword_alerts_enabled": true,
+   "story_updates_enabled": true,
+   "live_activities_enabled": true,
    "briefing_time": "07:00",
    "briefing_size": 5,
    "breaking_news_rules": {
@@ -18881,6 +18926,10 @@
    "team_goals_enabled": true,
    "team_final_enabled": true,
    "team_news_enabled": true,
+   "team_reminder_enabled": true,
+   "keyword_alerts_enabled": true,
+   "story_updates_enabled": true,
+   "live_activities_enabled": true,
    "briefing_time": "07:00",
    "briefing_size": 5,
    "breaking_news_rules": {
@@ -18944,6 +18993,7 @@
    "updated_at": "<ts>",
    "content_scope": "selected",
    "audio_voice_id": "newzi_clara",
+   "briefing_length": "standard",
    "topics": [
     "ECONOMY",
     "TECHNOLOGY"
@@ -19001,7 +19051,8 @@
    "audio_variant_id": null,
    "error_code": null,
    "error_message_safe": null,
-   "ready_at": null
+   "ready_at": null,
+   "delivery_id": null
   }
  },
  {
@@ -19043,6 +19094,7 @@
    "updated_at": "<ts>",
    "content_scope": "selected",
    "audio_voice_id": "newzi_clara",
+   "briefing_length": "standard",
    "topics": [
     "ECONOMY"
    ],
@@ -19088,7 +19140,8 @@
      "error_code": null,
      "error_message": null,
      "profile_key": "<profile#1>",
-     "worker_id": "<worker#2>"
+     "worker_id": "<worker#2>",
+     "slot": 1
     }
    ],
    "count": 1

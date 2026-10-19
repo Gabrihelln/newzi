@@ -12,6 +12,8 @@ import { useFloatingTabContentInset } from '../navigation/floatingTabLayout';
 import { useContentRevisionTick } from '../services/contentRevision';
 import { AppHeader, TAB_GUTTER } from './AppHeader';
 import { Icon } from './Icon';
+import { OnDemandBriefingButton, briefingTitle } from './OnDemandBriefing';
+import { updateWidgetsFromHome } from '../services/iosWidgets';
 import { ArticleImage, isCanonicalArticleImageUrl } from './ArticleImage';
 import { formatHomeDate, greetingForLocalTime, nextBriefingLabel } from '../config/dateTime';
 
@@ -193,7 +195,7 @@ function AudioControls({ briefing, audio, loading, regenerating }: { briefing: B
   return <View style={h.audioCard}>
     <View style={h.audioCardTop}>
       <View style={h.audioCardIcon}><Icon name="audio" color={colors.primary} size={31} /></View>
-      <View style={h.audioCardCopy}><Text style={h.audioCardTitle}>Seu resumo diário</Text><Text style={h.audioCardSubtitle}>As principais notícias do mundo,{`\n`}em um resumo claro e objetivo.</Text></View>
+      <View style={h.audioCardCopy}><Text numberOfLines={1} style={h.audioCardTitle}>{briefingTitle(briefing)}</Text><Text style={h.audioCardSubtitle}>{briefing?.narration === 'extended' ? <>Versão estendida, com mais contexto{`\n`}em cada notícia.</> : briefing?.kind === 'ON_DEMAND' ? <>O que aconteceu desde{`\n`}o seu último resumo.</> : <>As principais notícias do mundo,{`\n`}em um resumo claro e objetivo.</>}</Text></View>
       <Pressable accessibilityRole="button" accessibilityLabel={playback.playing && matching ? 'Pausar resumo' : matching && playback.loaded ? 'Retomar resumo' : 'Reproduzir resumo'} accessibilityState={{ disabled: !briefing || busy || (!ready && !(matching && playback.loaded)) }} onPress={() => void toggle()} disabled={!briefing || busy || (!ready && !(matching && playback.loaded))} style={h.audioPlay}>
         {busy || playback.buffering && matching ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Icon name={matching && playback.playing ? 'pause' : 'play'} color={colors.onPrimary} size={28} />}
       </Pressable>
@@ -261,6 +263,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
     try {
       const value = await api.home();
       setData(value);
+      updateWidgetsFromHome(value);
       setSavedIds(new Set(value.saved_story_ids || []));
       setLoadTick(tick => tick + 1);
     } catch (error) {
@@ -399,6 +402,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
 
 
       <AudioControls briefing={briefing} audio={audio} loading={loading} regenerating={Boolean(data?.today_briefing?.profile_stale)} />
+      <OnDemandBriefingButton onReady={() => void load()} />
 
 
       <View style={h.section}><SectionLabel label="Destaques de hoje" />

@@ -137,11 +137,13 @@ def briefing_max_age():
     return timedelta(hours=max(12, int(os.getenv("BRIEFING_MAX_AGE_HOURS", DEFAULT_BRIEFING_MAX_AGE_HOURS))))
 
 
-def _told_at(repo, profile_key, briefing_date, now, user_id=None):
+def _told_at(repo, profile_key, briefing_date, now, user_id=None, since_today=False):
     """When earlier briefings last told each event or article (manual refreshes included).
 
     With a user, that user's own briefings, whatever profile they had then (editions delivered
     before editions became per-user count through the user's deliveries); without one, the profile's.
+    ``since_today``: the same day's earlier briefings count too (the day's second and third briefings, and
+    those made on request, tell what is new since them).
     """
     told = {}
     if user_id:
@@ -152,8 +154,8 @@ def _told_at(repo, profile_key, briefing_date, now, user_id=None):
         owner_params = (profile_key, profile_key + "_manual_%")
     for row in repo.db.execute("""SELECT i.event_id,i.sources_json,e.generated_at FROM briefing_edition_items i
         JOIN briefing_editions e ON e.id=i.edition_id
-        WHERE """ + owner + " AND e.edition_date>=? AND e.edition_date<?",
-        (*owner_params, (now - timedelta(days=7)).date().isoformat(), briefing_date)):
+        WHERE """ + owner + " AND e.edition_date>=? AND (e.edition_date<?" + (" OR (e.edition_date=? AND e.generated_at<?))" if since_today else ")"),
+        (*owner_params, (now - timedelta(days=7)).date().isoformat(), briefing_date, *((briefing_date, iso(now)) if since_today else ()))):
         if not row["generated_at"]:
             continue
         moment = parse(row["generated_at"])
@@ -527,7 +529,7 @@ def primary_taxonomy(tags, interests, registry=None, proximity=None):
             "reason": ("SELECTED_INTEREST", "INTEREST_DESCENDANT", "INTEREST_ANCESTOR", "CLASSIFICATION")[tier]}
 
 
-def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None, tz=None):
+def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None, tz=None, since_today=False):
     """Select real indexed articles without running an LLM per user or profile.
 
     ``briefing_date`` is the edition's date in ``tz``: briefings of earlier dates count as already told,
@@ -585,7 +587,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
     ranked = []
     from .scheduling import BriefingProfile
     profile_key = BriefingProfile(tuple(interests), language, briefing_size, country_scope).key()
-    told_at = _told_at(repo, profile_key, briefing_date, now, user_id)
+    told_at = _told_at(repo, profile_key, briefing_date, now, user_id, since_today)
     # An event told before comes back only with coverage published after it was told (a match
     # previewed yesterday returns with its result); otherwise yesterday's news is not news.
     event_told, event_lead = {}, {}

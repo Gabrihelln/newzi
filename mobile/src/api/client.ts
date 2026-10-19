@@ -1,7 +1,7 @@
 import { API_BASE_URL, LOGGING_ENABLED, devLog } from '../config/env';
 import { firebaseAuth, getFirebaseIdToken } from '../services/firebaseAuth';
 import { cachedRead } from '../services/offlineCache';
-import type { ApiError, AudioMetadata, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballAlerts, FootballFavorites, FootballOverview, FootballRound, FootballStandings, FootballTeam, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
+import type { ApiError, AudioMetadata, BriefingSearchResult, BriefingSlots, Entitlements, ExtraBriefing, FollowedStory, GenerationStatus, KeywordAlert, MatchAudio, PremiumFeatureId, SavedAudio, SavedCollection, SavedArticle, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballAlerts, FootballFavorites, FootballOverview, FootballRound, FootballStandings, FootballTeam, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
 
 /** What users read when the app cannot reach the server: no technical terms. */
 export const CONNECTION_ERROR_MESSAGE = 'Sem conexão com o Newzi. Verifique sua internet e tente novamente.';
@@ -10,8 +10,13 @@ export class ClientError extends Error {
   code: string;
   status?: number;
   requestId?: string;
-  constructor(message: string, code = 'INTERNAL_ERROR', status?: number, requestId?: string) { super(message); this.code = code; this.status = status; this.requestId = requestId; }
+  /** PREMIUM_REQUIRED: the Premium feature the request needed. */
+  feature?: PremiumFeatureId;
+  constructor(message: string, code = 'INTERNAL_ERROR', status?: number, requestId?: string, feature?: PremiumFeatureId) { super(message); this.code = code; this.status = status; this.requestId = requestId; this.feature = feature; }
 }
+
+/** A server path (/api/v1/...) becomes a full URL; full URLs are kept. */
+export const absoluteUrl = (url: string) => /^https?:\/\//i.test(url) ? url : `${API_BASE_URL}${url}`;
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const controller = new AbortController();
@@ -57,7 +62,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     if (!response.ok) {
       const error = payload as ApiError;
       const fallbackCode = response.status === 401 ? 'AUTH_REQUIRED' : response.status >= 500 ? 'SERVER_ERROR' : response.status === 400 || response.status === 422 ? 'VALIDATION_ERROR' : 'INTERNAL_ERROR';
-      throw new ClientError(error?.error?.message || 'Não foi possível concluir a operação.', error?.error?.code || fallbackCode, response.status, error?.error?.request_id);
+      throw new ClientError(error?.error?.message || 'Não foi possível concluir a operação.', error?.error?.code || fallbackCode, response.status, error?.error?.request_id, error?.error?.feature);
     }
     return payload as T;
   } catch (error) {
@@ -111,9 +116,10 @@ export const api = {
   story: (storyId: string) => cached(['story', storyId], () => apiRequest<{ item: BriefingItem }>(`/api/v1/me/news/${encodeURIComponent(storyId)}`)),
   savedStories: () => apiRequest<{ items: BriefingItem[] }>('/api/v1/me/saved'),
   savedOverview: () => cached(['savedOverview'], () => apiRequest<SavedOverview>('/api/v1/me/saved/overview')),
-  savedStoriesPage: (limit = 40, cursor?: string, topicId?: string) => { const params = new URLSearchParams({ limit: String(limit) }); if (cursor) params.set('cursor', cursor); if (topicId) params.set('topic', topicId); return apiRequest<SavedStoryPage>(`/api/v1/me/saved?${params.toString()}`); },
+  // Cached too: with Salvos offline (Premium) the pages read ahead of time open without a connection.
+  savedStoriesPage: (limit = 40, cursor?: string, topicId?: string) => { const params = new URLSearchParams({ limit: String(limit) }); if (cursor) params.set('cursor', cursor); if (topicId) params.set('topic', topicId); return cached(['savedPage', params.toString()], () => apiRequest<SavedStoryPage>(`/api/v1/me/saved?${params.toString()}`)); },
+  savedBriefings: () => cached(['savedBriefings'], () => apiRequest<{ items: Briefing[] }>('/api/v1/me/saved-briefings')),
   saveReadingProgress: (storyId: string, progress: number) => apiRequest<{ status: string; progress: number }>(`/api/v1/me/saved/${encodeURIComponent(storyId)}/progress`, { method: 'PUT', body: JSON.stringify({ progress }) }),
-  savedBriefings: () => apiRequest<{ items: Briefing[] }>('/api/v1/me/saved-briefings'),
   saveBriefing: (briefingId: string) => apiRequest<{ status: string }>('/api/v1/me/saved-briefings', { method: 'PUT', body: JSON.stringify({ briefing_id: briefingId }) }),
   removeSavedBriefing: (briefingId: string) => apiRequest<{ status: string }>(`/api/v1/me/saved-briefings/${encodeURIComponent(briefingId)}`, { method: 'DELETE' }),
   saveStory: (story: BriefingItem) => apiRequest<{ item: BriefingItem }>('/api/v1/me/saved', { method: 'PUT', body: JSON.stringify({ story }) }),
@@ -130,4 +136,28 @@ export const api = {
   disableDevice: (id: string) => apiRequest<any>(`/api/v1/me/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   notificationSettings: () => apiRequest<NotificationSettings>('/api/v1/me/notification-settings'),
   saveNotificationSettings: (body: Partial<NotificationSwitches>) => apiRequest<NotificationSettings>('/api/v1/me/notification-settings', { method: 'PUT', body: JSON.stringify(body) }),
+
+  // Premium (the server decides what each plan may use; see services/premium.tsx).
+  entitlements: () => cached(['entitlements'], () => apiRequest<Entitlements>('/api/v1/me/entitlements')),
+  briefingSlots: () => apiRequest<BriefingSlots>('/api/v1/me/briefing-slots'),
+  saveBriefingSlots: (extra: Pick<ExtraBriefing, 'time' | 'theme' | 'length' | 'enabled'>[]) => apiRequest<BriefingSlots>('/api/v1/me/briefing-slots', { method: 'PUT', body: JSON.stringify({ extra }) }),
+  briefingNow: () => apiRequest<GenerationStatus>('/api/v1/me/briefings/now', { method: 'POST' }),
+  generation: (id: string) => apiRequest<GenerationStatus>(`/api/v1/me/briefings/generations/${encodeURIComponent(id)}`),
+  searchBriefings: (query: string) => apiRequest<{ items: BriefingSearchResult[] }>(`/api/v1/me/briefings/search?q=${encodeURIComponent(query)}`),
+  collections: () => cached(['collections'], () => apiRequest<{ items: SavedCollection[] }>('/api/v1/me/collections')),
+  createCollection: (name: string) => apiRequest<SavedCollection>('/api/v1/me/collections', { method: 'POST', body: JSON.stringify({ name }) }),
+  renameCollection: (id: string, name: string) => apiRequest<SavedCollection>(`/api/v1/me/collections/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  deleteCollection: (id: string) => apiRequest<{ status: string }>(`/api/v1/me/collections/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  collectionStories: (id: string) => cached(['collection', id], () => apiRequest<{ items: SavedArticle[] }>(`/api/v1/me/collections/${encodeURIComponent(id)}/items`)),
+  setCollectionMember: (id: string, story: BriefingItem, member: boolean) => apiRequest<{ collections: string[] }>(`/api/v1/me/collections/${encodeURIComponent(id)}/items`, { method: 'PUT', body: JSON.stringify(member ? { story, member } : { story_id: story.id, member }) }),
+  storyCollections: (storyId: string) => apiRequest<{ collection_ids: string[] }>(`/api/v1/me/saved/${encodeURIComponent(storyId)}/collections`),
+  keywordAlerts: () => apiRequest<{ items: KeywordAlert[] }>('/api/v1/me/alerts/keywords'),
+  addKeywordAlert: (keyword: string) => apiRequest<{ items: KeywordAlert[] }>('/api/v1/me/alerts/keywords', { method: 'POST', body: JSON.stringify({ keyword }) }),
+  removeKeywordAlert: (id: string) => apiRequest<{ items: KeywordAlert[] }>(`/api/v1/me/alerts/keywords/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  followedStories: () => apiRequest<{ items: FollowedStory[] }>('/api/v1/me/alerts/stories'),
+  storyFollow: (storyId: string) => apiRequest<{ following: boolean }>(`/api/v1/me/news/${encodeURIComponent(storyId)}/follow`),
+  followStory: (storyId: string, following: boolean) => apiRequest<{ following: boolean; until?: string }>(`/api/v1/me/news/${encodeURIComponent(storyId)}/follow`, { method: 'PUT', body: JSON.stringify({ following }) }),
+  savedAudio: (create = false) => apiRequest<SavedAudio>('/api/v1/me/saved/audio', create ? { method: 'POST' } : undefined).then(result => result.audio_url ? { ...result, audio_url: absoluteUrl(result.audio_url) } : result),
+  matchAudio: (matchId: number) => apiRequest<MatchAudio>(`/api/v1/me/football/matches/${matchId}/audio`).then(result => result.audio_url ? { ...result, audio_url: absoluteUrl(result.audio_url) } : result),
+  registerLiveActivityToken: (body: { kind: 'start' | 'update'; token: string; push_token: string; match_id?: number }) => apiRequest<{ status: string }>('/api/v1/me/live-activities/tokens', { method: 'POST', body: JSON.stringify(body) }),
 };

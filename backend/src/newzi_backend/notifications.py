@@ -50,12 +50,17 @@ NOTIFICATION_KINDS = {
     "TEAM_GOAL": NotificationKind("TEAM_GOAL", "team_goals_enabled", "team_alerts", timedelta(minutes=15)),
     "TEAM_FINAL": NotificationKind("TEAM_FINAL", "team_final_enabled", "team_alerts", timedelta(hours=2)),
     "TEAM_NEWS": NotificationKind("TEAM_NEWS", "team_news_enabled", "team_alerts", timedelta(hours=2)),
+    # Premium: "começa em 15 min" (football_alerts.py), keywords and followed stories (alerts.py).
+    "TEAM_REMINDER": NotificationKind("TEAM_REMINDER", "team_reminder_enabled", "team_alerts", timedelta(minutes=15)),
+    "KEYWORD_ALERT": NotificationKind("KEYWORD_ALERT", "keyword_alerts_enabled", "personal_alerts", timedelta(hours=1)),
+    "STORY_UPDATE": NotificationKind("STORY_UPDATE", "story_updates_enabled", "personal_alerts", timedelta(hours=2)),
 }
 # Announcements and promotions are not here: they are sent from the Firebase console to the FCM topics every
 # phone joins (mobile/src/push/topics.ts), to everyone whose phone allows notifications, with no switch.
 # Every switch and its value for a new account.
 SETTING_DEFAULTS = {"notifications_enabled": True, "daily_briefing_enabled": True, "breaking_news_enabled": False,
-                    "team_kickoff_enabled": True, "team_goals_enabled": True, "team_final_enabled": True, "team_news_enabled": True}
+                    "team_kickoff_enabled": True, "team_goals_enabled": True, "team_final_enabled": True, "team_news_enabled": True,
+                    "team_reminder_enabled": True, "keyword_alerts_enabled": True, "story_updates_enabled": True, "live_activities_enabled": True}
 SETTING_FIELDS = tuple(SETTING_DEFAULTS)
 
 
@@ -77,7 +82,14 @@ def _minutes(duration_ms):
     return max(1, round((duration_ms or 0) / 60000))
 
 
-def daily_briefing_message(delivery_id, item_count=None, duration_ms=None, language="pt-BR"):
+def _period(delivery_time, english):
+    hour = int(str(delivery_time or "06:00")[:2])
+    if english:
+        return "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
+    return "da manhã" if hour < 12 else "da tarde" if hour < 18 else "da noite"
+
+
+def daily_briefing_message(delivery_id, item_count=None, duration_ms=None, language="pt-BR", kind="SCHEDULED", theme_label=None, delivery_time=None):
     english = str(language or "").lower().startswith("en")
     parts = []
     if item_count:
@@ -85,7 +97,16 @@ def daily_briefing_message(delivery_id, item_count=None, duration_ms=None, langu
     if duration_ms:
         parts.append(f"{_minutes(duration_ms)} min")
     body = " · ".join(parts) or ("Your daily briefing is ready to start your day." if english else "Seu resumo diário está pronto para começar o dia.")
-    return {"title": "Your briefing is ready" if english else "Seu resumo de hoje está pronto", "body": body,
+    # The daily briefing keeps its title; the day's extra ones say which they are (theme or time of day).
+    if kind == "ON_DEMAND":
+        title = "Your briefing on demand is ready" if english else "Seu resumo na hora está pronto"
+    elif kind == "EXTRA" and theme_label:
+        title = f"Your {theme_label} briefing is ready" if english else f"Seu resumo de {theme_label} está pronto"
+    elif kind == "EXTRA":
+        title = f"Your {_period(delivery_time, True)} briefing is ready" if english else f"Seu resumo {_period(delivery_time, False)} está pronto"
+    else:
+        title = "Your briefing is ready" if english else "Seu resumo de hoje está pronto"
+    return {"title": title, "body": body,
             "data": {"type": "DAILY_BRIEFING", "briefing_id": delivery_id, "delivery_id": delivery_id}}
 
 
@@ -265,9 +286,14 @@ class NotificationService:
             if not ready or not artifact or not os.path.isfile(artifact["storage_path"]):
                 self.repo.db.execute("UPDATE notification_jobs SET status='CANCELLED',updated_at=?,last_error='delivery audio is no longer READY' WHERE id=?",(now_iso(),job["id"])); self.repo.db.commit()
                 return {"jobs_claimed":1,"notifications_sent":0,"notifications_failed":0,"invalid_tokens":0,"cancelled":1}
-            info=self.repo.db.execute("""SELECT e.item_count,e.language,a.duration_ms FROM user_briefing_deliveries d
+            info=self.repo.db.execute("""SELECT e.item_count,e.language,a.duration_ms,d.kind,d.theme,d.delivery_time FROM user_briefing_deliveries d
                 JOIN briefing_editions e ON e.id=d.edition_id LEFT JOIN audio_artifacts a ON a.id=d.audio_artifact_id WHERE d.id=?""",(job["delivery_id"],)).fetchone()
-            message=daily_briefing_message(job["delivery_id"],info["item_count"] if info else None,info["duration_ms"] if info else None,info["language"] if info else "pt-BR")
+            theme_label=None
+            if info and info["theme"]:
+                from newzi_engine.topic_registry import taxonomy
+                theme_label=taxonomy().nodes.get(info["theme"],{}).get("name")
+            message=daily_briefing_message(job["delivery_id"],info["item_count"] if info else None,info["duration_ms"] if info else None,info["language"] if info else "pt-BR",
+                                           info["kind"] if info else "SCHEDULED",theme_label,info["delivery_time"] if info else None)
             title,body,data=message["title"],message["body"],message["data"]
         claimed=self.repo.db.execute("UPDATE notification_jobs SET status='RUNNING',attempt_count=attempt_count+1,updated_at=? WHERE id=? AND status='PENDING'",(now_iso(),job["id"])); self.repo.db.commit()
         if claimed.rowcount!=1:

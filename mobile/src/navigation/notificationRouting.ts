@@ -1,4 +1,5 @@
 import { Linking } from 'react-native';
+import { PREMIUM_OFFERED } from '../config/store';
 import { createNavigationContainerRef } from '@react-navigation/native';
 
 /** Root navigation handle, so a tapped push can open its screen from outside React components. */
@@ -17,7 +18,9 @@ function target(data: PushData): [string, object] | null {
   // Breaking news, and any console push carrying `story_id`, opens that story.
   if (data.story_id) return ['Detail', { storyId: data.story_id }];
   if (data.screen && OPENABLE_SCREENS.has(data.screen)) return [data.screen, {}];
-  // Team game alerts (kickoff, goal, final) open Esportes; team news carries a story_id (above).
+  // A final result with a narrated summary (Premium) opens Esportes with the summary ready to play.
+  if (data.type === 'TEAM_FINAL' && data.match_audio && Number(data.match_id)) return ['Football', { matchAudio: Number(data.match_id) }];
+  // Team game alerts (reminder, kickoff, goal, final) open Esportes; team news carries a story_id (above).
   if (data.type?.startsWith('TEAM_')) return ['Football', {}];
   return null;
 }
@@ -40,4 +43,25 @@ export function setMainFlowReady(ready: boolean) {
     // Let the navigator finish its first render before pushing a screen on top of it.
     setTimeout(() => openFromNotification(data), 0);
   }
+}
+
+/**
+ * Links from the iPhone widgets and Live Activities: newzi://story/ID opens the story, newzi://briefing the Home,
+ * newzi://football Esportes and newzi://premium the plans (where Premium is offered).
+ */
+export function openDeepLink(url: string | null) {
+  const match = /^newzi:\/\/([^/?#]+)(?:\/([^?#]+))?/i.exec(url || '');
+  if (!match) return;
+  const [, kind, value] = match;
+  if (kind === 'story' && value) openFromNotification({ story_id: decodeURIComponent(value) });
+  else if (kind === 'football') openFromNotification({ screen: 'Football' });
+  else if (kind === 'premium' && PREMIUM_OFFERED) openFromNotification({ screen: 'Subscription' });
+  else if (kind === 'briefing' && navigationRef.isReady()) navigationRef.navigate('Tabs', { screen: 'Inicio' });
+}
+
+/** Started by the signed-in app: the link that opened it, and the ones that arrive while it runs. */
+export function listenForDeepLinks() {
+  Linking.getInitialURL().then(openDeepLink).catch(() => undefined);
+  const subscription = Linking.addEventListener('url', event => openDeepLink(event.url));
+  return () => subscription.remove();
 }

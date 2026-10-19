@@ -4,7 +4,7 @@ fastapi>=0.115,<1
 uvicorn>=0.30,<1
 PyYAML==6.0.2
 python-dateutil==2.9.0.post0
-firebase-admin>=6.5,<7
+firebase-admin>=6.9,<7  # 6.9: APNs Live Activity tokens
 edge-tts==7.3.1
 Pillow>=10,<13
 # CPU-only translation of foreign-language stories for briefing narration

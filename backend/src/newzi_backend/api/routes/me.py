@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, Response
 
 from ...product_backend import not_found
-from ..deps import call, created, current_user, json_body, service_of
+from ..deps import accepted, call, created, current_user, json_body, service_of
 
 router = APIRouter(prefix="/api/v1/me")
 
@@ -34,6 +34,27 @@ async def preferences(request: Request, uid: str = Depends(current_user)):
 @router.put("/preferences")
 async def save_preferences(request: Request, uid: str = Depends(current_user)):
     return await call(request, service_of(request).save_preferences, uid, await json_body(request))
+
+
+@router.get("/briefing-slots")
+async def briefing_slots(request: Request, uid: str = Depends(current_user)):
+    """Perfil › Resumo diário: the daily briefing and the extra ones (Premium), with the plan's limit."""
+    from ...briefing_slots import public_slots
+    repo = service_of(request).repo
+    return await call(request, public_slots, repo, uid)
+
+
+@router.put("/briefing-slots")
+async def save_briefing_slots(request: Request, uid: str = Depends(current_user)):
+    """Replace the extra briefings: ``{"extra": [{"time", "theme", "length", "enabled"}]}``."""
+    from ...briefing_slots import public_slots, save_extra_slots
+    repo = service_of(request).repo
+    body = await json_body(request)
+
+    def run():
+        save_extra_slots(repo, uid, body.get("extra") or [])
+        return public_slots(repo, uid)
+    return await call(request, run)
 
 
 @router.get("/onboarding")
@@ -183,6 +204,34 @@ async def follow_football_match(match_id: int, request: Request, uid: str = Depe
     return await call(request, lambda: follow_match(service.repo, uid, match_id, bool(body.get("following"))))
 
 
+@router.get("/football/matches/{match_id}/audio")
+async def football_match_audio(match_id: int, request: Request, uid: str = Depends(current_user)):
+    """Premium: the narrated summary of a finished game (status, and audio_url when READY)."""
+    from ...match_audio import match_audio
+    return await call(request, match_audio, service_of(request).repo, uid, match_id)
+
+
+@router.get("/football/matches/{match_id}/audio/file")
+async def football_match_audio_file(match_id: int, request: Request, uid: str = Depends(current_user)):
+    from ...match_audio import match_audio_file
+    service = service_of(request)
+    path, mime_type = await call(request, match_audio_file, service.repo, uid, match_id, service.audio.storage.root)
+    return FileResponse(path, media_type=mime_type, headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.post("/live-activities/tokens")
+async def live_activity_token(request: Request, uid: str = Depends(current_user)):
+    """iPhone (Premium): a push-to-start token or a running activity's token (see live_activities.py)."""
+    from ...live_activities import register_token
+    return await call(request, register_token, service_of(request).repo, uid, await json_body(request))
+
+
+@router.delete("/live-activities/tokens/{token}")
+async def remove_live_activity_token(token: str, request: Request, uid: str = Depends(current_user)):
+    from ...live_activities import remove_token
+    return await call(request, remove_token, service_of(request).repo, uid, token)
+
+
 @router.get("/trending")
 async def trending(request: Request, uid: str = Depends(current_user)):
     return {"items": await call(request, service_of(request).trending, uid)}
@@ -191,6 +240,30 @@ async def trending(request: Request, uid: str = Depends(current_user)):
 @router.get("/home")
 async def home(request: Request, uid: str = Depends(current_user)):
     return await call(request, service_of(request).client_home, uid)
+
+
+@router.get("/saved/audio")
+async def saved_audio(request: Request, uid: str = Depends(current_user)):
+    """Premium: the saved stories narrated (status, story count and audio_url when READY)."""
+    from ...saved_audio import saved_audio as current
+    service = service_of(request)
+    return await call(request, current, service.repo, service.audio, uid)
+
+
+@router.post("/saved/audio")
+async def make_saved_audio(request: Request, uid: str = Depends(current_user)):
+    """Premium: narrate the saved stories now (poll GET /saved/audio until READY)."""
+    from ...saved_audio import saved_audio as current
+    service = service_of(request)
+    return accepted(await call(request, current, service.repo, service.audio, uid, True))
+
+
+@router.get("/saved/audio/file")
+async def saved_audio_file(request: Request, uid: str = Depends(current_user), edition: str = ""):
+    from ...saved_audio import saved_audio_file as resolve
+    service = service_of(request)
+    path, mime_type = await call(request, resolve, service.repo, service.audio, uid, edition)
+    return FileResponse(path, media_type=mime_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/saved/overview")
@@ -224,6 +297,50 @@ async def remove_saved_story(story_id: str, request: Request, uid: str = Depends
     return {"status": "ok"}
 
 
+@router.get("/collections")
+async def collections(request: Request, uid: str = Depends(current_user)):
+    from ...collections import list_collections
+    return {"items": await call(request, list_collections, service_of(request).repo, uid)}
+
+
+@router.post("/collections")
+async def create_collection(request: Request, uid: str = Depends(current_user)):
+    from ...collections import create_collection as create
+    return created(await call(request, create, service_of(request).repo, uid, await json_body(request)))
+
+
+@router.put("/collections/{collection_id}")
+async def rename_collection(collection_id: str, request: Request, uid: str = Depends(current_user)):
+    from ...collections import rename_collection as rename
+    return await call(request, rename, service_of(request).repo, uid, collection_id, await json_body(request))
+
+
+@router.delete("/collections/{collection_id}")
+async def delete_collection(collection_id: str, request: Request, uid: str = Depends(current_user)):
+    from ...collections import delete_collection as delete
+    await call(request, delete, service_of(request).repo, uid, collection_id)
+    return {"status": "ok"}
+
+
+@router.get("/collections/{collection_id}/items")
+async def collection_items(collection_id: str, request: Request, uid: str = Depends(current_user)):
+    from ...collections import collection_stories
+    return await call(request, collection_stories, service_of(request).repo, uid, collection_id)
+
+
+@router.put("/collections/{collection_id}/items")
+async def collection_membership(collection_id: str, request: Request, uid: str = Depends(current_user)):
+    """``{"story_id": ..., "member": true|false}`` (or ``story`` to save and add an unsaved story)."""
+    from ...collections import set_membership
+    return await call(request, set_membership, service_of(request).repo, uid, collection_id, await json_body(request))
+
+
+@router.get("/saved/{story_id}/collections")
+async def story_collections(story_id: str, request: Request, uid: str = Depends(current_user)):
+    from ...collections import collections_of_story
+    return {"collection_ids": await call(request, collections_of_story, service_of(request).repo, uid, story_id)}
+
+
 @router.get("/saved-briefings")
 async def saved_briefings(request: Request, uid: str = Depends(current_user)):
     return {"items": await call(request, service_of(request).repo.saved_briefings, uid)}
@@ -240,6 +357,56 @@ async def remove_saved_briefing(briefing_id: str, request: Request, uid: str = D
     if not await call(request, service_of(request).repo.remove_saved_briefing, uid, briefing_id):
         raise not_found("saved briefing not found")
     return {"status": "ok"}
+
+
+@router.get("/alerts/keywords")
+async def keyword_alerts(request: Request, uid: str = Depends(current_user)):
+    from ...alerts import list_keywords
+    return {"items": await call(request, list_keywords, service_of(request).repo, uid)}
+
+
+@router.post("/alerts/keywords")
+async def add_keyword_alert(request: Request, uid: str = Depends(current_user)):
+    """Premium: ``{"keyword": "Petrobras"}``; a new headline naming it is pushed."""
+    from ...alerts import add_keyword
+    return created(await call(request, add_keyword, service_of(request).repo, uid, await json_body(request)))
+
+
+@router.delete("/alerts/keywords/{keyword_id}")
+async def remove_keyword_alert(keyword_id: str, request: Request, uid: str = Depends(current_user)):
+    from ...alerts import remove_keyword
+    return await call(request, remove_keyword, service_of(request).repo, uid, keyword_id)
+
+
+@router.get("/alerts/stories")
+async def followed_story_alerts(request: Request, uid: str = Depends(current_user)):
+    from ...alerts import followed_stories
+    return {"items": await call(request, followed_stories, service_of(request).repo, uid)}
+
+
+@router.get("/news/{story_id}/follow")
+async def story_follow_state(story_id: str, request: Request, uid: str = Depends(current_user)):
+    from ...alerts import is_following
+    return {"story_id": story_id, "following": await call(request, is_following, service_of(request).repo, uid, story_id)}
+
+
+@router.put("/news/{story_id}/follow")
+async def follow_story(story_id: str, request: Request, uid: str = Depends(current_user)):
+    """Premium "Me avise quando essa história tiver novidade": ``{"following": true|false}``."""
+    from ...alerts import follow_story as follow
+    body = await json_body(request)
+    following = body.get("following", True)
+    if not isinstance(following, bool):
+        raise ValueError("following must be true or false")
+    return await call(request, follow, service_of(request).repo, uid, story_id, following)
+
+
+@router.get("/entitlements")
+async def entitlements(request: Request, uid: str = Depends(current_user)):
+    """What the account may use (the app shows locks from this): Premium features and limits."""
+    from ...subscriptions import entitlements as entitlements_for
+    repo = service_of(request).repo
+    return await call(request, entitlements_for, repo, uid)
 
 
 @router.get("/subscription")

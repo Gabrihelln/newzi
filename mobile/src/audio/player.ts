@@ -51,6 +51,13 @@ let variantSwitchRun = 0;
 let voiceSyncRun = 0;
 let voiceSyncTimer: ReturnType<typeof setTimeout> | undefined;
 let readyVoiceVariant: { briefingId: string; voice: string; url: string; briefing: Briefing; metadata: AudioMetadata } | null = null;
+const endListeners = new Set<() => void>();
+
+/** Called each time an audio plays to its end (the listening queue starts the next one). */
+export function onPlaybackEnded(listener: () => void) { endListeners.add(listener); return () => { endListeners.delete(listener); }; }
+
+/** Audio that is not a delivered briefing (saved stories, a game's summary) has an id like "saved:…" or "match:…". */
+export const isBriefingAudio = (briefing: Briefing | null | undefined) => Boolean(briefing?.id && !briefing.id.includes(':'));
 
 /**
  * A delivery keeps its id when the same day's briefing is regenerated (e.g. after new content preferences),
@@ -183,11 +190,12 @@ function finishPlayback() {
   update({ playing: false, paused: false, ended: true, started: false, position: state.duration });
   persistBriefingProgress(state.duration, state.duration, true);
   if (currentUrl) cache().savePosition?.(currentUrl, 0);
+  endListeners.forEach(listener => listener());
 }
 
 function persistBriefingProgress(position: number, duration: number, force = false) {
   const briefingId = audioContext?.briefing?.delivery_id || audioContext?.briefing?.id;
-  if (!briefingId || !Number.isFinite(position) || !Number.isFinite(duration) || duration <= 0) return Promise.resolve();
+  if (!briefingId || !isBriefingAudio(audioContext?.briefing) || !Number.isFinite(position) || !Number.isFinite(duration) || duration <= 0) return Promise.resolve();
   if (!force && Date.now() - lastProgressSyncAt < 15000) return Promise.resolve();
   lastProgressSyncAt = Date.now();
   return api.saveBriefingListeningProgress(briefingId, Math.max(0, Math.min(position, duration)), duration).catch(() => undefined);

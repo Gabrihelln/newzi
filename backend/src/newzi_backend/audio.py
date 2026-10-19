@@ -630,8 +630,17 @@ class AudioScriptComposer:
             raise PermanentAudioError("LANGUAGE_MISMATCH", "audio language must match edition language")
         self.translation_warnings=[]
         portuguese = language.lower().startswith("pt")
-        intro = ("Olá. Este é o seu resumo Newzi. Vamos aos destaques."
-                 if portuguese else "Hello. This is your Newzi briefing. Here are the highlights.")
+        # The extended briefing (Premium) narrates more of each story and what other outlets added.
+        extended = edition.get("narration") == "extended"
+        saved = edition.get("narration") == "saved"
+        if extended:
+            intro = ("Olá. Este é o seu resumo estendido Newzi, com mais contexto em cada história. Vamos lá."
+                     if portuguese else "Hello. This is your extended Newzi briefing, with more context on each story. Let's begin.")
+        elif saved:
+            intro = ("Olá. Estas são as matérias que você salvou no Newzi." if portuguese else "Hello. These are the stories you saved on Newzi.")
+        else:
+            intro = ("Olá. Este é o seu resumo Newzi. Vamos aos destaques."
+                     if portuguese else "Hello. This is your Newzi briefing. Here are the highlights.")
         segments = [("INTRO", None, intro)]
         previous = None
         recent_transitions = []
@@ -659,7 +668,7 @@ class AudioScriptComposer:
                 self.translation_warnings.append({"item_id":item.get("id"),"code":"TRANSLATION_UNAVAILABLE"})
                 continue
             headline = spoken_text(fields["headline"])
-            summary = spoken_lead(fields["summary"])
+            summary = spoken_excerpt(clean_summary(fields["summary"]), max_words=130, max_sentences=5) if extended else spoken_lead(fields["summary"])
             reason = spoken_excerpt(fields["why_it_matters"], max_words=25, max_sentences=1)
             if not headline and not summary:
                 continue
@@ -670,6 +679,8 @@ class AudioScriptComposer:
                 narrative = spoken_headline + ((" " if spoken_headline.endswith((".", "?", "!")) else ". ") + summary if summary else "")
             if reason and len(reason.split()) >= 8 and reason.casefold() not in narrative.casefold():
                 narrative += (" " if narrative.endswith((".", "?", "!")) else ". ") + reason
+            if extended:
+                narrative = self._with_context(narrative, item.get("context") or (), portuguese)
             transition_kind, transition = self._transition(previous, item, index, len(items), recent_transitions, portuguese)
             if transition:
                 recent_transitions.append((transition_kind, index))
@@ -679,9 +690,30 @@ class AudioScriptComposer:
             narrative = narrative.rstrip(" .")
             segments.append(("ITEM", item["id"], narrative if narrative.endswith(("?", "!")) else narrative + "."))
             previous = item
-        segments.append(("OUTRO", None, "Esse foi o resumo Newzi. Até a próxima."
-                         if portuguese else "That was your Newzi briefing. See you next time."))
+        if saved:
+            segments.append(("OUTRO", None, "Essas foram as suas matérias salvas. Até a próxima."
+                             if portuguese else "Those were your saved stories. See you next time."))
+        else:
+            segments.append(("OUTRO", None, "Esse foi o resumo Newzi. Até a próxima."
+                             if portuguese else "That was your Newzi briefing. See you next time."))
         return segments
+
+    @staticmethod
+    def _with_context(narrative, context, portuguese, limit=2):
+        """Add what up to ``limit`` other outlets reported that the narration has not said yet."""
+        told = _content_words(narrative); added = 0
+        for publisher, description in context:
+            excerpt = spoken_excerpt(clean_summary(description), max_words=50, max_sentences=2)
+            words = _content_words(excerpt)
+            if len(words) < 5 or len(words - told) < 0.5 * len(words):
+                continue  # repeats what was already told
+            told |= words; added += 1
+            lead = (f"Segundo {publisher}, " if portuguese else f"According to {publisher}, ") if publisher else ""
+            body = excerpt[0].lower() + excerpt[1:] if lead and excerpt[:1].isupper() and not excerpt[1:2].isupper() else excerpt
+            narrative += (" " if narrative.endswith((".", "?", "!")) else ". ") + lead + body
+            if added >= limit:
+                break
+        return narrative
 
     @staticmethod
     def _numbers(value):
@@ -881,6 +913,8 @@ class AudioService:
             (edition_id, language, self.narration_version,self.narration_version+":%",self.narration_version)).fetchone()
         if existing:
             return self.serialize_script(existing["id"]), False
+        if edition.get("narration") == "extended":
+            self._attach_context(edition, language)
         segments = self.composer.compose(edition, language)
         sid, created = "audio_script_" + uuid.uuid4().hex, now_iso()
         estimated = sum(_duration_ms(text) for _, _, text in segments)
@@ -898,6 +932,22 @@ class AudioService:
                                                           "script_version": self.script_version,
                                                           "translation_fallbacks":list(getattr(self.composer,"translation_warnings",[]))})
         return self.serialize_script(sid), True
+
+    def _attach_context(self, edition, language):
+        """The extended briefing's context: what the other outlets of each story wrote, in the briefing's language."""
+        from .content import readable
+        ids = [source.get("article_id") for item in edition["items"] for source in (item.get("sources") or [])[1:]
+               if isinstance(source, dict) and source.get("article_id")]
+        if not ids:
+            return
+        found = {row["id"]: row for row in self.repo.db.execute(
+            "SELECT id,source_name,description,source_language FROM indexed_content WHERE id IN (" + ",".join("?" for _ in ids) + ")", ids)}
+        for item in edition["items"]:
+            item["context"] = [(found[source["article_id"]]["source_name"], found[source["article_id"]]["description"])
+                               for source in (item.get("sources") or [])[1:]
+                               if isinstance(source, dict) and source.get("article_id") in found
+                               and found[source["article_id"]]["description"]
+                               and readable(found[source["article_id"]]["source_language"], language)]
 
     def request(self, edition_id, language=None, voice=None):
         edition = self._edition(edition_id)

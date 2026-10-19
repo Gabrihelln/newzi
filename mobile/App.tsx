@@ -3,6 +3,9 @@ import { AppState } from 'react-native';
 import { api, ClientError } from './src/api/client';
 import { firebaseAuth, isAuthOperationInProgress, logoutFromFirebase, observeFirebaseUser } from './src/services/firebaseAuth';
 import { clearCachedAudio } from './src/audio/player';
+import { clearQueue } from './src/audio/queue';
+import { clearIosWidgets } from './src/services/iosWidgets';
+import { clearEntitlements } from './src/services/premium';
 import { AudioEngine } from './src/audio/AudioEngine';
 import { clearOfflineCache } from './src/services/offlineCache';
 import { applySavedThemePreference } from './src/theme/appearance';
@@ -109,6 +112,9 @@ export default function App() {
 
   const logout = useCallback(async () => {
     clearCachedAudio();
+    clearQueue();
+    clearEntitlements();
+    clearIosWidgets();
     clearOfflineCache();
     try { await api.logout(await currentPushToken()); } catch { /* local logout must always complete */ }
     resetDeviceSync();

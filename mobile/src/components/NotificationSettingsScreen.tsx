@@ -6,11 +6,12 @@ import type { NotificationSettings, NotificationSwitches } from '../types/api';
 import { radius, spacing, typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import { NoticeSwitches, platformName } from './NotificationParts';
+import { PersonalAlertsCard } from './PersonalAlerts';
 import { BrandPage, BrandPageHeader, ScreenState, SettingsCard } from './ScreenPrimitives';
 
 type Field = keyof NotificationSwitches;
 
-export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
+export function NotificationSettingsScreen({ onBack, onKeywords }: { onBack: () => void; onKeywords?: () => void }) {
   const s = useStyles(makeStyles);
   const { colors } = useTheme();
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
@@ -121,6 +122,7 @@ export function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
       <SettingsCard style={s.card}>
         <NoticeSwitches settings={settings} rules={settings.breaking_news_rules} busy={saving} onChange={(field, value) => void change(field, value)} />
       </SettingsCard>
+      {onKeywords && <PersonalAlertsCard settings={settings} busy={saving} onChange={(field, value) => void change(field, value)} onKeywords={onKeywords} />}
       {!!message && <Text accessibilityRole="alert" style={s.error}>{message}</Text>}
     </>}
   </BrandPage>;

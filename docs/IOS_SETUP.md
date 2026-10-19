@@ -13,18 +13,18 @@ commits de `e3af3c0` até o último (Esportes, alertas dos times, Home só com i
 feitos e testados **só no Android**. Nenhum deles mexe em código nativo do iOS nem traz pod novo além dos dois
 citados no passo 2. Faça nesta ordem e marque cada item:
 
-1. [ ] **Código** [Claude]: `git pull` em `main`; `cd mobile && npm ci`. O `postinstall` roda o `patch-package`
+1. [x] **Código** [Claude]: `git pull` em `main`; `cd mobile && npm ci`. O `postinstall` roda o `patch-package`
    (`mobile/patches/react-native-video+6.19.3.patch`, que só muda o código **Android** do player; no iOS não
    faz nada). Se o `npm ci` reclamar do patch, veja se o arquivo continua com fim de linha LF (`.gitattributes`).
-2. [ ] **Pods** [Claude]: `cd mobile/ios && pod install` (use `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` se der erro de
+2. [x] **Pods** [Claude]: `cd mobile/ios && pod install` (use `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` se der erro de
    Unicode). Entram dois pods novos: **`react-native-image-picker` 8.2.1** (foto do perfil) e
    **`@callstack/liquid-glass` 0.8.2** (`LiquidGlass`, barra de navegação). O Liquid Glass usa APIs do iOS 26:
    compile com o **Xcode 26**. Confira também que o `RNAppleAuthentication` continua no `Podfile.lock`.
-3. [ ] **Compilar e instalar** no iPhone (seção 6.2) e rodar `npm run typecheck` em `mobile/`.
-4. [ ] **Testar o que mudou** (roteiro abaixo) em modo claro **e** escuro; anotar na seção 11 o que falhar.
+3. [x] **Compilar e instalar** no iPhone (seção 6.2) e rodar `npm run typecheck` em `mobile/`.
+4. [x] **Testar o que mudou** (roteiro abaixo) em modo claro **e** escuro; anotar na seção 11 o que falhar.
 5. [ ] **Pendências antigas** que continuam abertas: 5.5 (áudio em segundo plano e tela de bloqueio), 5.6 passo 4
    (login Google e Apple, sair/entrar, excluir conta Apple), 6.1 (simulador) e o roteiro completo da seção 7.
-6. [ ] Se tudo estiver bem, **novo build no TestFlight** (seção 8): aumentar `CURRENT_PROJECT_VERSION` antes.
+6. [x] Se tudo estiver bem, **novo build no TestFlight** (seção 8): aumentar `CURRENT_PROJECT_VERSION` antes.
 
 ### 0.1 O que mudou e precisa ser testado no iPhone
 | Área | O que conferir no iPhone | Onde está o código |
@@ -66,7 +66,7 @@ Este guia substitui `docs/IOS_BRINGUP_CHECKLIST.md` e a parte de "Mac execution"
 | Backend (API FastAPI) | `backend/` | No ar em `https://api.newzi.app`; 91 testes passando (`python -m pytest -q backend/tests`) |
 | Engine (coleta de notícias, briefing, áudio, push) | `engine/` | Funcionando; worker com `python engine/main.py --delivery-worker` |
 | App Android | `mobile/android/` | Funcionando e testado em aparelho real (Android, via USB) |
-| **App iOS** | `mobile/ios/` | Compila e roda no iPhone; build 1 no TestFlight. Faltam os testes da seção 0 e as pendências da 5.x |
+| **App iOS** | `mobile/ios/` | Compila e roda no iPhone; build 4 (versão 1.0) no TestFlight. Faltam os testes da seção 0 e as pendências da 5.x |
 
 O app é **um só código React Native** (`mobile/src/`, TypeScript) para Android e iOS. Quase tudo já funciona
 no iOS sem mudar código de tela; o que falta é **configuração nativa** (Xcode, Firebase, Apple) e testes.
@@ -374,7 +374,7 @@ Marque cada item depois de testar no **aparelho real**, em modo **claro e escuro
       capítulo; pausar pela faixa do topo), mini player, tela de bloqueio com capa, segundo plano, silencioso
 - [ ] Perfil: dados pessoais, editar perfil (foto pela câmera e pela galeria, nome), preferências de conteúdo,
       resumo diário (horário, tamanho, idioma, cobertura, áudio e voz), notificações, segurança (alterar senha),
-      aparência (automático/claro/escuro). Assinatura e plano ficam escondidos no iOS (5.9)
+      aparência (automático/claro/escuro). Assinatura e plano ficam escondidos no iOS (5.9); recursos Premium aparecem enquanto `PREMIUM_ENFORCED` estiver desligado (seção 9)
 - [ ] Push: permissão (onboarding e Perfil), recebimento em segundo plano/fechado (aberto não mostra nada),
       toque abrindo a tela certa; campanha do Console para o tópico `novidades`
 - [ ] Sem internet: o app mostra o conteúdo em cache (sem faixa amarela)
@@ -396,29 +396,60 @@ privacidade ("Privacidade do app") e política de privacidade publicada.
 
 ---
 
-## 9. Assinatura Premium no iOS (próxima fase, não fazer agora)
-O plano (definido com o Gabriel):
-- **Básico** (grátis): 1 horário de briefing por dia.
-- **Premium** mensal (R$ 14,90) ou anual (R$ 119,90): até 4 horários de briefing escolhidos pela pessoa,
-  assuntos sem limite, salvos ilimitados/offline, alertas personalizados. **Sem teste grátis.**
-- Tudo fica em **Perfil › Assinatura e plano** (`mobile/src/components/SubscriptionScreen.tsx`) e no aviso
-  `PremiumSheet.tsx`. O backend já tem a tabela `subscriptions`, `GET /api/v1/me/subscription` e a regra
-  em `backend/src/newzi_backend/subscriptions.py`; `BILLING_ENABLED` está desligado.
+## 9. Newzi Premium (recursos prontos; a compra é a próxima fase)
+O plano (definido com o Gabriel em 2026-10-19). O grátis continua dando conta de se informar todo dia; o Premium
+deixa o Newzi mais seu, mais rápido e mais completo. Voz, velocidade e o áudio guardado ao tocar seguem iguais
+para todos.
 
-O que falta (em andamento primeiro no Android, depois no iOS):
+| Área | Básico (grátis) | Premium |
+|---|---|---|
+| Resumo | 1 por dia, no horário escolhido | Até 3 por dia (cada um com horário e tema), "Gerar agora" (5/dia) e versão estendida |
+| Áudio | Voz, velocidade e cache de quem já tocou | Baixar para ouvir offline, fila contínua, ouvir as matérias salvas |
+| iPhone | Widget "Destaques do dia" pequeno | Tamanhos médio e grande, widget por assunto e por time (iOS 17), placar na tela de bloqueio |
+| Futebol | 1 time, início, gols, resultado e notícias | Até 10 times, lembrete 15 min antes, resumo do jogo em áudio |
+| Alertas | Urgentes e assuntos seguidos | Palavras-chave (até 20) e "acompanhar história" (7 dias) |
+| Salvos e histórico | Salvos sem limite e 7 dias de histórico | Coleções, offline, histórico completo e busca nos resumos |
+
+Escalação, cartão vermelho e pênalti ficam para depois: o plano grátis da football-data.org não traz eventos do
+jogo (precisa de plano pago ou de outra API).
+
+**Onde está:** o servidor decide tudo em `backend/src/newzi_backend/subscriptions.py` (`LIMITS`, `FEATURES`,
+`GET /api/v1/me/entitlements`); o app lê isso em `mobile/src/services/premium.tsx` e abre o `PremiumSheet` pelo
+`requestPremium`. Recursos: `briefing_slots.py`, `collections.py`, `alerts.py`, `match_audio.py`,
+`saved_audio.py`, `live_activities.py` (backend); `ExtraBriefingsCard`, `OnDemandBriefing`, `Collections`,
+`PersonalAlerts`, `AudioQueueSection`, `audio/queue.ts`, `services/offline.ts`, `services/iosWidgets.ts` (app);
+`mobile/ios/NewziWidgets/` (widgets e Live Activity) e `NewziWidgetBridge.swift` (ponte nativa).
+
+**Travas desligadas:** com `PREMIUM_ENFORCED` desligado (padrão) todo mundo usa tudo, como antes. Para testar os
+dois lados: `PREMIUM_ENFORCED=true` no `.env` da VPS, reiniciar API e worker, e
+`python backend/premium_test_account.py EMAIL grant|revoke|status`. No iOS, enquanto `PREMIUM_OFFERED` for
+falso, um recurso travado some (nada de oferta que não dá para comprar, diretriz 2.1).
+
+**Deploy do backend:** `pip install -r requirements.txt` (firebase-admin 6.9, para o token da Live Activity). As
+migrações `0011_briefing_slots` e `0012_premium_features` rodam sozinhas na primeira subida.
+
+### 9.1 [ ] Widgets e Live Activities no iPhone **[Gabriel + Claude]**
+1. **[Gabriel]** No developer.apple.com (ou deixando o Xcode criar com a assinatura automática): App Group
+   **`group.app.newzi.ios`** ligado aos App IDs `app.newzi.ios` e `app.newzi.ios.NewziWidgets` (o novo alvo da
+   extensão). Sem isso o build no iPhone falha na assinatura.
+2. **[Claude]** O alvo `NewziWidgets` (iOS 16.1+) já está no projeto e embutido no app; o app ganhou o App Group,
+   `NSSupportsLiveActivities` e o esquema de URL `newzi://`. Compilar no iPhone e conferir: widget pequeno, médio
+   e grande, widgets "Seu assunto" e "Meu time" (iOS 17), e um jogo ao vivo de um time favorito na tela de
+   bloqueio e na Dynamic Island.
+3. A Live Activity iniciada pelo servidor (push-to-start) precisa de iOS 17.2+; abaixo disso o app inicia a
+   atividade quando é aberto durante o jogo. Os pushes vão pelo FCM: a chave APNs já está no Firebase.
+
+### 9.2 [ ] A compra (próxima fase)
 1. Biblioteca **RevenueCat** (`react-native-purchases`) no app, com login pelo `uid` do Firebase.
 2. **Android:** produto `newzi_premium` (planos `mensal`/`anual`) na Play Console.
    **iOS:** no App Store Connect, grupo de assinaturas "Newzi Premium" com os produtos mensal e anual, os
    mesmos preços, aceitar o *Paid Apps Agreement* e preencher dados bancários/fiscais; ligar os produtos ao
    mesmo entitlement `premium` no RevenueCat; capability **In-App Purchase** no Xcode.
 3. Webhook do RevenueCat → backend gravando `subscriptions` (backend precisa estar em HTTPS público).
-4. Briefings em vários horários: hoje o banco permite **um briefing por usuário por dia**
-   (`UNIQUE(user_id,briefing_date)` em `generation_jobs` e `UNIQUE(user_id,local_date)` em
-   `user_briefing_deliveries`, ver `backend/src/newzi_backend/migrations.py` e `scheduling.py`). Precisa de
-   nova migração, agendador por horário e ajustes na Home/configuração do briefing.
-5. Termos de uso e política de privacidade publicados (`TERMS_URL`, `PRIVACY_URL` no `.env`).
-6. Remover a trava `PREMIUM_OFFERED` do iOS (`mobile/src/config/store.ts`) e, na tela de excluir conta, avisar
-   que a assinatura da App Store é cancelada à parte (a Apple pede isso).
+4. Termos de uso e política de privacidade publicados (`TERMS_URL`, `PRIVACY_URL` no `.env`).
+5. Ligar `PREMIUM_ENFORCED` e `BILLING_ENABLED`, remover a trava `PREMIUM_OFFERED` do iOS
+   (`mobile/src/config/store.ts`) e, na tela de excluir conta, avisar que a assinatura da App Store é cancelada à
+   parte (a Apple pede isso).
 
 ---
 
@@ -496,3 +527,11 @@ O que falta (em andamento primeiro no Android, depois no iOS):
 - O app assinado traz `com.apple.developer.applesignin` e `aps-environment`. Build de Debug instalado no
   iPhone pelo terminal (`xcodebuild … -destination id=<UDID>` e `xcrun devicectl device install app`).
 - Falta: testar Google, Apple, sair/entrar e excluir conta Apple (5.6, passo 4) e as telas novas vindas do Android.
+
+### 2026-10-18 (noite) — Esportes, splash e build 4 no TestFlight
+- `npm ci` (patch do `react-native-video` aplicado) e `pod install`: entraram `LiquidGlass` e
+  `react-native-image-picker` 8.2.1; `RNAppleAuthentication` continua. `npm run typecheck` passou.
+- Build de Debug no iPhone 14 Pro Max (iOS 26.6.2) com Xcode 26.1: o roteiro da seção 0.1 ficou igual ao Android.
+  O produto do build se chama `Newzi.app` (`build/dd/Build/Products/Debug-iphoneos/Newzi.app`).
+- `CURRENT_PROJECT_VERSION` 3 → 4; `xcodebuild archive` (Release) e `-exportArchive` com `ExportOptions.plist`:
+  upload aceito pelo App Store Connect (versão 1.0, build 4). Falta o Gabriel liberar o build para os testadores.

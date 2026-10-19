@@ -5,6 +5,7 @@ import { devLog } from '../config/env';
 import { Icon } from './Icon';
 import { useLogo } from './brand';
 import { ArticleImage } from './ArticleImage';
+import { StoryPremiumActions } from './StoryPremiumActions';
 import {useStyles, useTheme, type Palette } from '../theme';
 import type { Briefing, BriefingItem, Topic } from '../types/api';
 
@@ -141,6 +142,7 @@ export function ArticleDetailScreen({ item, onBack, onRelated, onTopic, onBriefi
             <Text style={s.date}>{publishedAt || 'Data de publicação indisponível'}</Text>
           </View>
         </View>
+        <StoryPremiumActions story={item} onSaved={() => setSaved(true)} />
         {!!item.why_it_matters?.trim() && item.why_it_matters.trim() !== item.summary.trim() && <Text style={s.body}>{item.why_it_matters}</Text>}
         {!!(item.key_points || []).length && <View style={s.keyCard}>
           <View style={s.keyTitleRow}><Icon name="article" color={colors.primary} size={20} /><Text accessibilityRole="header" style={s.keyTitle}>Principais pontos</Text></View>
