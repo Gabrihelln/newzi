@@ -236,7 +236,9 @@ class ProductRepository:
         descendants={child for parent in selected for child in registry.descendants(parent)}
         selected_with_children=sorted(selected|descendants)
         exact_ids=sorted(selected)
-        clauses=["c.published_at IS NOT NULL"]
+        # Only stories with a picture are listed (Home, Explore, topics and search); an event whose best article has
+        # no image is shown through one of its other articles that has one.
+        clauses=["c.published_at IS NOT NULL","c.image_url LIKE 'http%'"]
         where_params=[]
         # A real publication date older than this freshness horizon is not a
         # Home/Explore candidate; ingestion time never substitutes for it.
@@ -268,7 +270,8 @@ class ProductRepository:
              "c.image_url,c.source_language,c.quality_score,COALESCE(NULLIF(c.event_id,''),c.id) AS event_key,"+interest_case+" AS interest_score,"
              "CASE WHEN c.source_language LIKE ? THEN 1 ELSE 0 END AS language_match,"+primary_topic+" AS primary_taxonomy_id ")
         sql += "FROM indexed_content c LEFT JOIN content_taxonomy t ON t.content_id=c.id WHERE "+" AND ".join(clauses)+" GROUP BY c.id), ranked AS (SELECT candidates.*,ROW_NUMBER() OVER(PARTITION BY event_key ORDER BY interest_score DESC,language_match DESC,published_at DESC,quality_score DESC,id) AS event_rank FROM candidates) SELECT * FROM ranked WHERE event_rank=1 ORDER BY published_at DESC,interest_score DESC,quality_score DESC,id LIMIT ?"
-        rows=self.db.execute(sql,query_params).fetchall()
+        from newzi_engine.images import canonical_image_url
+        rows=[row for row in self.db.execute(sql,query_params).fetchall() if canonical_image_url(row["image_url"])]
         size=max(1,min(int(limit),30))
         now=datetime.now(timezone.utc)
         base_scores={}

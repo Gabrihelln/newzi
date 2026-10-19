@@ -99,7 +99,8 @@ def seed_content(repo, topics=SEED_TOPICS):
         rows.append({
             "id": f"article_{index:02d}", "content_hash": f"hash_{index:02d}",
             "title": f"Manchete {index} sobre {topic}", "description": f"Resumo da notícia {index} sobre {topic}.",
-            "url": f"https://news.example/{index}", "source_name": f"Fonte {index % 3}", "source_id": f"source_{index % 3}",
+            "url": f"https://news.example/{index}", # article_01 has no picture: it stays out of the news lists and keeps the image endpoint's 404 offline.
+            "image_url": None if index == 1 else f"https://news.example/images/{index}.jpg", "source_name": f"Fonte {index % 3}", "source_id": f"source_{index % 3}",
             "source_country": "BR" if index % 2 else "US", "source_language": "pt-BR" if index % 2 else "en",
             "published_at": published, "indexed_at": published, "enrichment_mode": "test",
             "quality_score": 5.0 + index, "event_id": f"event_{index:02d}", "topic": topic,

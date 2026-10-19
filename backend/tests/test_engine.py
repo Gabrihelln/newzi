@@ -67,9 +67,9 @@ def index(repo, article_id, source, title, event_id=None, hours_ago=1, quality=5
     from newzi_backend.timeutil import iso
     published = iso(NOW - timedelta(hours=hours_ago))
     repo.db.execute("""INSERT INTO indexed_content(id,content_hash,title,description,url,source_name,source_id,source_country,source_language,
-        published_at,indexed_at,enrichment_mode,quality_score,event_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        published_at,indexed_at,enrichment_mode,quality_score,event_id,image_url) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (article_id, "h_" + article_id, title, description, "https://news.example/" + article_id, source.title(), source,
-                     country, "en", published, published, "test", quality, event_id))
+                     country, "en", published, published, "test", quality, event_id, f"https://news.example/images/{len(article_id)}-{article_id[:2]}.jpg"))
     repo.db.execute("INSERT INTO content_taxonomy(content_id,taxonomy_id,score) VALUES(?,?,?)", (article_id, topic, 8.0))
     repo.db.commit()
 

@@ -131,8 +131,8 @@ def test_news_search_ignores_accents_and_matches_prefixes(repo):
     add_user(repo, "reader", topics=("ECONOMY",))
     support.seed_content(repo)
     now = datetime.now(timezone.utc).isoformat()
-    repo.db.execute("""INSERT INTO indexed_content(id,content_hash,title,description,url,source_name,source_id,source_language,published_at,indexed_at,enrichment_mode)
-        VALUES('article_accent','h','Inflação dispara no Brasil','Preços sobem em São Paulo','https://n.example/a','Fonte','source_9','pt-BR',?,?,'test')""", (now, now))
+    repo.db.execute("""INSERT INTO indexed_content(id,content_hash,title,description,url,source_name,source_id,source_language,published_at,indexed_at,enrichment_mode,image_url)
+        VALUES('article_accent','h','Inflação dispara no Brasil','Preços sobem em São Paulo','https://n.example/a','Fonte','source_9','pt-BR',?,?,'test','https://n.example/a.jpg')""", (now, now))
     repo.db.commit()
 
     def found(query):

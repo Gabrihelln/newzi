@@ -16,3 +16,15 @@ export function useLogo() {
 export function useBrandMarks() {
   return useTheme().dark ? darkMarks : lightMarks;
 }
+
+// The header lockup's symbol and wordmark cut from the PNGs above (same pixels), so they can move on their own.
+const lightHeader = { symbol: require('../../assets/onboarding/header-symbol.png'), wordmark: require('../../assets/onboarding/header-wordmark.png') };
+const darkHeader = { symbol: require('../../assets/onboarding/header-symbol-dark.png'), wordmark: require('../../assets/onboarding/header-wordmark-dark.png') };
+
+/** Where each part sits in the 2103×748 lockup, in its pixels. */
+export const LOCKUP = { width: 2103, height: 748, symbol: { x: 208, y: 173, width: 581, height: 459 }, wordmark: { x: 838, y: 164, width: 1076, height: 430 } };
+
+/** The header's symbol and wordmark in the active theme's version. */
+export function useHeaderMarks() {
+  return useTheme().dark ? darkHeader : lightHeader;
+}

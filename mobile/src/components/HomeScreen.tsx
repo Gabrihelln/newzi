@@ -22,6 +22,10 @@ const HOME_REFRESH_MS = 120_000;
 // Coming back to the Home tab reloads it unless it was loaded this recently.
 const HOME_FOCUS_RELOAD_AFTER_MS = 15_000;
 const FEATURED_RESUME_AFTER_TOUCH_MS = 8000;
+// The refresh animation stays at least this long, so a fast reload still reads as one.
+const REFRESH_MIN_MS = 900;
+// The pull gesture stays native, but its spinner is drawn far above the screen: the header logo shows the progress.
+const HIDDEN_SPINNER_OFFSET = -1000;
 const hasFeaturedImage = (item: BriefingItem) => isCanonicalArticleImageUrl(item.image_url);
 /** Merge candidate lists into unique featured stories that have a linked image, preserving priority order. */
 function pickFeatured(...sources: (BriefingItem[] | undefined)[]) {
@@ -72,11 +76,11 @@ function topicPalette(topic: Topic, index: number, colors: Palette) {
   if (/sa[uú]de|bem-estar|medicin/.test(key)) return colors.topicPink;
   return palette[index % palette.length];
 }
-function SectionLabel({ label, onAll }: { label: string; onAll: () => void }) {
+function SectionLabel({ label, onAll }: { label: string; onAll?: () => void }) {
   const h = useStyles(makeStyles);
   const theme = useTheme();
   const { colors } = theme;
-  return <View style={h.sectionHead}><Text style={h.sectionTitle}>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Ver todos: ${label}`} onPress={onAll} hitSlop={8} style={h.allButton}><Text style={h.allText}>Ver todos</Text><Icon name="chevron" size={15} color={colors.primary} /></Pressable></View>;
+  return <View style={h.sectionHead}><Text style={h.sectionTitle}>{label}</Text>{onAll && <Pressable accessibilityRole="button" accessibilityLabel={`Ver todos: ${label}`} onPress={onAll} hitSlop={8} style={h.allButton}><Text style={h.allText}>Ver todos</Text><Icon name="chevron" size={15} color={colors.primary} /></Pressable>}</View>;
 }
 function SavedButton({ saved, busy, onPress }: { saved: boolean; busy: boolean; onPress: () => void }) {
   const h = useStyles(makeStyles);
@@ -234,7 +238,8 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
   const scheduleTimezone = data?.preferences.timezone || user?.timezone || deviceTimezone;
   const briefing = data?.today_briefing?.items?.length ? data.today_briefing : data?.latest_briefing || null;
   const playableBriefing = briefing;
-  const latest = data?.latest_news || [];
+  // Only stories with a picture are shown (the API already leaves the others out; this also drops logos and the like).
+  const latest = useMemo(() => (data?.latest_news || []).filter(hasFeaturedImage), [data?.latest_news]);
   // Latest stories that are also trending (matched on any outlet's article) get the "Em alta" tag.
   const trendingIds = useMemo(() => new Set((data?.trending || []).flatMap(item => [item.id, ...item.sources.map(source => source.article_id || '')])), [data?.trending]);
   const [extraFeatured, setExtraFeatured] = useState<BriefingItem[]>([]);
@@ -272,7 +277,11 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
   }, [focused, load]);
   const pullToRefresh = useCallback(async () => {
     setRefreshing(true);
-    try { await load(); } finally { setRefreshing(false); }
+    const started = Date.now();
+    try { await load(); } finally {
+      await new Promise<void>(resolve => setTimeout(resolve, Math.max(0, REFRESH_MIN_MS - (Date.now() - started))));
+      setRefreshing(false);
+    }
   }, [load]);
   useEffect(() => {
     if (!data || pickFeatured(briefing?.items, data.latest_news).length >= FEATURED_LIMIT) { setExtraFeatured([]); return; }
@@ -372,8 +381,8 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
   return <SafeAreaView style={h.safe} edges={Platform.OS === 'android' ? [] : ['top']}>
     <StatusBar barStyle={theme.statusBar} backgroundColor={colors.background} />
     <ScrollView style={h.scroll} contentContainerStyle={[h.content, { paddingBottom: bottomPadding }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void pullToRefresh()} tintColor={colors.primary} colors={[colors.primary]} progressBackgroundColor={colors.surface} />}>
-      <AppHeader onAvatar={onProfile} />
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void pullToRefresh()} tintColor="transparent" colors={['transparent']} progressBackgroundColor="transparent" progressViewOffset={HIDDEN_SPINNER_OFFSET} />}>
+      <AppHeader onAvatar={onProfile} refreshing={refreshing} />
 
       <View style={h.greetingArea}>
         <View style={h.greetingText}>
@@ -392,7 +401,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
       <AudioControls briefing={briefing} audio={audio} loading={loading} regenerating={Boolean(data?.today_briefing?.profile_stale)} />
 
 
-      <View style={h.section}><SectionLabel label="Destaques de hoje" onAll={onExplore} />
+      <View style={h.section}><SectionLabel label="Destaques de hoje" />
         {featured.length ? <>
           <ScrollView ref={featuredScroll} onTouchStart={holdFeatured} onTouchEnd={releaseFeatured} onTouchCancel={releaseFeatured} onScrollBeginDrag={holdFeatured} onScrollEndDrag={releaseFeatured} horizontal pagingEnabled snapToInterval={featureCardWidth + 2} decelerationRate="fast" showsHorizontalScrollIndicator={false} nestedScrollEnabled contentContainerStyle={h.featureCarousel} onMomentumScrollEnd={event => { const index = Math.round(event.nativeEvent.contentOffset.x / (featureCardWidth + 2)); featuredIndexRef.current = index; setFeaturedIndex(index); }}>
             {featured.map(item => <FeaturedCard key={item.id} item={item} trending={Boolean(item.trending) || trendingIds.has(item.id)} width={featureCardWidth} saved={savedIds.has(item.id)} busy={savingIds.has(item.id)} onToggle={() => void toggleSaved(item)} onPress={() => onDetail(item)} />)}

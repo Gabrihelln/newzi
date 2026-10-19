@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, SafeAreaView, Text, View } from 'react-native';
+import { AppState } from 'react-native';
 import { api, ClientError } from './src/api/client';
 import { firebaseAuth, isAuthOperationInProgress, logoutFromFirebase, observeFirebaseUser } from './src/services/firebaseAuth';
 import { clearCachedAudio } from './src/audio/player';
 import { AudioEngine } from './src/audio/AudioEngine';
 import { clearOfflineCache } from './src/services/offlineCache';
-import { useBaseStyles, useTheme } from './src/theme';
 import { applySavedThemePreference } from './src/theme/appearance';
 import { RootNavigator, type RootAuthState } from './src/navigation/RootNavigator';
+import { SplashScreen } from './src/components/SplashScreen';
 import type { User } from './src/types/api';
 import { currentPushToken, listenForPushEvents, resetDeviceSync, syncCurrentDevice } from './src/push/push';
 import { joinPushTopics } from './src/push/topics';
@@ -17,10 +17,10 @@ import { getDeviceTimezone } from './src/config/timezone';
 
 // The saved light/dark choice applies before the first screen renders.
 applySavedThemePreference();
+// The splash stays at least this long, so its opening (symbol, then name) is never cut short.
+const SPLASH_MIN_MS = 1000;
 
 export default function App() {
-  const theme = useTheme();
-  const styles = useBaseStyles();
   const [authState, setAuthState] = useState<RootAuthState>('BOOTING');
   const [user, setUser] = useState<User | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -28,6 +28,8 @@ export default function App() {
   const bootstrappingUid = useRef<string | null>(null);
   const bootstrapTask = useRef<Promise<void> | null>(null);
   const timezoneSyncTask = useRef<Promise<void> | null>(null);
+  const [splashShown, setSplashShown] = useState(false);
+  useEffect(() => { const timer = setTimeout(() => setSplashShown(true), SPLASH_MIN_MS); return () => clearTimeout(timer); }, []);
 
   const syncDeviceTimezone = useCallback(() => {
     if (timezoneSyncTask.current) return timezoneSyncTask.current;
@@ -126,6 +128,7 @@ export default function App() {
     catch { /* acceptSession exposes the recoverable error on the auth entry screen */ }
   }, [acceptSession]);
 
-  if (authState === 'BOOTING') return <SafeAreaView style={styles.safe}><View style={styles.centered}><ActivityIndicator color={theme.colors.accent} /><Text style={styles.muted}>Carregando…</Text></View></SafeAreaView>;
+  // The splash keeps playing until the account is loaded, however long a slow connection takes.
+  if (authState === 'BOOTING' || !splashShown) return <SplashScreen />;
   return <><AudioEngine /><RootNavigator authState={authState} needsOnboarding={needsOnboarding} user={user} bootstrapError={bootstrapError} onRetrySession={retrySession} onAuthenticated={acceptSession} onOnboardingDone={(nextUser) => { setUser(nextUser); setNeedsOnboarding(false); }} onLogout={logout} onAuthExpired={logout} onUserUpdated={setUser} /></>;
 }
