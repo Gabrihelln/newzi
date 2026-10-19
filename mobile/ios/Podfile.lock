@@ -171,6 +171,8 @@ PODS:
   - PromisesObjC (2.4.1)
   - PromisesSwift (2.4.1):
     - PromisesObjC (= 2.4.1)
+  - PurchasesHybridCommon (19.5.0):
+    - RevenueCat (= 5.92.0)
   - RCTDeprecation (0.86.3)
   - RCTRequired (0.86.3)
   - RCTSwiftUI (0.86.3)
@@ -2151,6 +2153,7 @@ PODS:
     - ReactNativeDependencies
   - ReactNativeDependencies (0.86.3)
   - RecaptchaInterop (101.0.0)
+  - RevenueCat (5.92.0)
   - RNAppleAuthentication (2.5.1):
     - React-Core
   - RNDeviceInfo (15.0.2):
@@ -2272,6 +2275,9 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNPurchases (10.11.0):
+    - PurchasesHybridCommon (= 19.5.0)
+    - React-Core
   - RNScreens (4.28.0):
     - hermes-engine
     - RCTRequired
@@ -2455,6 +2461,7 @@ DEPENDENCIES:
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - "RNGoogleSignin (from `../node_modules/@react-native-google-signin/google-signin`)"
   - RNKeychain (from `../node_modules/react-native-keychain`)
+  - RNPurchases (from `../node_modules/react-native-purchases`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -2481,7 +2488,9 @@ SPEC REPOS:
     - nanopb
     - PromisesObjC
     - PromisesSwift
+    - PurchasesHybridCommon
     - RecaptchaInterop
+    - RevenueCat
 
 EXTERNAL SOURCES:
   FBLazyVector:
@@ -2659,6 +2668,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-google-signin/google-signin"
   RNKeychain:
     :path: "../node_modules/react-native-keychain"
+  RNPurchases:
+    :path: "../node_modules/react-native-purchases"
   RNScreens:
     :path: "../node_modules/react-native-screens"
   RNSVG:
@@ -2692,6 +2703,7 @@ SPEC CHECKSUMS:
   NitroModules: 6232dc95a28a7a221227e618733ce0e674e8753b
   PromisesObjC: 752c3227f599e3467650e47ea36f433eeb10c273
   PromisesSwift: 217dea0fd5d2ad65222a109c48698add13cc1c5b
+  PurchasesHybridCommon: da80a28f43fdfbf96dcb04c3aa2c6122b0e315d2
   RCTDeprecation: 96f68ebf33f8762466b01d57d6e873c4f30efb07
   RCTRequired: 166eed8ad6d8440e73e56d09a9090366609823d2
   RCTSwiftUI: e818198d11928a78c2b2afe281d072171dab617f
@@ -2768,6 +2780,7 @@ SPEC CHECKSUMS:
   ReactCommon: 02f6a489d5eb4ab79d7deba5cd4434e0ba351a07
   ReactNativeDependencies: 6738e602b46fd24aa453cd58267ec3bb8bf29d27
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  RevenueCat: 39657b04641af73c29788b4bf2cf1acff52fd0dc
   RNAppleAuthentication: a89c9804592b38ed4ab11f0aee68d05ba12ad432
   RNDeviceInfo: 4c852998208b60dc192ae3529e5867817719ad1e
   RNFBApp: 27a58dd316c5f0099d2694220d30cdb4f6b22a3b
@@ -2775,6 +2788,7 @@ SPEC CHECKSUMS:
   RNFBMessaging: 0963b5a4a84b8cfdb42024a8461fc21522c25973
   RNGoogleSignin: 41b189ae99a41175130c55c88a2985a55f826a14
   RNKeychain: d57edf101a72acf3ae85fe4d796eed1d951d2a90
+  RNPurchases: 2cc6a918e58254980bc1db0b293087a77b454e9a
   RNScreens: 8708989f700bdc3dc5abc3c77aa3b5f3e73ce2b2
   RNSVG: 68c366b996064ea99cee1e55da62b8feafb33a78
   Yoga: 269d501078efa6b25cd57f7f326fc3da213580be

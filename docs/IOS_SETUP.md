@@ -453,10 +453,10 @@ Feito em 2026-10-19 (Windows):
 - **Backend:** `revenuecat.py`, webhook `POST /api/v1/webhooks/revenuecat` e `POST /api/v1/me/subscription/sync`.
 
 Falta:
-1. **[Gabriel + Claude]** Webhook no RevenueCat (Integrations › Webhooks) com a URL
+1. [x] **[Gabriel + Claude]** Webhook no RevenueCat (Integrations › Webhooks) com a URL
    `https://api.newzi.app/api/v1/webhooks/revenuecat` e o mesmo valor de `REVENUECAT_WEBHOOK_AUTH`; chave secreta
    (`REVENUECAT_SECRET_KEY`) e `BILLING_ENABLED=true` no `.env` da VPS.
-2. **[Claude, no Mac]** `npm ci`, `pod install` (entra o pod `RNPurchases`), capability **In-App Purchase** no alvo
+2. [x] **[Claude, no Mac]** `npm ci`, `pod install` (entra o pod `RNPurchases`), capability **In-App Purchase** no alvo
    do app, `CURRENT_PROJECT_VERSION` +1 e build no TestFlight. Testar compra, restauração e cancelamento com uma
    conta sandbox (Usuários e Acesso › Contas de sandbox) e conferir a compra em RevenueCat › Customers.
 3. **[Gabriel]** Print da tela de compra e nota em "Informações para a equipe de revisão" de cada assinatura; as
@@ -559,3 +559,17 @@ Falta:
   `0xE8000003`; o `xcodebuild` não aceita o aparelho como destino). O Xcode 27 exige macOS Tahoe 26.6 e chip Apple,
   e o iMac Pro 2017 (Intel) não roda o Tahoe. Daqui em diante, testes no iPhone são pelo TestFlight (ou por um Mac
   com chip Apple). Compilar para `generic/platform=iOS` e para o simulador continua funcionando.
+
+### 2026-10-19 (noite) — compra no sandbox e build 6 no TestFlight
+- `npm ci` e `pod install`: entraram `RNPurchases` 10.11.0, `PurchasesHybridCommon` 19.5.0 e `RevenueCat` 5.92.0.
+  In-App Purchase não tem chave de entitlement (já vem no App ID); nada a mudar no `.entitlements`.
+- Webhook do RevenueCat ativo na VPS (sem `Authorization` a API responde 401, não 503).
+- Teste num **iPhone 8 (iOS 16.7.16)**, que o Xcode 26.1 ainda instala: build de Release para o aparelho com
+  `-allowProvisioningUpdates -allowProvisioningDeviceRegistration` (registra o aparelho) e instalação com
+  `ios-deploy` (o `devicectl` só fala com iOS 17+). Compra do mensal na conta sandbox, renovação em 5 min e
+  cancelamento em Ajustes › App Store › Conta sandbox apareceram no RevenueCat › Customers.
+- `CURRENT_PROJECT_VERSION` 5 → 6 (app e extensão); archive e upload aceitos (versão 1.0, build 6). Os avisos
+  de dSYM do React, ReactNativeDependencies e hermesvm (frameworks pré-compilados) não impedem o envio.
+- `PREMIUM_ENFORCED` não depende do app: o app segue `GET /me/entitlements`. Ligar no `.env` da VPS e reiniciar
+  API e worker.
+
