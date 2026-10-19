@@ -223,6 +223,43 @@ class NewsRefreshWorker:
         self.interval_seconds=max(30,int(interval_seconds if interval_seconds is not None else os.getenv("NEWS_REFRESH_INTERVAL_SECONDS","600")))
         self.timeout_minutes=int(timeout_minutes if timeout_minutes is not None else os.getenv("INGESTION_TIMEOUT_MINUTES",30))
 
+    @staticmethod
+    def owner():
+        import socket
+        return f"{socket.gethostname()}:{os.getpid()}"
+
+    @staticmethod
+    def _process_alive(pid):
+        if os.name == "nt":
+            return True  # no safe liveness probe here (os.kill would terminate it): the timeout applies
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def recover_interrupted(self):
+        """At worker start: fail a RUNNING ingestion whose process is gone (killed by a restart or deploy).
+
+        Without this a deploy left the run RUNNING and blocked collection for INGESTION_TIMEOUT_MINUTES.
+        A run of another host, or of a process still alive, is left alone; one recorded before owners
+        existed belongs to a process that did not survive the deploy that added them."""
+        import socket
+        host = socket.gethostname(); released = 0
+        for row in self.repo.db.execute("SELECT id,owner FROM content_ingestion_runs WHERE status='RUNNING'").fetchall():
+            owner_host, _, pid = (row["owner"] or "").rpartition(":")
+            if row["owner"] and (owner_host != host or not pid.isdigit() or self._process_alive(int(pid))):
+                continue
+            released += self.repo.db.execute("UPDATE content_ingestion_runs SET status='FAILED',completed_at=?,errors_json=? WHERE id=? AND status='RUNNING'",
+                (now_iso(), json.dumps({"error_code": "WORKER_RESTARTED", "message": "ingestion interrupted by a worker restart"}), row["id"])).rowcount
+        self.repo.db.commit()
+        if released:
+            import logging
+            logging.getLogger(__name__).warning("released %s ingestion run(s) interrupted by a restart", released)
+        return released
+
     def _recover_stale(self, now):
         """Fail a RUNNING ingestion whose process died; otherwise it blocks every later refresh."""
         cutoff=iso(now-timedelta(minutes=self.timeout_minutes))
@@ -251,7 +288,7 @@ class NewsRefreshWorker:
                     self.repo.db.commit()
                     return {**dict(last),"skipped":"NOT_DUE"}
             refresh_id="ingestion_"+uuid.uuid4().hex
-            self.repo.db.execute("INSERT INTO content_ingestion_runs(id,status,started_at) VALUES(?,'RUNNING',?)",(refresh_id,stamp))
+            self.repo.db.execute("INSERT INTO content_ingestion_runs(id,status,started_at,owner) VALUES(?,'RUNNING',?,?)",(refresh_id,stamp,self.owner()))
             self.repo.db.commit()
         except Exception:
             self.repo.db.rollback(); raise
@@ -621,6 +658,7 @@ class BriefingDeliveryWorker:
         self.repo.db.commit()
 
     def run_forever(self):
+        self.news_refresh.recover_interrupted()
         try:
             while True:
                 self.cycle()

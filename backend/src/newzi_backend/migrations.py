@@ -347,6 +347,12 @@ def _football_favorites(db):
             db.execute(f"ALTER TABLE notification_settings ADD COLUMN {name} {render_column('INTEGER NOT NULL DEFAULT 1', db.dialect)}")
 
 
+def _ingestion_owner(db):
+    """Which process (host:pid) runs an ingestion, so a restarted worker can release the run it was killed in."""
+    if "owner" not in set(db.table_columns("content_ingestion_runs")):
+        db.execute("ALTER TABLE content_ingestion_runs ADD COLUMN owner TEXT")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -357,6 +363,7 @@ MIGRATIONS = [
     ("0007_per_user_editions", _per_user_editions),
     ("0008_user_avatars", _user_avatars),
     ("0009_football_favorites", _football_favorites),
+    ("0010_ingestion_owner", _ingestion_owner),
 ]
 
 
