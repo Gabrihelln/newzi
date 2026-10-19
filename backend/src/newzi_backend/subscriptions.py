@@ -1,8 +1,8 @@
 """Newzi plans: Básico (free) and Premium (monthly or annual), and what each one allows.
 
-Premium is bought in the store (Google Play Billing, App Store). The store's notifications (directly or through
-RevenueCat) will write the ``subscriptions`` table through a webhook that is not wired yet; until then nobody is
-Premium and BILLING_ENABLED stays off, so the app shows the plans without selling.
+Premium is bought in the store (App Store, later Google Play) through RevenueCat, whose webhook and the app's sync
+call write the ``subscriptions`` table (``revenuecat.py``). BILLING_ENABLED tells the app it may sell; while it is
+off the app shows the plans without selling.
 
 The Premium limits only apply with PREMIUM_ENFORCED on. While it is off (until purchases work) everyone keeps
 every feature, so a deploy never takes away what people use today; ``backend/premium_test_account.py`` marks an

@@ -415,3 +415,12 @@ async def subscription(request: Request, uid: str = Depends(current_user)):
     from ...subscriptions import subscription_for
     service = service_of(request)
     return await call(request, lambda: subscription_for(service.repo, uid))
+
+
+@router.post("/subscription/sync")
+async def sync_subscription(request: Request, uid: str = Depends(current_user)):
+    """After a purchase or a restore in the app: read the plan from RevenueCat now, then return it."""
+    from ...revenuecat import sync
+    from ...subscriptions import subscription_for
+    repo = service_of(request).repo
+    return await call(request, lambda: (sync(repo, uid), subscription_for(repo, uid))[1])

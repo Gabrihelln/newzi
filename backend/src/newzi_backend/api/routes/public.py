@@ -40,6 +40,16 @@ async def client_config(request: Request):
     return await call(request, service_of(request).client_config)
 
 
+@router.post("/api/v1/webhooks/revenuecat")
+async def revenuecat_webhook(request: Request):
+    """RevenueCat purchase events (authorized by REVENUECAT_WEBHOOK_AUTH); see revenuecat.py."""
+    from ...revenuecat import handle_webhook
+    service = service_of(request)
+    authorization, body = request.headers.get("authorization"), await json_body(request)
+    status, payload = await call(request, lambda: handle_webhook(service.repo, authorization, body))
+    return JSONResponse(payload, status_code=status)
+
+
 @router.post("/api/v1/auth/register")
 async def register(request: Request):
     return created(await call(request, service_of(request).register, await json_body(request), client_key(request)))

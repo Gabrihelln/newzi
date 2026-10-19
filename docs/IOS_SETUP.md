@@ -439,17 +439,31 @@ migrações `0011_briefing_slots` e `0012_premium_features` rodam sozinhas na pr
 3. A Live Activity iniciada pelo servidor (push-to-start) precisa de iOS 17.2+; abaixo disso o app inicia a
    atividade quando é aberto durante o jogo. Os pushes vão pelo FCM: a chave APNs já está no Firebase.
 
-### 9.2 [ ] A compra (próxima fase)
-1. Biblioteca **RevenueCat** (`react-native-purchases`) no app, com login pelo `uid` do Firebase.
-2. **Android:** produto `newzi_premium` (planos `mensal`/`anual`) na Play Console.
-   **iOS:** no App Store Connect, grupo de assinaturas "Newzi Premium" com os produtos mensal e anual, os
-   mesmos preços, aceitar o *Paid Apps Agreement* e preencher dados bancários/fiscais; ligar os produtos ao
-   mesmo entitlement `premium` no RevenueCat; capability **In-App Purchase** no Xcode.
-3. Webhook do RevenueCat → backend gravando `subscriptions` (backend precisa estar em HTTPS público).
-4. Termos de uso e política de privacidade publicados (`TERMS_URL`, `PRIVACY_URL` no `.env`).
-5. Ligar `PREMIUM_ENFORCED` e `BILLING_ENABLED`, remover a trava `PREMIUM_OFFERED` do iOS
-   (`mobile/src/config/store.ts`) e, na tela de excluir conta, avisar que a assinatura da App Store é cancelada à
-   parte (a Apple pede isso).
+### 9.2 [ ] A compra (App Store pelo RevenueCat)
+Feito em 2026-10-19 (Windows):
+- **App Store Connect:** contrato de apps pagos, banco e impostos (Brasil e W-8BEN) enviados; grupo "Newzi Premium"
+  com `newzi_premium_monthly` (R$ 14,90) e `newzi_premium_annual` (R$ 119,90), sem oferta nem teste grátis, Family
+  Sharing desligado; chave de compras (`.p8`, guardada fora do repositório).
+- **RevenueCat:** projeto Newzi, app "Newzi iOS" (`app.newzi.ios`) com a chave `.p8`; notificações do servidor da
+  App Store (URL do RevenueCat em produção e sandbox, versão 2); produtos, entitlement `premium` e oferta `default`
+  com `$rc_monthly` e `$rc_annual`.
+- **App:** `react-native-purchases` 10.11.0 (`mobile/src/services/purchases.ts`), logado com o **id do backend**
+  (`users.id`, não o `uid` do Firebase); a tela Assinatura e plano compra e restaura com o preço da loja; o aviso de
+  cancelar a assinatura na tela de excluir conta; `PREMIUM_OFFERED` liberado no iOS.
+- **Backend:** `revenuecat.py`, webhook `POST /api/v1/webhooks/revenuecat` e `POST /api/v1/me/subscription/sync`.
+
+Falta:
+1. **[Gabriel + Claude]** Webhook no RevenueCat (Integrations › Webhooks) com a URL
+   `https://api.newzi.app/api/v1/webhooks/revenuecat` e o mesmo valor de `REVENUECAT_WEBHOOK_AUTH`; chave secreta
+   (`REVENUECAT_SECRET_KEY`) e `BILLING_ENABLED=true` no `.env` da VPS.
+2. **[Claude, no Mac]** `npm ci`, `pod install` (entra o pod `RNPurchases`), capability **In-App Purchase** no alvo
+   do app, `CURRENT_PROJECT_VERSION` +1 e build no TestFlight. Testar compra, restauração e cancelamento com uma
+   conta sandbox (Usuários e Acesso › Contas de sandbox) e conferir a compra em RevenueCat › Customers.
+3. **[Gabriel]** Print da tela de compra e nota em "Informações para a equipe de revisão" de cada assinatura; as
+   assinaturas vão para revisão junto com a primeira versão do app.
+4. Termos de uso e política de privacidade publicados (`TERMS_URL`, `PRIVACY_URL` no `.env`): a Apple recusa sem eles.
+5. Ligar `PREMIUM_ENFORCED` quando as compras estiverem funcionando.
+6. **Android:** chave do Google no RevenueCat (`API_KEYS.android` em `purchases.ts`) e produtos na Play Console.
 
 ---
 

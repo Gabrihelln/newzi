@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api/client';
-import { PREMIUM_OFFERED } from '../config/store';
+import { PREMIUM_OFFERED, STORE_NAME } from '../config/store';
 import { firebaseAuth, revokeAppleAccessIfLinked } from '../services/firebaseAuth';
 import type { User } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
@@ -59,7 +59,9 @@ export function AccountScreen({ onBack, onEditProfile, onAccountDeleted }: { onB
 
   const confirmDelete = () => Alert.alert(
     'Excluir conta?',
-    'Sua conta, assuntos, salvos, histórico de resumos e configurações serão apagados para sempre. Não é possível desfazer.',
+    `Sua conta, assuntos, salvos, histórico de resumos e configurações serão apagados para sempre. Não é possível desfazer.
+
+Se você assina o Premium, cancele a assinatura nos ajustes da ${STORE_NAME}: excluir a conta não cancela a cobrança.`,
     [{ text: 'Cancelar', style: 'cancel' }, { text: 'Excluir conta', style: 'destructive', onPress: () => void deleteAccount() }],
   );
 

@@ -28,6 +28,7 @@ import { getAudioContext, sameBriefing, subscribeAudio } from '../audio/player';
 import { startContentRevisionMonitor } from '../services/contentRevision';
 import { PremiumHost, startEntitlementsMonitor } from '../services/premium';
 import { startIosWidgets } from '../services/iosWidgets';
+import { startPurchases } from '../services/purchases';
 import '../audio/queue';
 import { TopicFeedScreen } from '../components/HomeScreen';
 import { BrandPage, BrandPageHeader, ScreenState } from '../components/ScreenPrimitives';
@@ -271,6 +272,7 @@ function MainFlow({ onAuthExpired, onLogout, onUserUpdated, user }: { onAuthExpi
   React.useEffect(() => startContentRevisionMonitor(), []);
   React.useEffect(() => startEntitlementsMonitor(), []);
   React.useEffect(() => startIosWidgets(), []);
+  React.useEffect(() => { if (user?.id) void startPurchases(user.id); }, [user?.id]);
   React.useEffect(() => listenForDeepLinks(), []);
   React.useEffect(() => { setMainFlowReady(true); return () => setMainFlowReady(false); }, []);
   return <><MainStack.Navigator screenOptions={{ headerShown: false }}>

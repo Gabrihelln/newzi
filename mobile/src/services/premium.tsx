@@ -10,8 +10,8 @@ import type { Entitlements, PremiumFeatureId } from '../types/api';
  * What the signed-in account may use (Newzi Premium), as the server decides it (GET /me/entitlements).
  * While the server does not enforce the limits (PREMIUM_ENFORCED off) every feature is open to everyone.
  *
- * A locked feature shows its Premium sheet only where Premium can be offered (PREMIUM_OFFERED: not on iOS
- * until App Store purchases ship); elsewhere its entry points are simply hidden.
+ * A locked feature shows its Premium sheet only where Premium can be offered (PREMIUM_OFFERED; iOS too since
+ * App Store purchases ship); elsewhere its entry points are simply hidden.
  */
 let current: Entitlements | null = null;
 const listeners = new Set<(value: Entitlements | null) => void>();

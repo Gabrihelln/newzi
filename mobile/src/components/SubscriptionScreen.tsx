@@ -3,13 +3,26 @@ import { ActivityIndicator, Alert, Linking, Platform, Pressable, Text, View } fr
 import DeviceInfo from 'react-native-device-info';
 import { api } from '../api/client';
 import { STORE_NAME } from '../config/store';
+import { buy, purchasesAvailable, restore, storePlans, type PurchaseOutcome, type StorePlan } from '../services/purchases';
 import type { Subscription, SubscriptionPlan } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
 import { BrandPage, BrandPageHeader } from './ScreenPrimitives';
 
 const SOON = `A assinatura pela ${STORE_NAME} será liberada em breve. Avisaremos quando estiver disponível.`;
-const RESTORING = `Procurando compras na sua conta ${STORE_NAME}…`;
+const WELCOME = 'Bem-vindo ao Newzi Premium! Todos os recursos já estão liberados.';
+const PENDING = `A ${STORE_NAME} ainda está confirmando o pagamento. O Premium é liberado assim que ela aprovar.`;
+const FAILED = `Não foi possível concluir pela ${STORE_NAME}. Nada foi cobrado; tente de novo em instantes.`;
+
+/** Restore earlier purchases and tell the reader what was found. */
+async function restoreAndTell(onChanged: (data: Subscription) => void) {
+  try {
+    const outcome = await restore();
+    if (outcome.subscription) onChanged(outcome.subscription);
+    Alert.alert('Restaurar compras', outcome.status === 'premium' ? 'Seu Premium foi restaurado.'
+      : `Não encontramos uma assinatura ativa nesta conta ${STORE_NAME}.`);
+  } catch { Alert.alert('Restaurar compras', FAILED); }
+}
 
 const dateLabel = (value?: string | null) => {
   const date = value ? new Date(value) : null;
@@ -32,18 +45,39 @@ export function SubscriptionScreen({ onBack }: { onBack: () => void }) {
     {!data ? failed
       ? <Pressable accessibilityRole="button" onPress={load} style={styles.card}><Text style={styles.muted}>Não foi possível carregar seu plano. Toque para tentar de novo.</Text></Pressable>
       : <ActivityIndicator style={{ marginTop: 30 }} />
-      : data.tier === 'premium' ? <PremiumPlan data={data} /> : <BasicPlan data={data} />}
+      : data.tier === 'premium' ? <PremiumPlan data={data} onChanged={setData} /> : <BasicPlan data={data} onChanged={setData} />}
   </BrandPage>;
 }
 
-function BasicPlan({ data }: { data: Subscription }) {
+function BasicPlan({ data, onChanged }: { data: Subscription; onChanged: (data: Subscription) => void }) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const [planId, setPlanId] = useState(data.plans[0]?.id || 'annual');
-  const plan = data.plans.find(item => item.id === planId) || data.plans[0];
+  const [store, setStore] = useState<StorePlan[]>([]);
+  const [busy, setBusy] = useState<'buy' | 'restore' | null>(null);
+  const selling = data.purchases_enabled && purchasesAvailable;
+  useEffect(() => { if (selling) storePlans().then(setStore).catch(() => setStore([])); }, [selling]);
+  // The store's own price (in the reader's currency) replaces the display price once it is known.
+  const plans = data.plans.map(item => { const price = store.find(entry => entry.id === item.id)?.price; return price ? { ...item, price } : item; });
+  const plan = plans.find(item => item.id === planId) || plans[0];
   const used = data.usage.briefing_times, limit = data.limits.briefing_times;
   const full = used >= limit;
-  const subscribe = () => Alert.alert('Newzi Premium', data.purchases_enabled ? `Abrindo a ${STORE_NAME}…` : SOON);
+  const tell = (outcome: PurchaseOutcome) => {
+    if (outcome.subscription) onChanged(outcome.subscription);
+    if (outcome.status === 'premium') Alert.alert('Newzi Premium', WELCOME);
+    else if (outcome.status === 'pending') Alert.alert('Newzi Premium', PENDING);
+  };
+  const subscribe = async () => {
+    const item = store.find(entry => entry.id === plan?.id);
+    if (!selling || !item) { Alert.alert('Newzi Premium', selling ? `Não foi possível falar com a ${STORE_NAME}. Verifique sua conexão.` : SOON); return; }
+    setBusy('buy');
+    try { tell(await buy(item)); } catch { Alert.alert('Newzi Premium', FAILED); } finally { setBusy(null); }
+  };
+  const restorePurchases = async () => {
+    if (!selling) { Alert.alert('Restaurar compras', SOON); return; }
+    setBusy('restore');
+    try { await restoreAndTell(onChanged); } finally { setBusy(null); }
+  };
 
   return <View>
     <View style={styles.card}>
@@ -65,16 +99,16 @@ function BasicPlan({ data }: { data: Subscription }) {
     </View>
 
     <View accessibilityRole="radiogroup" style={styles.options}>
-      {data.plans.map(item => <PlanOption key={item.id} plan={item} selected={item.id === plan?.id} onPress={() => setPlanId(item.id)} />)}
+      {plans.map(item => <PlanOption key={item.id} plan={item} selected={item.id === plan?.id} onPress={() => setPlanId(item.id)} />)}
     </View>
 
-    {!!plan && <Pressable accessibilityRole="button" onPress={subscribe} style={({ pressed }) => [styles.cta, pressed && { opacity: .85 }]}>
-      <Text style={styles.ctaText}>Assinar por {plan.price}/{plan.per}</Text>
+    {!!plan && <Pressable accessibilityRole="button" accessibilityState={{ busy: busy === 'buy' }} disabled={!!busy} onPress={() => void subscribe()} style={({ pressed }) => [styles.cta, (pressed || !!busy) && { opacity: .85 }]}>
+      {busy === 'buy' ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.ctaText}>Assinar por {plan.price}/{plan.per}</Text>}
     </Pressable>}
-    <Text style={styles.footnote}>Renovação automática. Cancele quando quiser na {STORE_NAME}.</Text>
+    <Text style={styles.footnote}>Renovação automática pelo mesmo valor ao fim de cada período, a menos que seja cancelada até 24 horas antes. O pagamento é cobrado na sua conta {STORE_NAME}; cancele quando quiser nos ajustes da {STORE_NAME}.</Text>
     <View style={styles.links}>
-      <Pressable accessibilityRole="button" onPress={() => Alert.alert('Restaurar compras', data.purchases_enabled ? RESTORING : SOON)} style={styles.restore}>
-        <Text style={styles.restoreText}>Restaurar compras</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{ busy: busy === 'restore' }} disabled={!!busy} onPress={() => void restorePurchases()} style={styles.restore}>
+        {busy === 'restore' ? <ActivityIndicator color={colors.primary} size="small" /> : <Text style={styles.restoreText}>Restaurar compras</Text>}
       </Pressable>
       {!!data.legal?.terms_url && <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(data.legal!.terms_url!)} style={styles.restore}><Text style={styles.legalText}>Termos de uso</Text></Pressable>}
       {!!data.legal?.privacy_url && <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(data.legal!.privacy_url!)} style={styles.restore}><Text style={styles.legalText}>Privacidade</Text></Pressable>}
@@ -94,7 +128,7 @@ function PlanOption({ plan, selected, onPress }: { plan: SubscriptionPlan; selec
   </Pressable>;
 }
 
-function PremiumPlan({ data }: { data: Subscription }) {
+function PremiumPlan({ data, onChanged }: { data: Subscription; onChanged: (data: Subscription) => void }) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const plan = data.plans.find(item => item.id === data.period);
@@ -122,7 +156,7 @@ function PremiumPlan({ data }: { data: Subscription }) {
       <Pressable accessibilityRole="link" onPress={manage} style={styles.row}>
         <Text style={styles.rowText}>Gerenciar na {STORE_NAME}</Text><Icon name="arrowUpRight" size={18} color={colors.secondary} />
       </Pressable>
-      <Pressable accessibilityRole="button" onPress={() => Alert.alert('Restaurar compras', data.purchases_enabled ? RESTORING : SOON)} style={[styles.row, styles.rowBorder]}>
+      <Pressable accessibilityRole="button" onPress={() => data.purchases_enabled && purchasesAvailable ? void restoreAndTell(onChanged) : Alert.alert('Restaurar compras', SOON)} style={[styles.row, styles.rowBorder]}>
         <Text style={styles.rowText}>Restaurar compras</Text><Icon name="chevron" size={18} color={colors.secondary} />
       </Pressable>
     </View>

@@ -6,6 +6,7 @@ import { clearCachedAudio } from './src/audio/player';
 import { clearQueue } from './src/audio/queue';
 import { clearIosWidgets } from './src/services/iosWidgets';
 import { clearEntitlements } from './src/services/premium';
+import { stopPurchases } from './src/services/purchases';
 import { AudioEngine } from './src/audio/AudioEngine';
 import { clearOfflineCache } from './src/services/offlineCache';
 import { applySavedThemePreference } from './src/theme/appearance';
@@ -114,6 +115,7 @@ export default function App() {
     clearCachedAudio();
     clearQueue();
     clearEntitlements();
+    void stopPurchases();
     clearIosWidgets();
     clearOfflineCache();
     try { await api.logout(await currentPushToken()); } catch { /* local logout must always complete */ }
