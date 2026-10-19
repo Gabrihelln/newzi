@@ -5,7 +5,6 @@ import { handlePremiumError, requestPremium, usePremiumFeature } from '../servic
 import type { Briefing } from '../types/api';
 import { typography, useStyles, useTheme, type Palette } from '../theme';
 import { Icon } from './Icon';
-import { Badge } from './SettingsKit';
 
 /** How a briefing is called: the daily one, a themed or extra one of the day, or one made on request. */
 export function briefingTitle(briefing: Pick<Briefing, 'id' | 'kind' | 'theme_label' | 'delivery_time'> | null | undefined) {
@@ -65,21 +64,23 @@ export function OnDemandBriefingButton({ onReady }: { onReady: () => void }) {
     }
   };
 
-  return <View style={s.wrap}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`Gerar um resumo agora${feature.unlocked ? '' : '. Recurso Premium'}`} accessibilityState={{ busy: state === 'working' }}
-      disabled={state === 'working'} onPress={() => void generate()} style={({ pressed }) => [s.button, pressed && { opacity: .8 }]}>
-      {state === 'working' ? <ActivityIndicator color={colors.primary} size="small" /> : <Icon name="bolt" color={colors.primary} size={18} />}
-      <Text style={s.label}>{state === 'working' ? 'Gerando…' : 'Gerar resumo agora'}</Text>
-      {!feature.unlocked && <Badge label="PREMIUM" tint="orange" />}
+  // A small line under the player: a short question on the left and a compact pill on the right. Messages about
+  // the generation take the question's place, so the row never grows into a big bar.
+  const hint = message || 'Teve novidade desde o último?';
+  return <View style={s.row}>
+    <Text numberOfLines={2} accessibilityRole={state === 'error' ? 'alert' : undefined} style={[s.hint, state === 'error' && { color: colors.danger }]}>{hint}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Gerar um novo resumo agora${feature.unlocked ? '' : '. Recurso Premium'}`} accessibilityState={{ busy: state === 'working' }}
+      disabled={state === 'working'} onPress={() => void generate()} hitSlop={6} style={({ pressed }) => [s.pill, pressed && { opacity: .75 }]}>
+      {state === 'working' ? <ActivityIndicator color={colors.primary} size="small" /> : <Icon name={feature.unlocked ? 'plus' : 'lock'} color={colors.primary} size={14} />}
+      <Text style={s.label}>{state === 'working' ? 'Gerando…' : 'Novo resumo'}</Text>
     </Pressable>
-    {!!message && <Text accessibilityRole={state === 'error' ? 'alert' : undefined} style={[s.message, state === 'error' && { color: colors.danger }]}>{message}</Text>}
   </View>;
 }
 
 const makeStyles = (colors: Palette) => StyleSheet.create({
-  wrap: { marginTop: -6, marginBottom: 14 },
-  button: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 44, borderRadius: 22, borderWidth: 1,
-    borderColor: colors.tone('#D6E6F8', colors.border), backgroundColor: colors.tone('#F2F8FF', colors.surfaceTint) },
-  label: { fontFamily: typography.fontFamily.ui, fontSize: 14, fontWeight: '800', color: colors.primary },
-  message: { fontFamily: typography.fontFamily.ui, fontSize: 12, color: colors.secondary, textAlign: 'center', marginTop: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: -4, marginBottom: 16, paddingHorizontal: 4 },
+  hint: { flex: 1, fontFamily: typography.fontFamily.ui, fontSize: 13, lineHeight: 18, color: colors.secondary },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 12, borderRadius: 16,
+    backgroundColor: colors.tone('#EAF3FF', colors.surfaceTint) },
+  label: { fontFamily: typography.fontFamily.ui, fontSize: 13, fontWeight: '700', color: colors.primary },
 });

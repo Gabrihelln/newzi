@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { DarkTheme, DefaultTheme, NavigationContainer, useIsFocused, useNavigation, type Theme as NavigationTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -48,7 +48,21 @@ const MainStack = createNativeStackNavigator<MainStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabParamList>();
 // Space between the floating tab bar and each side of the screen.
 const TAB_BAR_SIDE = 14;
+// Inner padding of the bar, width of the player slot in the middle and size of the selection bubble.
+const TAB_BAR_INSET = 8;
+const TAB_PLAYER_SLOT = 68;
+const TAB_BAR_HEIGHT = 68;
+const TAB_BUBBLE_HEIGHT = 56;
 
+const TAB_ITEMS = [
+  { name: 'Inicio' as const, icon: 'home' as const, label: 'Início' },
+  { name: 'Explorar' as const, icon: 'explore' as const, label: 'Explorar' },
+  { name: 'Salvos' as const, icon: 'saved' as const, label: 'Salvos' },
+  { name: 'Perfil' as const, icon: 'profile' as const, label: 'Perfil' },
+];
+
+/** Floating tab bar. On iOS 26 it is clear Liquid Glass; a glass bubble sits behind the chosen tab and, as in
+    WhatsApp, grows under the finger, follows it across the bar and settles on the tab where the finger lifts. */
 function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomTabBarProps; onAudio: () => void; onExpand: (briefing: Briefing) => void; showMini: boolean }) {
   const { colors, dark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -57,35 +71,113 @@ function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomT
   const [audioPlaying, setAudioPlaying] = React.useState(false);
   React.useEffect(() => subscribeAudio(state => setAudioPlaying(state.playing)), []);
   const onHome = props.state.routes[props.state.index]?.name === 'Inicio';
-  const tabItems = [
-    { route: props.state.routes.find(item => item.name === 'Inicio')!, icon: 'home' as const, label: 'Início' },
-    { route: props.state.routes.find(item => item.name === 'Explorar')!, icon: 'explore' as const, label: 'Explorar' },
-    null,
-    { route: props.state.routes.find(item => item.name === 'Salvos')!, icon: 'saved' as const, label: 'Salvos' },
-    { route: props.state.routes.find(item => item.name === 'Perfil')!, icon: 'profile' as const, label: 'Perfil' },
-  ];
+  const routes = TAB_ITEMS.map(item => props.state.routes.find(route => route.name === item.name)!);
+  const focusedIndex = Math.max(0, routes.findIndex(route => route.key === props.state.routes[props.state.index]?.key));
+
+  // Geometry of the row inside the bar: two tabs, the player slot, two tabs.
+  const rowWidth = width - TAB_BAR_SIDE * 2 - TAB_BAR_INSET * 2;
+  const tabWidth = (rowWidth - TAB_PLAYER_SLOT) / 4;
+  const bubbleWidth = Math.min(tabWidth - 4, 84);
+  const slotLeft = (index: number) => index * tabWidth + (index >= 2 ? TAB_PLAYER_SLOT : 0);
+  const bubbleLeft = (index: number) => slotLeft(index) + (tabWidth - bubbleWidth) / 2;
+
+  const bubbleX = React.useRef(new Animated.Value(bubbleLeft(focusedIndex))).current;
+  const pressed = React.useRef(new Animated.Value(0)).current;
+  const [hover, setHover] = React.useState<number | null>(null);
+  const dragging = React.useRef(false);
+
+  const select = (index: number) => {
+    const route = routes[index];
+    const event = props.navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (index !== focusedIndex && !event.defaultPrevented) props.navigation.navigate(route.name, route.params);
+  };
+  const settle = (index: number) => Animated.spring(bubbleX, { toValue: bubbleLeft(index), useNativeDriver: true, speed: 18, bounciness: 7 }).start();
+  React.useEffect(() => { if (!dragging.current) settle(focusedIndex); }, [focusedIndex, width]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The responder reads the latest geometry and focus through this ref.
+  const live = React.useRef({ tabWidth, bubbleWidth, rowWidth, focusedIndex, select, settle, bubbleLeft });
+  live.current = { tabWidth, bubbleWidth, rowWidth, focusedIndex, select, settle, bubbleLeft };
+  const responder = React.useRef((() => {
+    const rowX = (pageX: number) => pageX - TAB_BAR_SIDE - TAB_BAR_INSET;
+    const inPlayer = (x: number) => { const { tabWidth: w } = live.current; return x >= w * 2 && x <= w * 2 + TAB_PLAYER_SLOT; };
+    const nearest = (x: number) => {
+      let best = 0;
+      [0, 1, 2, 3].forEach(index => {
+        const { tabWidth: w } = live.current;
+        const center = (i: number) => i * w + (i >= 2 ? TAB_PLAYER_SLOT : 0) + w / 2;
+        if (Math.abs(center(index) - x) < Math.abs(center(best) - x)) best = index;
+      });
+      return best;
+    };
+    const follow = (x: number) => {
+      const { bubbleWidth: b, rowWidth: r } = live.current;
+      bubbleX.setValue(Math.min(Math.max(x - b / 2, 0), r - b));
+      const index = nearest(x);
+      setHover(current => current === index ? current : index);
+    };
+    const release = (x: number | null) => {
+      dragging.current = false;
+      Animated.spring(pressed, { toValue: 0, useNativeDriver: true, speed: 16, bounciness: 6 }).start();
+      setHover(null);
+      if (x === null) { live.current.settle(live.current.focusedIndex); return; }
+      const index = nearest(x);
+      live.current.settle(index);
+      live.current.select(index);
+    };
+    return PanResponder.create({
+      // Touches on the player in the middle stay with its own button.
+      onStartShouldSetPanResponder: event => !inPlayer(rowX(event.nativeEvent.pageX)),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: event => {
+        dragging.current = true;
+        Animated.spring(pressed, { toValue: 1, useNativeDriver: true, speed: 22, bounciness: 8 }).start();
+        const x = rowX(event.nativeEvent.pageX);
+        const index = nearest(x);
+        setHover(index);
+        Animated.spring(bubbleX, { toValue: live.current.bubbleLeft(index), useNativeDriver: true, speed: 22, bounciness: 6 }).start();
+      },
+      onPanResponderMove: (_, gesture) => follow(rowX(gesture.moveX)),
+      onPanResponderRelease: (event, gesture) => release(rowX(gesture.moveX || event.nativeEvent.pageX)),
+      onPanResponderTerminate: () => release(null),
+    });
+  })()).current;
+
+  const glass = isLiquidGlassSupported;
+  const bubbleColor = dark ? 'rgba(255,255,255,0.16)' : glass ? 'rgba(120,120,128,0.18)' : 'rgba(8,124,240,0.10)';
+  const bubbleStyle = {
+    transform: [
+      { translateX: bubbleX },
+      { scaleX: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 1.16] }) },
+      { scaleY: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, 1.1] }) },
+    ],
+    opacity: pressed.interpolate({ inputRange: [0, 1], outputRange: [1, .85] }),
+  };
+  const shown = hover ?? focusedIndex;
+  const tab = (index: number) => {
+    const item = TAB_ITEMS[index];
+    const active = shown === index;
+    return <View key={item.name} accessible accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected: index === focusedIndex }}
+      onAccessibilityTap={() => select(index)} style={{ width: tabWidth, height: TAB_BUBBLE_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+      <Icon name={item.icon} color={active ? colors.primary : colors.tabIdle} size={22} />
+      <Text style={{ color: active ? colors.primary : colors.tabIdle, fontFamily: 'Inter', fontWeight: active ? '700' : '500', fontSize: 10 }}>{item.label}</Text>
+    </View>;
+  };
   return <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: Math.max(insets.bottom, 8), alignItems: 'center' }}>
     {showMini && <MiniAudioPlayer onExpand={onExpand} />}
-    {/* The bar reaches close to the screen edges and its icons spread across it; the player stays in the middle.
-        A soft, wide shadow lifts it off the page. On iOS 26 it is Liquid Glass; elsewhere a solid surface. */}
-    <LiquidGlassView effect={isLiquidGlassSupported ? 'regular' : 'none'} colorScheme={dark ? 'dark' : 'light'}
-      style={{ width: width - TAB_BAR_SIDE * 2, alignSelf: 'center', height: 66, borderRadius: 34, alignItems: 'center', justifyContent: 'center',
-        backgroundColor: isLiquidGlassSupported ? 'transparent' : colors.surface,
-        borderWidth: isLiquidGlassSupported ? 0 : StyleSheet.hairlineWidth, borderColor: colors.border,
-        shadowColor: colors.shadow.color, shadowOpacity: dark ? .45 : .24, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 14 }}>
-    <View style={{ alignSelf: 'stretch', paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      {tabItems.map(item => {
-        if (!item) return <PressAudio key="audio" onPress={onAudio} active={audioPlaying && onHome && tabsFocused} />;
-        const focused = props.state.index === props.state.routes.findIndex(route => route.key === item.route.key);
-        return <Pressable key={item.route.key} accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected: focused }} onPress={() => {
-          const event = props.navigation.emit({ type: 'tabPress', target: item.route.key, canPreventDefault: true });
-          if (!focused && !event.defaultPrevented) props.navigation.navigate(item.route.name, item.route.params);
-        }} style={{ width: 62, height: 60, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-          <Icon name={item.icon} color={focused ? colors.primary : colors.tabIdle} size={22} />
-          <Text style={{ color: focused ? colors.primary : colors.tabIdle, fontFamily: 'Inter', fontWeight: focused ? '700' : '500', fontSize: 10 }}>{item.label}</Text>
-        </Pressable>;
-      })}
-    </View>
+    {/* Clear, interactive glass with a bright rim on iOS 26; a solid surface elsewhere. */}
+    <LiquidGlassView effect={glass ? 'clear' : 'none'} interactive={glass} colorScheme={dark ? 'dark' : 'light'}
+      tintColor={glass ? (dark ? 'rgba(20,28,44,0.18)' : 'rgba(255,255,255,0.10)') : undefined}
+      style={{ width: width - TAB_BAR_SIDE * 2, alignSelf: 'center', height: TAB_BAR_HEIGHT, borderRadius: TAB_BAR_HEIGHT / 2, justifyContent: 'center',
+        backgroundColor: glass ? 'transparent' : colors.surface,
+        borderWidth: glass ? 1 : StyleSheet.hairlineWidth, borderColor: glass ? (dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.7)') : colors.border,
+        shadowColor: colors.shadow.color, shadowOpacity: dark ? .4 : glass ? .14 : .24, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 14 }}>
+      <View {...responder.panHandlers} style={{ marginHorizontal: TAB_BAR_INSET, flexDirection: 'row', alignItems: 'center' }}>
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, width: bubbleWidth, height: TAB_BUBBLE_HEIGHT, borderRadius: TAB_BUBBLE_HEIGHT / 2, backgroundColor: bubbleColor,
+          borderWidth: glass ? StyleSheet.hairlineWidth : 0, borderColor: dark ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.8)' }, bubbleStyle]} />
+        {tab(0)}{tab(1)}
+        <View style={{ width: TAB_PLAYER_SLOT, alignItems: 'center' }}><PressAudio onPress={onAudio} active={audioPlaying && onHome && tabsFocused} /></View>
+        {tab(2)}{tab(3)}
+      </View>
     </LiquidGlassView>
   </View>;
 }
