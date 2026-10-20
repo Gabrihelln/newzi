@@ -1,0 +1,4 @@
+/* Portuguese (Brazil) is the app's language: this file makes iOS and the App Store treat it as pt-BR. */
+"CFBundleDisplayName" = "Newzi";
+"NSCameraUsageDescription" = "O Newzi usa a câmera para você tirar a foto do seu perfil.";
+"NSPhotoLibraryUsageDescription" = "O Newzi abre suas fotos para você escolher a foto do seu perfil.";

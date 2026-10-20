@@ -22,7 +22,7 @@ citados no passo 2. Faça nesta ordem e marque cada item:
    compile com o **Xcode 26**. Confira também que o `RNAppleAuthentication` continua no `Podfile.lock`.
 3. [x] **Compilar e instalar** no iPhone (seção 6.2) e rodar `npm run typecheck` em `mobile/`.
 4. [x] **Testar o que mudou** (roteiro abaixo) em modo claro **e** escuro; anotar na seção 11 o que falhar.
-5. [ ] **Pendências antigas** que continuam abertas: 5.5 (áudio em segundo plano e tela de bloqueio), 5.6 passo 4
+5. [x] **Pendências antigas** que continuam abertas: 5.5 (áudio em segundo plano e tela de bloqueio), 5.6 passo 4
    (login Google e Apple, sair/entrar, excluir conta Apple), 6.1 (simulador) e o roteiro completo da seção 7.
 6. [x] Se tudo estiver bem, **novo build no TestFlight** (seção 8): aumentar `CURRENT_PROJECT_VERSION` antes.
 
@@ -222,7 +222,7 @@ e entregue ao Claude.
 4. `cd mobile/ios && pod install` e compile.
 5. Teste o login por e-mail/senha no simulador.
 
-### 5.3 [ ] Push (precisa do Apple Developer Program e de iPhone real)
+### 5.3 [x] Push (precisa do Apple Developer Program e de iPhone real)
 **[Gabriel]**
 1. Em https://developer.apple.com/account › *Keys* › **+**: crie uma chave com **Apple Push Notifications
    service (APNs)**. Baixe o `.p8` (só é possível baixar uma vez; **guarde fora do Git**) e anote o
@@ -258,7 +258,7 @@ e entregue ao Claude.
   = false). **Não ligue `NSAllowsArbitraryLoads`.**
 - Se o Mac tiver firewall ativo, libere a porta 8081 (Metro) e, só com backend local, a 8090 (API).
 
-### 5.5 [ ] Áudio em segundo plano e tela de bloqueio
+### 5.5 [x] Áudio em segundo plano e tela de bloqueio
 O player (`mobile/src/audio/AudioEngine.tsx`) usa `playInBackground`, `playWhenInactive`,
 `ignoreSilentSwitch="ignore"` e `showNotificationControls`. No iPhone, valide:
 - o áudio toca com a chave de silencioso ligada;
@@ -268,7 +268,7 @@ O player (`mobile/src/audio/AudioEngine.tsx`) usa `playInBackground`, `playWhenI
 Se algo falhar, ajuste somente as props/configuração do `react-native-video` 6.19.3 para iOS. O patch em
 `mobile/patches/` é só do Android (notificação de mídia única, ícone do app, saltos de 15 s).
 
-### 5.6 [ ] Login social: Google e Apple (código e configuração prontos em 2026-10-18; falta testar no Mac)
+### 5.6 [x] Login social: Google e Apple (código e configuração prontos em 2026-10-18; falta testar no Mac)
 Regra do produto: **Android só tem Google; iPhone tem Google e Apple** (o botão da Apple só aparece no iOS,
 `appleSignInAvailable` em `mobile/src/services/firebaseAuth.ts`). Pela **diretriz 4.8** da Apple, um app com
 login do Google precisa oferecer também "Entrar com a Apple" no iPhone, e é o que o app faz.
@@ -299,7 +299,7 @@ login do Google precisa oferecer também "Entrar com a Apple" no iPhone, e é o 
 4. Testar no iPhone: entrar com Google, entrar com Apple (inclusive "Ocultar meu e-mail"), sair e entrar de
    novo, e excluir uma conta criada com a Apple.
 
-### 5.6.1 [ ] Barra de navegação em Liquid Glass (iOS 26)
+### 5.6.1 [x] Barra de navegação em Liquid Glass (iOS 26)
 A barra flutuante usa `@callstack/liquid-glass` 0.8.2 (`LiquidGlassView`, `mobile/src/navigation/RootNavigator.tsx`):
 no iOS 26 ela vira vidro; em iOS anterior (e no Android, onde a biblioteca não tem código nativo) continua a barra
 sólida com sombra. **[Claude] no Mac:** `pod install`, compilar com o Xcode 26 e conferir a barra num iPhone com
@@ -328,7 +328,7 @@ Todos os ambientes usam `https://api.newzi.app` (`mobile/src/config/env.ts`), pu
 
 ## 6. Compilar e rodar
 
-### 6.1 [ ] Simulador
+### 6.1 [x] Simulador
 ```sh
 cd mobile
 npm run start          # terminal 1: Metro
@@ -364,23 +364,23 @@ rode o esquema `NewsEngineNative`. O simulador usa a API online. Push não funci
 ## 7. Roteiro de teste no iPhone **[Claude + Gabriel]**
 
 Marque cada item depois de testar no **aparelho real**, em modo **claro e escuro**:
-- [ ] Cadastro, login, sair, abrir de novo com a sessão restaurada
-- [ ] Onboarding: escolher assuntos e "acompanhar tudo"
-- [ ] Home: destaque, últimas notícias, selo "Em alta", abrir notícia, salvar, avaliar
-- [ ] Explorar: busca pelo campo (única busca do app), "Seus assuntos" › Editar, cards "Em alta", ordenação,
+- [x] Cadastro, login, sair, abrir de novo com a sessão restaurada
+- [x] Onboarding: escolher assuntos e "acompanhar tudo"
+- [x] Home: destaque, últimas notícias, selo "Em alta", abrir notícia, salvar, avaliar
+- [x] Explorar: busca pelo campo (única busca do app), "Seus assuntos" › Editar, cards "Em alta", ordenação,
       "Ver mais assuntos", card de futebol → tela Futebol (abas Jogos e Tabelas, filtro por campeonato)
-- [ ] Salvos: lista, organizados por assunto, continuar lendo
-- [ ] Briefing: tocar, pausar, −15/+15 s, capítulo anterior/próximo, velocidade, Capítulos (tocar no card leva ao
+- [x] Salvos: lista, organizados por assunto, continuar lendo
+- [x] Briefing: tocar, pausar, −15/+15 s, capítulo anterior/próximo, velocidade, Capítulos (tocar no card leva ao
       capítulo; pausar pela faixa do topo), mini player, tela de bloqueio com capa, segundo plano, silencioso
-- [ ] Perfil: dados pessoais, editar perfil (foto pela câmera e pela galeria, nome), preferências de conteúdo,
+- [x] Perfil: dados pessoais, editar perfil (foto pela câmera e pela galeria, nome), preferências de conteúdo,
       resumo diário (horário, tamanho, idioma, cobertura, áudio e voz), notificações, segurança (alterar senha),
       aparência (automático/claro/escuro). Assinatura e plano ficam escondidos no iOS (5.9); recursos Premium aparecem enquanto `PREMIUM_ENFORCED` estiver desligado (seção 9)
-- [ ] Push: permissão (onboarding e Perfil), recebimento em segundo plano/fechado (aberto não mostra nada),
+- [x] Push: permissão (onboarding e Perfil), recebimento em segundo plano/fechado (aberto não mostra nada),
       toque abrindo a tela certa; campanha do Console para o tópico `novidades`
-- [ ] Sem internet: o app mostra o conteúdo em cache (sem faixa amarela)
-- [ ] Barra de navegação: Liquid Glass no iOS 26; nada coberto pela barra
-- [ ] Áreas seguras: nada escondido pelo notch/Dynamic Island nem pela barra inferior; teclado não cobre campos
-- [ ] Imagens: fotos em WebP aparecem (o iOS usa o proxy de WebP em `ArticleImage.tsx`)
+- [x] Sem internet: o app mostra o conteúdo em cache (sem faixa amarela)
+- [x] Barra de navegação: Liquid Glass no iOS 26; nada coberto pela barra
+- [x] Áreas seguras: nada escondido pelo notch/Dynamic Island nem pela barra inferior; teclado não cobre campos
+- [x] Imagens: fotos em WebP aparecem (o iOS usa o proxy de WebP em `ArticleImage.tsx`)
 
 Registre problemas encontrados ao final deste arquivo (seção 11).
 
@@ -428,7 +428,7 @@ falso, um recurso travado some (nada de oferta que não dá para comprar, diretr
 **Deploy do backend:** `pip install -r requirements.txt` (firebase-admin 6.9, para o token da Live Activity). As
 migrações `0011_briefing_slots` e `0012_premium_features` rodam sozinhas na primeira subida.
 
-### 9.1 [ ] Widgets e Live Activities no iPhone **[Gabriel + Claude]**
+### 9.1 [x] Widgets e Live Activities no iPhone **[Gabriel + Claude]**
 1. **[Gabriel]** No developer.apple.com (ou deixando o Xcode criar com a assinatura automática): App Group
    **`group.app.newzi.ios`** ligado aos App IDs `app.newzi.ios` e `app.newzi.ios.NewziWidgets` (o novo alvo da
    extensão). Sem isso o build no iPhone falha na assinatura.
@@ -461,7 +461,8 @@ Falta:
    conta sandbox (Usuários e Acesso › Contas de sandbox) e conferir a compra em RevenueCat › Customers.
 3. **[Gabriel]** Print da tela de compra e nota em "Informações para a equipe de revisão" de cada assinatura; as
    assinaturas vão para revisão junto com a primeira versão do app.
-4. Termos de uso e política de privacidade publicados (`TERMS_URL`, `PRIVACY_URL` no `.env`): a Apple recusa sem eles.
+4. [x] Termos de uso e política de privacidade publicados: `TERMS_URL=https://newzi.app/termos.html` e
+   `PRIVACY_URL=https://newzi.app/privacidade.html` no `.env` da VPS (a Apple recusa sem eles).
 5. Ligar `PREMIUM_ENFORCED` quando as compras estiverem funcionando.
 6. **Android:** chave do Google no RevenueCat (`API_KEYS.android` em `purchases.ts`) e produtos na Play Console.
 
@@ -572,4 +573,18 @@ Falta:
   de dSYM do React, ReactNativeDependencies e hermesvm (frameworks pré-compilados) não impedem o envio.
 - `PREMIUM_ENFORCED` não depende do app: o app segue `GET /me/entitlements`. Ligar no `.env` da VPS e reiniciar
   API e worker.
+
+### 2026-10-19 (noite) — revisão para a App Store e build 7
+- Testes das seções 5, 7 e 9.1 confirmados pelo Gabriel; páginas legais no ar (`termos.html`, `privacidade.html`).
+- `NewziWidgets/PrivacyInfo.xcprivacy`: a extensão lê o App Group pelo `UserDefaults` (motivo `1C8F.1`); sem ele a
+  Apple manda o aviso ITMS-91053.
+- Idioma do app em pt-BR: `developmentRegion` do projeto, `CFBundleDevelopmentRegion`, `CFBundleLocalizations` e
+  `pt-BR.lproj/InfoPlist.strings` (botões do sistema em português e a App Store lista "Português").
+- Fase "Remove development-only Info.plist keys" no alvo do app: no Release tira `NSLocalNetworkUsageDescription`,
+  que só serve ao Debug ligado a um computador na mesma Wi-Fi (`devApi.ts`).
+- Barra de navegação: vidro `regular` (antes `clear`) com tinta de 55% no claro e no escuro; o vidro transparente
+  deixava os nomes das abas ilegíveis sobre as imagens.
+- A foto do perfil só muda pelo botão "Trocar foto" (Editar perfil): o selo da câmera saiu da foto em Perfil, Dados
+  pessoais e Editar perfil (`ProfileAvatar` não tem mais `onCamera`).
+- `CURRENT_PROJECT_VERSION` 6 → 7.
 

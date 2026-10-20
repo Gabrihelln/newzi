@@ -79,7 +79,7 @@ Se você assina o Premium, cancele a assinatura nos ajustes da ${STORE_NAME}: ex
     {status === 'error' && <ScreenState kind="error" title="Não foi possível carregar sua conta" message="Confira sua conexão e tente novamente." onRetry={() => { setStatus('loading'); void load(); }} />}
     {status === 'loaded' && <>
       <Card style={s.profile}>
-        <ProfileAvatar name={name} photo={photo} size={110} onCamera={onEditProfile} />
+        <ProfileAvatar name={name} photo={photo} size={110} />
         <Text style={s.name}>{name}</Text>
         <Text style={s.email}>{email}</Text>
         <View style={s.badges}>

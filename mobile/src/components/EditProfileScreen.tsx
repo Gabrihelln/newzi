@@ -58,7 +58,7 @@ export function EditProfileScreen({ user, onBack, onSaved }: { user: User | null
 
   return <SettingsPage title="Editar perfil" onBack={leave} footer={<SaveBar visible={dirty} busy={busy} onSave={() => void save()} error={error} />}>
     <Card style={s.profile}>
-      <ProfileAvatar name={name || initialName} photo={shown} size={118} letters={2} onCamera={() => void pickPhoto()} />
+      <ProfileAvatar name={name || initialName} photo={shown} size={118} letters={2} />
       <Text numberOfLines={1} style={s.name}>{name.trim() || 'Seu nome'}</Text>
       <Text style={s.hint}>Assim seu nome e sua foto aparecem no Newzi.</Text>
       <Pressable accessibilityRole="button" onPress={() => void pickPhoto()} style={({ pressed }) => [s.photoButton, pressed && { opacity: .8 }]}>

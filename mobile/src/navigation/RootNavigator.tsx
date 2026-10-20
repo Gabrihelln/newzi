@@ -165,9 +165,10 @@ function FloatingTabBar({ props, onAudio, onExpand, showMini }: { props: BottomT
   };
   return <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: Math.max(insets.bottom, 8), alignItems: 'center' }}>
     {showMini && <MiniAudioPlayer onExpand={onExpand} />}
-    {/* Clear, interactive glass with a bright rim on iOS 26; a solid surface elsewhere. */}
-    <LiquidGlassView effect={glass ? 'clear' : 'none'} interactive={glass} colorScheme={dark ? 'dark' : 'light'}
-      tintColor={glass ? (dark ? 'rgba(20,28,44,0.18)' : 'rgba(255,255,255,0.10)') : undefined}
+    {/* Frosted, interactive glass with a bright rim on iOS 26, tinted enough to keep the labels legible over any
+        content; a solid surface elsewhere. */}
+    <LiquidGlassView effect={glass ? 'regular' : 'none'} interactive={glass} colorScheme={dark ? 'dark' : 'light'}
+      tintColor={glass ? (dark ? 'rgba(20,28,44,0.55)' : 'rgba(255,255,255,0.55)') : undefined}
       style={{ width: width - TAB_BAR_SIDE * 2, alignSelf: 'center', height: TAB_BAR_HEIGHT, borderRadius: TAB_BAR_HEIGHT / 2, justifyContent: 'center',
         backgroundColor: glass ? 'transparent' : colors.surface,
         borderWidth: glass ? 1 : StyleSheet.hairlineWidth, borderColor: glass ? (dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.7)') : colors.border,

@@ -112,22 +112,16 @@ export function initials(name: string, max = 2) {
 /** A server path (/api/v1/avatars/…) becomes a full URL; other URLs are kept. */
 export const absolutePhotoUrl = (url?: string | null) => !url ? null : url.startsWith('/') ? `${API_BASE_URL}${url}` : url;
 
-/** The profile photo, or the initials on a blue circle, with the camera badge that changes it. */
-export function ProfileAvatar({ name, photo, size = 96, letters = 1, onCamera }: { name: string; photo?: string | null; size?: number; letters?: number; onCamera?: () => void }) {
+/** The profile photo, or the initials on a blue circle. The photo changes only through "Trocar foto" (EditProfileScreen). */
+export function ProfileAvatar({ name, photo, size = 96, letters = 1 }: { name: string; photo?: string | null; size?: number; letters?: number }) {
   const s = useStyles(makeStyles);
-  const { colors } = useTheme();
   const [failed, setFailed] = React.useState(false);
   React.useEffect(() => setFailed(false), [photo]);
-  const badge = size * .34;
   return <View style={{ width: size, height: size }}>
     <View style={[s.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
       {photo && !failed ? <Image source={{ uri: photo }} onError={() => setFailed(true)} style={{ width: size, height: size }} />
         : <Text style={[s.avatarText, { fontSize: size * (letters > 1 ? .36 : .42) }]}>{initials(name, letters)}</Text>}
     </View>
-    {onCamera && <Pressable accessibilityRole="button" accessibilityLabel="Trocar foto" onPress={onCamera} hitSlop={6}
-      style={[s.cameraBadge, { width: badge, height: badge, borderRadius: badge / 2 }]}>
-      <Icon name="camera" color={colors.primary} size={badge * .5} />
-    </Pressable>}
   </View>;
 }
 
@@ -161,6 +155,4 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   saveText: { fontFamily: typography.fontFamily.ui, fontSize: 16, fontWeight: '800', color: colors.onPrimary },
   avatar: { overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.tone('#3F8CEB', colors.primary) },
   avatarText: { fontFamily: typography.fontFamily.ui, fontWeight: '800', color: '#FFFFFF' },
-  cameraBadge: { position: 'absolute', right: 0, bottom: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface,
-    shadowColor: colors.shadow.color, shadowOpacity: .25, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
 });
