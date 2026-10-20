@@ -586,5 +586,5 @@ Falta:
   deixava os nomes das abas ilegíveis sobre as imagens.
 - A foto do perfil só muda pelo botão "Trocar foto" (Editar perfil): o selo da câmera saiu da foto em Perfil, Dados
   pessoais e Editar perfil (`ProfileAvatar` não tem mais `onCamera`).
-- `CURRENT_PROJECT_VERSION` 6 → 7.
+- `CURRENT_PROJECT_VERSION` 6 → 7; archive e upload aceitos (versão 1.0, build 7), o build escolhido para a revisão.
 
