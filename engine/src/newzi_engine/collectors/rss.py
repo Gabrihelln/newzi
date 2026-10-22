@@ -4,7 +4,7 @@ import feedparser, httpx
 from ..models import Article, utc_now
 from ..images import extract_feed_image
 from ..utils.dates import parse_date
-from ..utils.text import article_id, canonicalize_url, clean_text
+from ..utils.text import article_id, canonicalize_url, clean_text, strip_junk_text
 
 class RSSCollector:
     def __init__(self, settings):
@@ -42,7 +42,7 @@ class RSSCollector:
                 if pub and (newest is None or pub>newest): newest=pub
                 cats=source.get("categories",[]); discovered+=1
                 image_url,image_source=extract_feed_image(e,url)
-                out.append(Article(article_id(source["id"],url,title),source["id"],source["name"],title,clean_text(e.get("summary") or e.get("description")),url,url,pub,now,source.get("language","en"),cats,[],source.get("source_type","JOURNALISM"),e.get("author"),source.get("publisher_id",source["id"]),image_url=image_url,image_source=image_source))
+                out.append(Article(article_id(source["id"],url,title),source["id"],source["name"],title,strip_junk_text(clean_text(e.get("summary") or e.get("description"))),url,url,pub,now,source.get("language","en"),cats,[],source.get("source_type","JOURNALISM"),e.get("author"),source.get("publisher_id",source["id"]),image_url=image_url,image_source=image_source))
             finished=time.perf_counter(); self.last_metrics={"status":"SUCCESS","http_status":response.status_code,"duration_ms":int((finished-started)*1000),"fetch_ms":int((fetched-request_started)*1000),"ttfb_ms":int((first_byte-request_started)*1000),"download_ms":int((fetched-first_byte)*1000),"parse_ms":int((parsed_at-parse_started)*1000),"discovery_ms":int((finished-parsed_at)*1000),"response_bytes":len(body),"articles_seen":discovered,"newest_article":newest.isoformat() if newest else None,"feed_items":len(parsed.entries),"items_too_old":too_old,"feed_newest_item":feed_newest.isoformat() if feed_newest else None,"etag":self.validators.get("etag"),"last_modified":self.validators.get("last_modified")}
             return out,None
         except Exception as exc:

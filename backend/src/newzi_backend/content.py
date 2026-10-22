@@ -11,6 +11,7 @@ from newzi_engine.collectors.registry import load_sources
 from newzi_engine.processors.classify import classify_for_index, CLASSIFIER_VERSION
 from newzi_engine.storage import Store
 from newzi_engine.topic_registry import taxonomy
+from newzi_engine.utils.text import strip_junk_text
 from .timeutil import iso, now_iso, parse
 
 INDEX_VERSION = "content-index-v1"
@@ -680,7 +681,7 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
             interests_seen.add(candidate["coverage_interest"])
         events_seen.add(event_id)
         title = content["title"].strip()
-        summary = (content["description"] or title).strip()
+        summary = strip_junk_text(content["description"]) or title
         provider = "deterministic_fallback"
         warnings = ["FALLBACK_" + level, "__summary_provider__:" + provider]
         # The level carries this candidate's own age (EXTENDED_ = older than 24h).

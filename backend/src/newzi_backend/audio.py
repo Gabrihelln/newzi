@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from newzi_engine.utils.text import strip_junk_text
+
 from .paths import BACKEND_DATA
 from .timeutil import iso, now_iso, parse
 
@@ -572,8 +574,6 @@ _LEAD_PREFIX_NOISE = (
     re.compile(r"^\s*[A-ZÁÉÍÓÚÂÊÔÃÕÇ .]{3,40}\s*[—–-]\s+"),                                          # "SÃO PAULO — "
     re.compile(r"^\s*\(?\d{1,2}/\d{1,2}(/\d{2,4})?\)?\s*[-–—]?\s*"),                                # dates
 )
-_LEAD_TAIL_NOISE = re.compile(r"\s*(leia mais|leia também|continue lendo|saiba mais|read more|the post .* appeared first on|"
-                              r"get our [^.]*?(newsletter|email|app|podcast)|sign up (to|for) [^.]*?newsletter).*$", re.I)
 
 
 def _content_words(value):
@@ -593,11 +593,11 @@ def _opening_words(text, max_words=90):
 
 
 def clean_summary(summary):
-    """Summary without bylines, datelines, newsletter plugs or "read more" tails."""
-    text = str(summary or "")
+    """Summary without bylines, datelines or texto lixo (photo credits, paywall notices, "saiba mais" pointers, plugs)."""
+    text = strip_junk_text(str(summary or ""))
     for pattern in _LEAD_PREFIX_NOISE:
         text = pattern.sub("", text, count=1)
-    return _LEAD_TAIL_NOISE.sub("", text)
+    return text
 
 
 def spoken_lead(summary):

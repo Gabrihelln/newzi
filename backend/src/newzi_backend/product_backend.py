@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from newzi_engine.topic_registry import SUPPORTED_TOPIC_IDS, TOPIC_LABELS, topic_rows, taxonomy
+from newzi_engine.utils.text import strip_junk_text
 from . import db as database
 from .migrations import migrate
 from .paths import BACKEND_DATA, PROJECT_ROOT
@@ -317,7 +318,7 @@ class ProductRepository:
                 picked=primary_taxonomy(tags_by_content.get(best["id"],{}),sorted(selected),registry)
                 if picked: taxonomy_id=picked["id"]
             label=registry.nodes.get(taxonomy_id,{}).get("name") if taxonomy_id else None
-            output.append({"id":best["id"],"position":len(output)+1,"headline":best["title"],"summary":best["description"] or best["title"],
+            output.append({"id":best["id"],"position":len(output)+1,"headline":best["title"],"summary":strip_junk_text(best["description"]) or best["title"],
                 "category":label,"primary_taxonomy_id":taxonomy_id,"primary_taxonomy_label":label,"published_at":best["published_at"],
                 "image_url":best["image_url"],"sources":[{"publisher":best["source_name"],"url":best["url"],"article_id":best["id"],"published_at":best["published_at"],"image_url":best["image_url"]}],"key_points":[]})
         return self._attach_event_sources(output)
@@ -335,7 +336,7 @@ class ProductRepository:
             picked=primary_taxonomy(tags,selected,registry)
             if picked: taxonomy_id=picked["id"]
         label=registry.nodes.get(taxonomy_id,{}).get("name") if taxonomy_id else None
-        item={"id":row["id"],"position":1,"headline":row["title"],"summary":row["description"] or row["title"],
+        item={"id":row["id"],"position":1,"headline":row["title"],"summary":strip_junk_text(row["description"]) or row["title"],
             "category":label,"primary_taxonomy_id":taxonomy_id,"primary_taxonomy_label":label,"published_at":row["published_at"],
             "image_url":row["image_url"],"sources":[{"publisher":row["source_name"],"url":row["url"],"article_id":row["id"],"published_at":row["published_at"],"image_url":row["image_url"]}],"key_points":[]}
         return self._attach_event_sources([item])[0]
