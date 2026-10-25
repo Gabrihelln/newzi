@@ -409,8 +409,8 @@ class BriefingGenerationWorker:
             self.repo.db.execute("UPDATE manual_refresh_requests SET ingestion_run_id=?,stage='COMPOSITION',updated_at=? WHERE id=?",(ingestion_id,now_iso(),request_id)); self.repo.db.commit()
             from .content import compose
             local_date=datetime.now(ZoneInfo(prefs['timezone'])).date().isoformat()
-            # "Gerar agora" tells what is new since the day's earlier briefings.
-            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'],tz=prefs['timezone'],since_today=on_demand)
+            # "Gerar agora" tells only what is new since the day's earlier briefings, never a repeat of them.
+            payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=local_date,user_id=request['user_id'],tz=prefs['timezone'],since_today=on_demand,only_new=on_demand)
             if not payload.get('items'):
                 raise GenerationError('NO_ELIGIBLE_CONTENT','fresh ingestion produced no eligible briefing items')
             edition_profile=profile.key()+'_manual_'+request_id
@@ -562,7 +562,14 @@ class BriefingGenerationWorker:
             current = self.run_once()
             for key in result: result[key] += current.get(key, 0)
             if not current["jobs_claimed"]: break
+            # Someone is waiting on a briefing they asked for: its audio starts in this same cycle,
+            # and scheduled jobs wait for the next one.
+            if current.get("manual_generation_id") and not self.manual_waiting(): break
         return result
+
+    def manual_waiting(self):
+        """A briefing asked for ("Gerar agora", new preferences) is queued and no worker has taken it yet."""
+        return self.repo.db.execute("SELECT 1 FROM manual_refresh_requests WHERE status='PENDING' AND stage='QUEUED' LIMIT 1").fetchone() is not None
 
     def run_forever(self, interval_seconds=None, batch_size=None):
         interval = max(1.0, float(interval_seconds or os.getenv("WORKER_POLL_SECONDS", "15")))
@@ -704,7 +711,10 @@ class BriefingDeliveryWorker:
         self.news_refresh.recover_interrupted()
         try:
             while True:
-                self.cycle()
+                result=self.cycle()
+                # A briefing asked for while the cycle ran is taken right away, not after the pause
+                # (a failed cycle still pauses, so an error never turns into a busy loop).
+                if result is not None and "generation" in self.roles and self.generation.manual_waiting(): continue
                 time.sleep(self.interval_seconds)
         except KeyboardInterrupt:
             return

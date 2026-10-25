@@ -531,11 +531,13 @@ def primary_taxonomy(tags, interests, registry=None, proximity=None):
             "reason": ("SELECTED_INTEREST", "INTEREST_DESCENDANT", "INTEREST_ANCESTOR", "CLASSIFICATION")[tier]}
 
 
-def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None, tz=None, since_today=False):
+def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=None, briefing_date=None, user_id=None, tz=None, since_today=False, only_new=False):
     """Select real indexed articles without running an LLM per user or profile.
 
     ``briefing_date`` is the edition's date in ``tz``: briefings of earlier dates count as already told,
     those of ``user_id`` when given, and headlines framed for an earlier day are left out.
+    ``only_new``: stories already told with nothing new never come back, even when nothing else is left
+    (a briefing made on request is then not made at all instead of repeating the earlier ones).
     """
     registry = taxonomy()
     interests, unknown = registry.canonicalize(topics)
@@ -640,7 +642,8 @@ def compose(repo, topics, language, briefing_size, country_scope="BOTH", now=Non
                        "coverage_interest": coverage_interest})
     ranked.sort(key=lambda candidate: (-candidate["score"], candidate["content"]["id"]))
     # Stories already told with nothing new are left out; they return only if nothing else is left.
-    ranked = [candidate for candidate in ranked if not candidate["stale"]] or ranked
+    fresh = [candidate for candidate in ranked if not candidate["stale"]]
+    ranked = fresh if only_new else fresh or ranked
     selected, sources_seen, topics_seen, interests_seen, events_seen = [], {}, {}, set(), set()
     remaining = ranked[:]
     max_size = max(briefing_size, MAX_EXPANDED_BRIEFING_SIZE)

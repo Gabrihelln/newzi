@@ -21,6 +21,12 @@ async def refresh(request: Request, uid: str = Depends(current_user)):
     return accepted(await call(request, service_of(request).request_refresh, uid))
 
 
+@router.get("/now")
+async def on_demand_news(request: Request, uid: str = Depends(current_user)):
+    """Premium "Gerar agora": how many stories are new since the earlier briefings (0: the app shows "Em dia")."""
+    return await call(request, service_of(request).on_demand_news, uid)
+
+
 @router.post("/now")
 async def on_demand(request: Request, uid: str = Depends(current_user)):
     """Premium "Gerar agora": poll /generations/{id} until READY, then open its delivery_id."""

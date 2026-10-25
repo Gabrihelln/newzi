@@ -71,9 +71,11 @@ def test_next_briefing_is_the_soonest_of_the_day(repo):
 
 
 def test_on_demand_briefing_is_premium_limited_and_becomes_its_own_delivery(repo, enforced, monkeypatch):
+    import support
     from newzi_backend.product_backend import ApiError, ProductService
     from newzi_backend.subscriptions import PremiumRequired, grant_manual
-    add_user(repo, "reader", "UTC", "06:00")
+    support.seed_content(repo)
+    add_user(repo, "reader", "UTC", "06:00", topics=support.SEED_TOPICS)
     service = ProductService(repo)
     with pytest.raises(PremiumRequired):
         service.request_on_demand("reader")
@@ -322,3 +324,78 @@ def test_saved_stories_become_one_narration_that_follows_the_list(repo):
     assert script[0].startswith("Olá. Estas são as matérias que você salvou")
     repo.remove_saved_story("reader", "s0")
     assert saved_audio(repo, audio, "reader")["edition_id"] != ready["edition_id"]   # a new list is a new narration
+
+
+def test_on_demand_audio_goes_first_and_the_briefing_is_delivered_as_soon_as_it_is_ready(repo):
+    import support
+    from newzi_backend.audio import AudioService
+    from newzi_backend.product_backend import ProductService
+    from newzi_backend.scheduling import BriefingGenerationWorker
+    support.install_fake_tts(); support.seed_content(repo)
+    add_user(repo, "reader", topics=support.SEED_TOPICS)
+    audio = AudioService(repo)
+    # An older audio and the day's scheduled briefing are already waiting.
+    repo.db.execute("""INSERT INTO audio_generation_jobs(id,edition_id,language,voice,script_version,status,attempt_count,max_attempts,created_at,stage,updated_at)
+        VALUES('older','other_edition','pt-BR','voice',?,'PENDING',0,3,'2000-01-01T00:00:00.000000+00:00','QUEUED','t')""", (audio.script_version,)); repo.db.commit()
+    scheduler_at(repo).run_once()
+    request = ProductService(repo).request_on_demand("reader")
+    worker = BriefingGenerationWorker(repo, audio_service=audio)
+    assert worker.manual_waiting()
+    worker.run_batch()
+    # The cycle goes on to the audio right away; the scheduled briefing waits for the next one.
+    assert repo.db.execute("SELECT status FROM generation_jobs WHERE user_id='reader'").fetchone()[0] == "PENDING"
+    assert repo.db.execute("SELECT stage FROM manual_refresh_requests WHERE id=?", (request["generation_id"],)).fetchone()[0] == "AUDIO_QUEUED"
+    assert not worker.manual_waiting()
+    assert audio.generate_pending()["jobs_completed"] == 1
+    # Delivered by the audio job itself, with the older audio still in the queue.
+    assert repo.db.execute("SELECT status FROM manual_refresh_requests WHERE id=?", (request["generation_id"],)).fetchone()[0] == "READY"
+    delivery = repo.db.execute("SELECT status,kind FROM user_briefing_deliveries WHERE user_id='reader' AND slot=10").fetchone()
+    assert (delivery["status"], delivery["kind"]) == ("READY", "ON_DEMAND")
+    assert repo.db.execute("SELECT status FROM audio_generation_jobs WHERE id='older'").fetchone()[0] == "PENDING"
+
+
+def test_on_demand_briefing_with_nothing_new_is_refused_at_once_and_shown_as_em_dia(repo):
+    import support
+    from newzi_backend.audio import AudioService
+    from newzi_backend.product_backend import ApiError, ProductService
+    from newzi_backend.scheduling import BriefingGenerationWorker
+    support.install_fake_tts(); support.seed_content(repo)
+    add_user(repo, "reader", topics=support.SEED_TOPICS)
+    audio = AudioService(repo); service = ProductService(repo)
+    worker = BriefingGenerationWorker(repo, audio_service=audio)
+    news = service.on_demand_news("reader")
+    assert news["new_count"] > 0 and not news["generating"]
+    first = service.request_on_demand("reader")
+    # A second tap while it is made follows the same briefing.
+    assert service.request_on_demand("reader")["generation_id"] == first["generation_id"]
+    assert service.on_demand_news("reader") == {"new_count": 0, "generating": True, "generation_id": first["generation_id"]}
+    worker.run_batch(); audio.generate_pending()
+    assert repo.db.execute("SELECT status FROM manual_refresh_requests WHERE id=?", (first["generation_id"],)).fetchone()[0] == "READY"
+    # Everything was told: "Em dia", and a tap is answered at once, with no queue, audio or use of the day.
+    assert service.on_demand_news("reader")["new_count"] == 0
+    with pytest.raises(ApiError) as refused:
+        service.request_on_demand("reader")
+    assert (refused.value.code, refused.value.status) == ("NO_NEW_CONTENT", 409)
+    assert repo.db.execute("SELECT COUNT(*) FROM manual_refresh_requests").fetchone()[0] == 1
+    # The worker never repeats the earlier briefing either.
+    from newzi_backend.timeutil import now_iso
+    repo.db.execute("INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,slot) VALUES('again','reader','ON_DEMAND','PENDING','QUEUED',?,?,11)", (now_iso(), now_iso())); repo.db.commit()
+    worker.run_batch()
+    row = repo.db.execute("SELECT status,error_code FROM manual_refresh_requests WHERE id='again'").fetchone()
+    assert (row["status"], row["error_code"]) == ("FAILED", "NO_ELIGIBLE_CONTENT")
+
+
+def test_on_demand_news_is_kept_until_something_changes(repo, monkeypatch):
+    import support
+    from newzi_backend import content
+    from newzi_backend.product_backend import ProductService
+    support.seed_content(repo)
+    add_user(repo, "reader", topics=support.SEED_TOPICS)
+    service = ProductService(repo); calls = []
+    compose = content.compose
+    monkeypatch.setattr(content, "compose", lambda *args, **kwargs: calls.append(1) or compose(*args, **kwargs))
+    first = service.on_demand_news("reader")["new_count"]
+    assert service.on_demand_news("reader")["new_count"] == first and len(calls) == 1
+    repo.db.execute("INSERT INTO content_ingestion_runs(id,status,started_at,completed_at) VALUES('run','COMPLETED','t','2026-10-25T21:00:00.000000+00:00')"); repo.db.commit()
+    service.on_demand_news("reader")
+    assert len(calls) == 2   # news were collected: counted again

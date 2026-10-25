@@ -1097,9 +1097,11 @@ class AudioService:
                     active=self.repo.db.execute("SELECT 1 FROM audio_artifacts WHERE id=? AND status='READY' AND duration_ms>0",(delivery["audio_artifact_id"],)).fetchone() if delivery["audio_artifact_id"] else None
                     self.repo.db.execute("UPDATE user_briefing_deliveries SET status=?,audio_status=?,generation_stage=?,generation_updated_at=?,generation_error_code=?,generation_error_message=? WHERE id=?",
                         ("READY" if active else ("AUDIO_QUEUED" if retry else "FAILED"),"READY" if active else ("PENDING" if retry else "FAILED"),"AUDIO_QUEUED" if retry else "FAILED_FINAL",now_iso(),"WORKER_TIMEOUT",None if retry else "audio job exceeded worker timeout",delivery["id"]))
-            job = self.repo.db.execute("""SELECT * FROM audio_generation_jobs WHERE status='PENDING'
+            # A briefing someone asked for and is waiting on ("Gerar agora", new preferences) goes first.
+            job = self.repo.db.execute("""SELECT * FROM audio_generation_jobs j WHERE status='PENDING'
                 AND script_version=? AND (next_retry_at IS NULL OR next_retry_at<=?)
-                ORDER BY created_at LIMIT 1""", (self.script_version, now_iso())).fetchone()
+                ORDER BY CASE WHEN EXISTS (SELECT 1 FROM manual_refresh_requests m WHERE m.edition_id=j.edition_id
+                    AND m.status='GENERATING') THEN 0 ELSE 1 END, created_at LIMIT 1""", (self.script_version, now_iso())).fetchone()
             if not job:
                 self.repo.db.commit()
                 return None
@@ -1176,6 +1178,14 @@ class AudioService:
                         {"duration_ms": duration_ms, "file_size": Path(stored).stat().st_size,
                          "latency_ms": int((time.monotonic() - started) * 1000), "provider": result.get("provider", self.provider.name),
                          "tts_voice_id": job["voice"], "script_version": self.script_version})
+            try:
+                # A briefing asked for is delivered the moment its audio is ready, not when the batch ends.
+                from .scheduling import BriefingGenerationWorker
+                BriefingGenerationWorker(self.repo, audio_service=self)._publish_manual_refreshes()
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception("publishing briefings made on request failed after audio READY")
+                self.repo.db.rollback()
             try:
                 from .notifications import NotificationService
                 NotificationService(self.repo).enqueue_ready()

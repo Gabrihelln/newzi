@@ -5,7 +5,7 @@ separate from the engine's collection cache. ``ProductRepository`` owns the conn
 the user-facing data; ``ProductService`` implements each API operation independently of the
 web framework (see ``newzi_backend.api`` for the FastAPI routes).
 """
-import json, logging, os, re, threading, uuid
+import json, logging, os, re, threading, time, uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -534,6 +534,7 @@ class ProductService:
     def __init__(self, repo=None, clock=None):
         self.repo=repo or ProductRepository(); self.clock=clock
         self.config = self.repo.config
+        self._on_demand_news={}
         log.info("[Backend Auth] firebase_auth_enabled=%s project_id=%s", self.config.firebase_auth_enabled, self.config.firebase_project_id or "unset")
         from .scheduling import BriefingScheduler, BriefingGenerationWorker, FixtureBriefingGenerator
         from .identity import LocalIdentityProvider, LocalAuthRateLimiter
@@ -883,19 +884,68 @@ class ProductService:
         prefs=self.repo.get_preferences(uid)
         if not prefs or (prefs.get("content_scope", "selected") != "all" and not prefs.get("topics")):
             raise ApiError("PREFERENCES_INCOMPLETE","configure topics before generating",409)
-        active=self.repo.db.execute("SELECT id,status,stage FROM manual_refresh_requests WHERE user_id=? AND reason='ON_DEMAND' AND status IN ('PENDING','GENERATING') ORDER BY requested_at DESC LIMIT 1",(uid,)).fetchone()
+        active=self._active_on_demand(uid)
         if active: return {"generation_id":active["id"],"reason":"ON_DEMAND","status":active["status"],"stage":active["stage"],"coalesced":True}
+        # Nothing new since the earlier briefings: answered now, without a queue, an audio or a use of the day.
+        if not self.on_demand_news(uid)["new_count"]:
+            raise ApiError("NO_NEW_CONTENT","nothing new since your last briefing",409)
         local_date=self.local_date(prefs)
         start=datetime.combine(datetime.fromisoformat(local_date).date(),datetime.min.time(),ZoneInfo(prefs["timezone"])).astimezone(timezone.utc)
-        used=self.repo.db.execute("SELECT COUNT(*) FROM manual_refresh_requests WHERE user_id=? AND reason='ON_DEMAND' AND status<>'FAILED' AND requested_at>=?",(uid,iso(start))).fetchone()[0]
-        allowed=limit(self.repo,uid,"on_demand_per_day")
-        if used>=allowed: raise ApiError("ON_DEMAND_LIMIT",f"you can make {allowed} briefing(s) on request a day",429)
-        taken=[row[0] for row in self.repo.db.execute("SELECT slot FROM user_briefing_deliveries WHERE user_id=? AND local_date=? AND slot>=? UNION SELECT slot FROM manual_refresh_requests WHERE user_id=? AND slot IS NOT NULL AND requested_at>=?",(uid,local_date,ON_DEMAND_FIRST_SLOT,uid,iso(start)))]
-        slot=max([ON_DEMAND_FIRST_SLOT-1,*taken])+1
-        generation_id="generation_"+uuid.uuid4().hex; requested=now_iso()
-        self.repo.db.execute("INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,selected_voice_id,slot) VALUES(?,?,'ON_DEMAND','PENDING','QUEUED',?,?,?,?)",(generation_id,uid,requested,requested,prefs.get("audio_voice_id"),slot))
-        self.repo.db.commit()
+        # Under the write lock, so two taps that arrive together make one briefing.
+        self.repo.db.begin_immediate()
+        try:
+            active=self._active_on_demand(uid)
+            if active:
+                self.repo.db.rollback()
+                return {"generation_id":active["id"],"reason":"ON_DEMAND","status":active["status"],"stage":active["stage"],"coalesced":True}
+            used=self.repo.db.execute("SELECT COUNT(*) FROM manual_refresh_requests WHERE user_id=? AND reason='ON_DEMAND' AND status<>'FAILED' AND requested_at>=?",(uid,iso(start))).fetchone()[0]
+            allowed=limit(self.repo,uid,"on_demand_per_day")
+            if used>=allowed: raise ApiError("ON_DEMAND_LIMIT",f"you can make {allowed} briefing(s) on request a day",429)
+            taken=[row[0] for row in self.repo.db.execute("SELECT slot FROM user_briefing_deliveries WHERE user_id=? AND local_date=? AND slot>=? UNION SELECT slot FROM manual_refresh_requests WHERE user_id=? AND slot IS NOT NULL AND requested_at>=?",(uid,local_date,ON_DEMAND_FIRST_SLOT,uid,iso(start)))]
+            slot=max([ON_DEMAND_FIRST_SLOT-1,*taken])+1
+            generation_id="generation_"+uuid.uuid4().hex; requested=now_iso()
+            self.repo.db.execute("INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,selected_voice_id,slot) VALUES(?,?,'ON_DEMAND','PENDING','QUEUED',?,?,?,?)",(generation_id,uid,requested,requested,prefs.get("audio_voice_id"),slot))
+            self.repo.db.commit()
+        except Exception:
+            self.repo.db.rollback(); raise
         return {"generation_id":generation_id,"reason":"ON_DEMAND","status":"PENDING","stage":"QUEUED","coalesced":False,"remaining_today":allowed-used-1}
+
+    def _active_on_demand(self, uid):
+        return self.repo.db.execute("SELECT id,status,stage FROM manual_refresh_requests WHERE user_id=? AND reason='ON_DEMAND' AND status IN ('PENDING','GENERATING') ORDER BY requested_at DESC LIMIT 1",(uid,)).fetchone()
+
+    ON_DEMAND_NEWS_SECONDS=600
+
+    def on_demand_news(self, uid):
+        """Premium "Gerar agora": how many stories are new since the person's earlier briefings.
+
+        The very selection the briefing would be made with, without making it. Kept until news are
+        collected, a briefing arrives or the preferences change, and ten minutes at most.
+        ``generation_id``: a briefing on request already being made, which the app follows.
+        """
+        from .subscriptions import require
+        require(self.repo,uid,"on_demand_briefing")
+        active=self._active_on_demand(uid)
+        if active: return {"new_count":0,"generating":True,"generation_id":active["id"]}
+        prefs=self.repo.get_preferences(uid)
+        if not prefs or (prefs.get("content_scope", "selected") != "all" and not prefs.get("topics")):
+            return {"new_count":0,"generating":False,"generation_id":None}
+        db=self.repo.db
+        key=(self.local_date(prefs),json.dumps(prefs,sort_keys=True,default=str),
+             db.execute("SELECT MAX(completed_at) FROM content_ingestion_runs").fetchone()[0],
+             db.execute("SELECT MAX(generated_at) FROM briefing_editions WHERE user_id=?",(uid,)).fetchone()[0],
+             db.execute("SELECT MAX(created_at) FROM user_briefing_deliveries WHERE user_id=?",(uid,)).fetchone()[0])
+        cached=self._on_demand_news.get(uid)
+        if cached and cached[0]==key and time.monotonic()-cached[1]<self.ON_DEMAND_NEWS_SECONDS:
+            return {"new_count":cached[2],"generating":False,"generation_id":None}
+        from .briefing_slots import ON_DEMAND_FIRST_SLOT, slot_for
+        from .content import compose
+        from .scheduling import BriefingProfile
+        profile=BriefingProfile.for_slot(prefs,slot_for(self.repo,uid,ON_DEMAND_FIRST_SLOT,prefs))
+        # The same call the worker makes for "Gerar agora" (scheduling._run_manual_refresh).
+        payload=compose(self.repo,profile.topics,profile.language,profile.briefing_size,profile.country_scope,briefing_date=self.local_date(prefs),user_id=uid,tz=prefs["timezone"],since_today=True,only_new=True)
+        count=len(payload.get("items") or [])
+        self._on_demand_news[uid]=(key,time.monotonic(),count)
+        return {"new_count":count,"generating":False,"generation_id":None}
 
     def generation_status(self, uid, generation_id):
         row=self.repo.db.execute("SELECT * FROM manual_refresh_requests WHERE id=? AND user_id=?",(generation_id,uid)).fetchone()
