@@ -24,7 +24,13 @@ def _representative(articles, source_priorities=None):
     priorities = source_priorities or {}
     return sorted(articles, key=lambda a: (a.language != "pt-BR", -priorities.get(a.source_id, 5), -len(a.title)))[0].title
 
-def cluster_articles(articles, settings, sources=None, diagnostics=False):
+def cluster_articles(articles, settings, sources=None, diagnostics=False, focus_ids=None, seed_events=None):
+    """Group stories into events in one pass, oldest first.
+
+    With ``focus_ids`` only those stories are placed; every other story keeps the event named in
+    ``seed_events`` (or stays alone) and is only a candidate to join. A news cycle changes a few
+    hundred stories of tens of thousands in the window, and re-deciding them all took hours.
+    """
     cluster_started = time.perf_counter()
     cfg = settings.get("clustering", {}); window_hours = cfg.get("time_window_hours", 72); events = []; audit = {"merges": [], "near_misses": []}; priorities = {s["id"]: s.get("priority", 5) for s in (sources or [])}
     feature_started = time.perf_counter()
@@ -40,9 +46,42 @@ def cluster_articles(articles, settings, sources=None, diagnostics=False):
     cheap_pruning_ms = 0.0; similarity_ms = 0.0; event_lookup_ms = 0.0
     event_mutation_ms = 0.0; feature_postings_ms = 0.0
     progress_every = max(1, int(cfg.get("progress_interval", 250)))
-    for index, article in enumerate(ordered):
-        if index and index % progress_every == 0:
-            logging.info("[CLUSTER] progress=%s/%s events=%s comparisons=%s", index, len(ordered), len(events), comparisons)
+    def register(index, article, event):
+        article_events[index] = event
+        article_by_index[index] = article
+        postings_started = time.perf_counter()
+        for term in features[index]["candidate_terms"]:
+            postings[term].append(index)
+        return (time.perf_counter() - postings_started) * 1000
+
+    def open_event(index, article, eid=None):
+        eid = eid or hashlib.sha256((article.canonical_url or article.title).encode()).hexdigest()[:16]
+        events.append(NewsEvent(eid, article.title, list(article.categories) or ["OTHER"], [article.article_id], [article.source_id], article.published_at or article.collected_at, article.published_at or article.collected_at, article.published_at, keywords=sorted(tokens(article.title)), articles=[article], cluster_confidence=0.0, publisher_ids=[article.publisher_id or article.source_id], primary_entities=article.fingerprint.get("primary_subject", []), content_genre=article.content_genre, fingerprint=article.fingerprint))
+        anchors[id(events[-1])] = index
+        return events[-1]
+
+    def join(event, article, signals=None):
+        event.articles.append(article); event.article_ids.append(article.article_id); event.source_ids = sorted(set(event.source_ids + [article.source_id])); event.publisher_ids = sorted(set(event.publisher_ids + [article.publisher_id or article.source_id])); event.first_seen_at = min(event.first_seen_at, article.published_at or article.collected_at); event.last_seen_at = max(event.last_seen_at, article.published_at or article.collected_at); event.categories = sorted({c for c in event.categories + article.categories if c != "OTHER"}) or ["OTHER"]; event.keywords = sorted(set(event.keywords + list(tokens(article.title)))); event.primary_entities = sorted(set(event.primary_entities + article.fingerprint.get("primary_subject", []))); event.representative_title = _representative(event.articles, priorities)
+        if signals:
+            event.cluster_confidence = round(max(event.cluster_confidence, signals["confidence"]), 2); event.merge_audit.append({"article_a": event.articles[0].title, "article_b": article.title, "genre": article.content_genre, "fingerprint_a": event.articles[0].fingerprint, "fingerprint_b": article.fingerprint, **signals}); audit["merges"].append(event.merge_audit[-1])
+
+    placing = list(enumerate(ordered))
+    if focus_ids is not None:
+        # Settled stories go in first, as they stand, so a changed story can join one published after it.
+        seeded = {}; seeds = seed_events or {}
+        for index, article in placing:
+            if article.article_id in focus_ids: continue
+            seed = seeds.get(article.article_id)
+            if seed and seed in seeded:
+                event = seeded[seed]; join(event, article)
+            else:
+                event = open_event(index, article, seed)
+                if seed: seeded[seed] = event
+            feature_postings_ms += register(index, article, event)
+        placing = [(index, article) for index, article in placing if article.article_id in focus_ids]
+    for position, (index, article) in enumerate(placing):
+        if position and position % progress_every == 0:
+            logging.info("[CLUSTER] progress=%s/%s events=%s comparisons=%s", position, len(placing), len(events), comparisons)
         current_features = features[index]
         candidate_started = time.perf_counter()
         candidate_indices = set()
@@ -75,21 +114,15 @@ def cluster_articles(articles, settings, sources=None, diagnostics=False):
             anchor_index = anchors[id(best)]
             merge = _fits_anchor(signal_pair(article, ordered[anchor_index], window_hours, features_a=current_features, features_b=features[anchor_index]))
         if merge:
-            best.articles.append(article); best.article_ids.append(article.article_id); best.source_ids = sorted(set(best.source_ids + [article.source_id])); best.publisher_ids = sorted(set(best.publisher_ids + [article.publisher_id or article.source_id])); best.last_seen_at = max(best.last_seen_at, article.published_at or article.collected_at); best.categories = sorted({c for c in best.categories + article.categories if c != "OTHER"}) or ["OTHER"]; best.keywords = sorted(set(best.keywords + list(tokens(article.title)))); best.primary_entities = sorted(set(best.primary_entities + article.fingerprint.get("primary_subject", []))); best.representative_title = _representative(best.articles, priorities); best.cluster_confidence = round(max(best.cluster_confidence, best_signals["confidence"]), 2); best.merge_audit.append({"article_a": best.articles[0].title, "article_b": article.title, "genre": article.content_genre, "fingerprint_a": best.articles[0].fingerprint, "fingerprint_b": article.fingerprint, **best_signals}); audit["merges"].append(best.merge_audit[-1])
+            join(best, article, best_signals)
         else:
             if best_signals and best_signals["confidence"] >= 35: audit["near_misses"].append({"article_a": best.articles[0].title if best else "", "article_b": article.title, **best_signals})
-            eid = hashlib.sha256((article.canonical_url or article.title).encode()).hexdigest()[:16]
-            events.append(NewsEvent(eid, article.title, list(article.categories) or ["OTHER"], [article.article_id], [article.source_id], article.published_at or article.collected_at, article.published_at or article.collected_at, article.published_at, keywords=sorted(tokens(article.title)), articles=[article], cluster_confidence=0.0, publisher_ids=[article.publisher_id or article.source_id], primary_entities=article.fingerprint.get("primary_subject", []), content_genre=article.content_genre, fingerprint=article.fingerprint))
-            best = events[-1]; anchors[id(best)] = index
+            best = open_event(index, article)
         event_mutation_ms += (time.perf_counter() - mutation_started) * 1000
-        article_events[index] = best
-        article_by_index[index] = article
-        postings_started = time.perf_counter()
-        for term in current_features["candidate_terms"]:
-            postings[term].append(index)
-        feature_postings_ms += (time.perf_counter() - postings_started) * 1000
+        feature_postings_ms += register(index, article, best)
     audit["metrics"] = {
         "pair_comparisons": comparisons,
+        "articles_placed": len(placing),
         "candidate_pairs": candidate_pairs,
         "possible_pairs": len(ordered) * max(0, len(ordered) - 1) // 2,
         "pairs_skipped": len(ordered) * max(0, len(ordered) - 1) // 2 - comparisons,

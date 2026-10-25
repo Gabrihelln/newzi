@@ -430,7 +430,8 @@ def _cluster_incremental_content(repo, changed_articles):
             articles.append(article);event_ids[article.article_id]=row["event_id"]
         if not articles: continue
         considered+=len(articles)
-        phase=time.perf_counter(); events,audit=cluster_articles(articles,settings,load_sources(),diagnostics=True)
+        # Only this cycle's stories are placed; the rest of the window keeps its events and is only joined.
+        phase=time.perf_counter(); events,audit=cluster_articles(articles,settings,load_sources(),diagnostics=True,focus_ids=changed_ids,seed_events=event_ids)
         cluster_phase_ms+=(time.perf_counter()-phase)*1000
         metrics=audit.get("metrics",{}); timings=metrics.get("timings_ms",{})
         comparisons+=int(metrics.get("pair_comparisons",0));possible_pairs+=int(metrics.get("possible_pairs",0))

@@ -14,7 +14,8 @@ def _proper_candidates(title):
 def fingerprint(article):
     raw = normalize_title(f"{article.title} {article.description}")
     numeric_raw = f"{article.title} {article.description}".replace("â€”", " ").replace("â€“", " ").casefold()
-    entities = {x for x in KNOWN if re.search(r"\b"+re.escape(x)+r"\b", raw)} | _proper_candidates(article.title)
+    # The substring test spares most names their regex: this runs for every story in the clustering window.
+    entities = {x for x in KNOWN if x in raw and re.search(r"\b"+re.escape(x)+r"\b", raw)} | _proper_candidates(article.title)
     entities = {x for x in entities if x not in ENTITY_STOP and not re.fullmatch(r"\d+", x)}
     product_entities = entities & PRODUCTS
     distinctive = {t for t in tokens(article.title) if t not in ENTITY_STOP and len(t) >= 4 and not t.isdigit()}

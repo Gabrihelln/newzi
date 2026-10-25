@@ -391,6 +391,19 @@ def test_recluster_splits_an_over_merged_event(repo):
     assert event["g1"] == event["g2"] != event["m1"] and "blob" not in event.values()
 
 
+def test_a_cycle_places_only_its_changed_stories(repo):
+    """Settled stories keep their events, as stored; a late story still joins one published after it."""
+    from newzi_engine.clustering.events import cluster_articles
+    articles = [story("late", "engadget", "Google's first Gemini 4 model is Argon", hours_ago=5),
+                story("g1", "verge", "Google releases Gemini 4 Argon, its most powerful AI model", hours_ago=2),
+                story("g2", "wired", "Google rolls out Gemini 4 Argon, its most advanced AI model", hours_ago=1),
+                story("m1", "folha", "Filme sobre criador do ChatGPT é aclamado após Amazon largar projeto", hours_ago=1)]
+    seeds = {"g1": "gemini", "g2": "gemini", "m1": "gemini"}   # an over-merge a cycle must not redo
+    events, audit = cluster_articles(articles, SETTINGS, diagnostics=True, focus_ids={"late"}, seed_events=seeds)
+    assert {event.event_id: sorted(event.article_ids) for event in events} == {"gemini": ["g1", "g2", "late", "m1"]}
+    assert audit["metrics"]["articles_placed"] == 1
+
+
 def test_stories_stored_outside_the_worker_still_reach_the_index(repo):
     from newzi_backend.content import sync_content_incremental
     from newzi_engine.storage import Store
