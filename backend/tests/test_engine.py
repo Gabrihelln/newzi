@@ -430,6 +430,21 @@ def test_a_cycle_prepares_each_story_once_with_the_same_events(repo):
         clustering.prepare_similarity_features = original
 
 
+def test_headlines_need_min_shared_uncommon_words_to_resemble_each_other():
+    """story_threads skips threads sharing fewer uncommon words with a story; that is only safe while
+    _similarity is zero for every such pair, which this checks for each way a pair can qualify."""
+    from itertools import combinations
+    from newzi_backend.threads import MIN_SHARED_UNCOMMON, _similarity
+    pool = ["lula", "papa", "alta", "cirurg", "cancer", "pulmao", "hospit", "vatica"]
+    weight = {word: 1.0 for word in pool}
+    for names in (frozenset(), frozenset({"lula"}), frozenset({"lula", "papa"})):
+        for size in range(len(pool) + 1):
+            for shared in combinations(pool, size):
+                a = frozenset(shared) | {"extraa"}; b = frozenset(shared) | {"extrab"}
+                if _similarity(a, b, {**weight, "extraa": 1.0, "extrab": 1.0}, names, frozenset(pool)) > 0:
+                    assert len(shared) >= MIN_SHARED_UNCOMMON
+
+
 def test_tokens_hands_out_a_set_of_its_own():
     from newzi_engine.utils.text import tokens
     first = tokens("Google releases Gemini 4 Argon")

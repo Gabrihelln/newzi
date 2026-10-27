@@ -14,6 +14,7 @@ import math
 import re
 import unicodedata
 from collections import Counter, defaultdict
+from functools import lru_cache
 
 # Share of a headline's word weight (rarer words weigh more) two headlines must have in common.
 THREAD_SIMILARITY = 0.4
@@ -42,6 +43,10 @@ TEMPLATE_REPEATS = 4
 TEMPLATE_NAMES_PER_HEADLINE = 1.5
 # Words are compared by their first letters, so "retirar"/"retirada" and "câncer"/"cancerígeno" match.
 STEM_LENGTH = 6
+# Fewest uncommon words two headlines share when _similarity is above zero (a name and two fact words, or four
+# fact words). Threads that cannot reach it with a story are skipped without comparing their headlines: the
+# result is the same, and on a day of news (~25k headlines) comparing them all took minutes.
+MIN_SHARED_UNCOMMON = min(MIN_SHARED_NAMES + MIN_SHARED_FACT_WORDS, MIN_FACT_WORDS_WITHOUT_NAME)
 
 STOPWORDS = set("""
 para pela pelo pelos pelas como mais menos sobre após apos entre contra desde até ate ainda após antes depois
@@ -56,6 +61,7 @@ will would could should have has been being were says said new news first year y
 """.split())
 
 
+@lru_cache(maxsize=65536)
 def _plain(text):
     text = unicodedata.normalize("NFKD", (text or "").casefold())
     return "".join(char for char in text if not unicodedata.combining(char))
@@ -77,17 +83,21 @@ def _roman(word):
     return str(total) if total > 0 else None
 
 
+@lru_cache(maxsize=32768)
 def _words(title):
     """(stem, written as a name) for the words that say what a headline is about.
 
-    A word is written as a name when it is capitalized away from the start of the headline.
+    A word is written as a name when it is capitalized away from the start of the headline. Remembered per
+    headline: every briefing made in the process reads the same day of headlines again.
     """
+    found = []
     for position, match in enumerate(re.finditer(r"[^\W_]+", title or "")):
         raw = match.group()
         word = _roman(_plain(raw)) or _plain(raw)
         if word in _STOP or not (len(word) >= 4 or (any(char.isdigit() for char in word) and len(word) >= 2)):
             continue
-        yield word[:STEM_LENGTH], position > 0 and raw[:1].isupper()
+        found.append((word[:STEM_LENGTH], position > 0 and raw[:1].isupper()))
+    return tuple(found)
 
 
 def stems(title):
@@ -156,8 +166,13 @@ def story_threads(contents, explain=None):
     uncommon = frozenset(word for word, count in frequency.items() if count <= rare_limit)
     templates = _templates(ordered, words, names)
     source_of = {content["id"]: content.get("source_id") for content in ordered}
+    ignored_by_sources = {}
     def ignored_for(story_id, other_id):
-        return templates.get(source_of[story_id], frozenset()) | templates.get(source_of[other_id], frozenset())
+        pair = (source_of[story_id], source_of[other_id])
+        ignored = ignored_by_sources.get(pair)
+        if ignored is None:
+            ignored = ignored_by_sources[pair] = templates.get(pair[0], frozenset()) | templates.get(pair[1], frozenset())
+        return ignored
     def similarity(story_id, other_id):
         return _similarity(words[story_id], words[other_id], weight, names, uncommon, ignored_for(story_id, other_id))
     if explain:
@@ -175,7 +190,10 @@ def story_threads(contents, explain=None):
         story_words = words[story_id]
         thread = thread_of_event.get(event_id) if event_id else None
         if thread is None:
-            candidates = {candidate for word in story_words if word in uncommon for candidate in postings[word]}
+            # How many of the story's uncommon words each thread uses: below MIN_SHARED_UNCOMMON, no story of
+            # it can score above zero.
+            reach = Counter(candidate for word in story_words if word in uncommon for candidate in set(postings[word]))
+            candidates = [candidate for candidate, shared in reach.items() if shared >= MIN_SHARED_UNCOMMON]
             best, best_score = None, THREAD_SIMILARITY
             for candidate in sorted(candidates):
                 scores = [similarity(story_id, member) for member in members[candidate]]
@@ -218,8 +236,14 @@ def _merge_threads(thread_of, members, postings, similarity, position):
             root[thread] = root[root[thread]]
             thread = root[thread]
         return thread
-    pairs = {tuple(sorted((first, second))) for threads in postings.values()
-             for position, first in enumerate(threads) for second in threads[position + 1:]}
+    # Threads sharing fewer than MIN_SHARED_UNCOMMON uncommon words have no two stories that resemble each other.
+    together = Counter()
+    for threads in postings.values():
+        threads = sorted(set(threads))
+        for index, first in enumerate(threads):
+            for second in threads[index + 1:]:
+                together[first, second] += 1
+    pairs = [pair for pair, shared in together.items() if shared >= MIN_SHARED_UNCOMMON]
     for first, second in sorted(pairs):
         a, b = find(first), find(second)
         if a == b:
