@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Analytics Newzi</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <h1><span class="mark">N</span> Analytics Newzi</h1>
+      <label>E-mail <input id="login-email" type="email" autocomplete="username" required></label>
+      <label>Senha <input id="login-password" type="password" autocomplete="current-password" required></label>
+      <p id="login-error" class="error" hidden></p>
+      <button type="submit">Entrar</button>
+    </form>
+  </section>
+
+  <div id="app" class="shell" hidden>
+    <nav class="sidebar">
+      <div class="brand"><span class="mark">N</span> Analytics Newzi</div>
+      <a href="#/overview" data-screen="overview">Visão geral</a>
+      <a href="#/users" data-screen="users">Usuários</a>
+      <a href="#/retention" data-screen="retention">Retenção</a>
+      <a href="#/briefings" data-screen="briefings">Briefing e áudio</a>
+      <a href="#/content" data-screen="content">Conteúdo</a>
+      <a href="#/notifications" data-screen="notifications">Notificações</a>
+      <a href="#/subscriptions" data-screen="subscriptions">Assinaturas</a>
+      <a href="#/football" data-screen="football">Esportes</a>
+      <a href="#/system" data-screen="system">Sistema</a>
+      <button id="logout" class="link">Sair</button>
+    </nav>
+    <main>
+      <header class="toolbar">
+        <h2 id="title"></h2>
+        <div class="tools">
+          <select id="period" aria-label="Período">
+            <option value="1">Hoje</option>
+            <option value="7">7 dias</option>
+            <option value="30" selected>30 dias</option>
+            <option value="90">90 dias</option>
+          </select>
+          <button id="export" class="ghost" title="Exportar as tabelas desta tela em CSV">CSV</button>
+          <button id="refresh" class="ghost" title="Atualizar">Atualizar</button>
+        </div>
+      </header>
+      <div id="content" class="content"></div>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

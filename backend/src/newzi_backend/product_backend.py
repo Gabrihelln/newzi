@@ -493,7 +493,7 @@ class ProductRepository:
             "generation_jobs", "user_briefing_deliveries", "manual_refresh_requests", "notification_jobs", "push_devices",
             "notification_settings", "subscriptions", "auth_sessions", "user_preferences", "user_favorite_teams",
             "user_followed_matches", "briefing_slots", "saved_collection_items", "saved_collections", "keyword_alerts",
-            "followed_stories", "live_activity_tokens", "live_activity_starts")),
+            "followed_stories", "live_activity_tokens", "live_activity_starts", "user_activity_days")),
         "DELETE FROM users WHERE id=?",
     )
 

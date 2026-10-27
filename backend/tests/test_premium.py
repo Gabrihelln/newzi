@@ -146,7 +146,7 @@ def test_slot_migration_keeps_existing_jobs_and_deliveries(tmp_path):
     connection.execute("""INSERT INTO user_briefing_deliveries(id,user_id,edition_id,local_date,delivery_time,timezone,status,created_at)
         VALUES('d1','u1','e1','2026-10-18','06:00','UTC','READY','t')""")
     connection.commit()
-    assert migrate(connection) == ["0011_briefing_slots", "0012_premium_features"]
+    assert migrate(connection) == ["0011_briefing_slots", "0012_premium_features", "0013_admin_panel"]
     row = connection.execute("SELECT id,slot,kind FROM user_briefing_deliveries").fetchone()
     assert (row["id"], row["slot"], row["kind"]) == ("d1", 1, "SCHEDULED")
     assert connection.execute("SELECT slot FROM generation_jobs WHERE id='j1'").fetchone()[0] == 1

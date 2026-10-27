@@ -60,6 +60,13 @@ async def current_user(request: Request):
     if not identity:
         log.warning("[Backend Auth] authorization_rejected reason=%s", reason or "AUTH_REQUIRED")
         raise ApiError("AUTH_REQUIRED", "authentication required", 401)
+    from ..admin import already_recorded, record_activity
+    if not already_recorded(identity.user_id):
+        # Daily active users for the panel; a failed write never fails the request.
+        try:
+            await call(request, record_activity, service_of(request).repo, identity.user_id)
+        except Exception:
+            log.exception("[Analytics] activity_record_failed")
     return identity.user_id
 
 

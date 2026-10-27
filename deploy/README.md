@@ -62,6 +62,23 @@ Com `PUSH_PROVIDER=fcm`, o backend envia pelo Firebase Admin SDK usando a conta 
 - O worker aplica retenção uma vez por dia: remove variantes de áudio sem uso (7 dias), telemetria e jobs finalizados (30 dias) e matérias fora da janela (90 dias); briefings, entregas e itens salvos são preservados. Ajuste com `RETENTION_*` ou rode manualmente com `python -m newzi_backend.retention` (a partir de `backend/src`).
 - O SQLite atende um único host. Para PostgreSQL, defina `DATABASE_URL=postgresql://usuario:senha@host:5432/newzi` (dependência `psycopg`, já em `requirements.txt`); API e worker criam e atualizam o esquema sozinhos. O armazenamento local de áudio continua exigindo um único host ou um volume compartilhado.
 
+## Painel (Analytics Newzi)
+
+O painel privado de métricas (`docs/ANALYTICS_NEWZI.md`) é um site estático em `admin/`, servido pelo Nginx em
+`painel.newzi.app`, que conversa só com as rotas `/api/v1/admin/*` da API já existente. Não há serviço nem banco novos.
+
+1. DNS: registro `A` `painel` apontando para o IP da VPS.
+2. Senha: `/opt/newzi/.venv/bin/python /opt/newzi/backend/admin_password.py` pede a senha (mínimo 12 caracteres, sem
+   mostrá-la) e imprime a linha `ADMIN_PASSWORD_HASH=...`. Em `/etc/newzi/newzi.env`, acrescente essa linha e
+   `ADMIN_EMAIL=...` e `ADMIN_HOST=painel.newzi.app` (as rotas do painel respondem 404 em qualquer outro host, como
+   `api.newzi.app`). Sem `ADMIN_EMAIL` e `ADMIN_PASSWORD_HASH` o painel fica desligado.
+3. Nginx: copie `deploy/nginx/newzi-painel.conf.example` para `/etc/nginx/sites-available/newzi-painel`, crie o link em
+   `sites-enabled`, rode `nginx -t`, recarregue e emita o certificado com `certbot --nginx -d painel.newzi.app`.
+4. Reinicie `newzi-api` (a migração `0013_admin_panel` cria as tabelas do painel).
+
+Trocar a senha: gere um hash novo com o mesmo script, substitua a linha e reinicie a API; as sessões abertas caem.
+Cinco senhas erradas seguidas bloqueiam o login por 15 minutos; os acessos aparecem na tela Sistema do painel.
+
 ## Atualizações
 
 Atualize o checkout sem remover `/var/lib/newzi` ou os arquivos privados em `/etc/newzi`. Instale dependências, reinicie os serviços e verifique health, logs e backups. As migrações de banco são versionadas (`backend/src/newzi_backend/migrations.py`, tabela `schema_versions`) e aplicadas automaticamente na inicialização da API e do worker, uma única vez e sob trava; faça backup antes de atualizar.

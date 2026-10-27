@@ -434,6 +434,19 @@ def _premium_features(db):
             db.execute(f"ALTER TABLE notification_settings ADD COLUMN {name} {render_column('INTEGER NOT NULL DEFAULT 1', db.dialect)}")
 
 
+def _admin_panel(db):
+    """Analytics Newzi (painel.newzi.app): the panel's sessions, its action log, and the days each user used the app."""
+    integer = render_column("INTEGER", db.dialect)
+    db.execute("CREATE TABLE IF NOT EXISTS admin_sessions(token_hash TEXT PRIMARY KEY, password_tag TEXT NOT NULL, "
+               "created_at TEXT NOT NULL, expires_at TEXT NOT NULL)")
+    db.execute(f"""CREATE TABLE IF NOT EXISTS admin_actions(id {render_column('AUTO', db.dialect)}, action TEXT NOT NULL, actor TEXT,
+        client TEXT, detail_json TEXT NOT NULL DEFAULT '{{}}', ok {integer} NOT NULL DEFAULT 1, created_at TEXT NOT NULL)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_admin_actions_action ON admin_actions(action,created_at)")
+    db.execute("CREATE TABLE IF NOT EXISTS user_activity_days(user_id TEXT NOT NULL, day TEXT NOT NULL, first_seen_at TEXT NOT NULL, "
+               "PRIMARY KEY(user_id,day))")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_day ON user_activity_days(day)")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -447,6 +460,7 @@ MIGRATIONS = [
     ("0010_ingestion_owner", _ingestion_owner),
     ("0011_briefing_slots", _briefing_slots),
     ("0012_premium_features", _premium_features),
+    ("0013_admin_panel", _admin_panel),
 ]
 
 

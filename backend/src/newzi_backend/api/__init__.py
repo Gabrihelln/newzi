@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..product_backend import ApiError, ProductService
 from ..subscriptions import PremiumRequired
-from .routes import briefings, dev, me, public
+from .routes import admin, briefings, dev, me, public
 
 log = logging.getLogger("news_engine.product")
 MAX_BODY_BYTES = 1024 * 1024
@@ -79,6 +79,6 @@ def create_app(service=None):
             return error_response("RESOURCE_NOT_FOUND", "not found", 404, request)
         return error_response("HTTP_ERROR", str(exc.detail), exc.status_code, request)
 
-    for module in (public, me, briefings, dev):
+    for module in (public, me, briefings, dev, admin):
         app.include_router(module.router)
     return app
