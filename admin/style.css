@@ -38,19 +38,24 @@ button.ghost { background: transparent; border: 1px solid var(--line); color: va
 button.link { background: none; color: var(--muted); padding: 8px 0; text-align: left; font-weight: 500; }
 select, input { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 a { color: var(--accent); text-decoration: none; }
-.mark { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 800; margin-right: 6px; }
 
 /* Sign-in */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
-.login-card { width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 28px; display: grid; gap: 14px; }
-.login-card h1 { font-size: 20px; margin: 0 0 6px; display: flex; align-items: center; color: var(--brand); }
+.login { background: radial-gradient(circle at 50% 0%, var(--accent-soft), var(--bg) 60%); }
+.login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 32px 28px; display: grid; gap: 14px; box-shadow: 0 20px 50px rgba(6, 30, 57, .12); }
+.login-logo { justify-self: center; border-radius: 16px; box-shadow: 0 8px 24px rgba(2, 104, 251, .25); }
+.login-card h1 { font-size: 22px; margin: 4px 0 0; text-align: center; color: var(--brand); }
+.login-sub { text-align: center; margin: -8px 0 6px; font-size: 13px; }
+.login-card button { padding: 11px 14px; }
 .login-card label { display: grid; gap: 6px; color: var(--muted); }
 .error { color: var(--error); margin: 0; }
 
 /* Layout */
 .shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
 .sidebar { background: var(--surface); border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh; }
-.brand { font-weight: 700; color: var(--brand); display: flex; align-items: center; margin-bottom: 16px; }
+.brand { color: var(--brand); display: flex; align-items: center; gap: 10px; margin: 0 4px 18px; line-height: 1.15; font-size: 13px; }
+.brand img { border-radius: 8px; flex: none; }
+.brand b { font-size: 16px; }
 .sidebar a { color: var(--text); padding: 8px 10px; border-radius: 8px; }
 .sidebar a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .sidebar .link { margin-top: auto; padding-left: 10px; }
@@ -62,11 +67,11 @@ main { min-width: 0; }
 
 /* Blocks */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: 0 1px 2px rgba(6, 30, 57, .05); border-top: 3px solid var(--accent); }
 .card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
 .card .value { font-size: 26px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .card .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; box-shadow: 0 1px 2px rgba(6, 30, 57, .05); }
 .panel h3 { margin: 0 0 12px; font-size: 15px; }
 .panel .note { color: var(--muted); font-size: 12px; margin: -6px 0 12px; }
 .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
@@ -112,6 +117,8 @@ dl.facts dd { margin: 0; overflow-wrap: anywhere; }
   .shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; gap: 4px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
   .brand { width: 100%; margin-bottom: 6px; }
+  .brand br { display: none; }
+  .brand b { font-size: 13px; margin-left: 4px; }
   .sidebar .link { margin-top: 0; }
   .toolbar { padding: 12px 16px; position: static; }
   .content { padding: 16px 16px 40px; }

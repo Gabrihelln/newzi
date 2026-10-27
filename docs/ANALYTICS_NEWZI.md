@@ -6,8 +6,8 @@
 > Comandos na VPS são sempre passados ao Gabriel para ele rodar (ninguém acessa a VPS diretamente).
 > Ao terminar uma etapa, marque o `[ ]` como `[x]` neste arquivo.
 
-Proposta registrada em 2026-10-22. **Etapa 1 (painel somente leitura) implementada em 2026-10-27**, aguardando o deploy
-na VPS (seção 11); as demais etapas ainda não.
+Proposta registrada em 2026-10-22. **Etapa 1 (painel somente leitura) no ar desde 2026-10-27** em https://painel.newzi.app;
+as demais etapas ainda não.
 
 ## 1. A ideia
 
@@ -601,7 +601,7 @@ métricas agregadas de uso do serviço.
 6. [x] **[Claude]** Site `admin/`: login, Visão geral, Usuários, Briefing e áudio, Conteúdo, Notificações
    (só leitura), Assinaturas (dados do banco), Esportes, Sistema, mais Retenção (coortes) e exportar CSV.
 7. [x] **[Claude]** Arquivos de deploy: bloco do Nginx em `deploy/nginx`, passos no `deploy/README.md`.
-8. [ ] **[Gabriel]** Na VPS, com os comandos passados pelo Claude: `git pull`, gerar a senha do painel
+8. [x] **[Gabriel]** (feito em 2026-10-27; no ar em https://painel.newzi.app) Na VPS, com os comandos passados pelo Claude: `git pull`, gerar a senha do painel
    (`ADMIN_EMAIL` e `ADMIN_PASSWORD_HASH`), Nginx,
    Certbot, build do site, reiniciar `newzi-api` e `newzi-worker`.
 9. [ ] **[Gabriel]** Entrar no painel e conferir os números com o que conhece do app.
