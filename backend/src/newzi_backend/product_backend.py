@@ -888,9 +888,16 @@ class ProductService:
             raise ApiError("PREFERENCES_INCOMPLETE","configure topics before generating",409)
         active=self._active_on_demand(uid)
         if active: return {"generation_id":active["id"],"reason":"ON_DEMAND","status":active["status"],"stage":active["stage"],"coalesced":True}
-        # Nothing new since the earlier briefings: answered now, without a queue, an audio or a use of the day.
-        if not self.on_demand_news(uid)["new_count"]:
-            raise ApiError("NO_NEW_CONTENT","nothing new since your last briefing",409)
+        # Known to have nothing new since the earlier briefings: finished at once as NO_ELIGIBLE_CONTENT, without a
+        # queue, an audio or a use of the day, which every app version shows as "nada novo". The count itself is
+        # never made here: on a busy server it takes longer than the app waits (10 s), so when it is not known the
+        # request is queued and the worker, composing with only_new, ends it the same way if nothing is new.
+        if self._cached_on_demand_count(uid,prefs)==0:
+            generation_id="generation_"+uuid.uuid4().hex; stamp=now_iso()
+            self.repo.db.execute("""INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,finished_at,error_code,error_message)
+                VALUES(?,?,'ON_DEMAND','FAILED','FAILED_FINAL',?,?,?,'NO_ELIGIBLE_CONTENT','nothing new since your last briefing')""",(generation_id,uid,stamp,stamp,stamp))
+            self.repo.db.commit()
+            return {"generation_id":generation_id,"reason":"ON_DEMAND","status":"FAILED","stage":"FAILED_FINAL","error_code":"NO_ELIGIBLE_CONTENT","coalesced":False}
         local_date=self.local_date(prefs)
         start=datetime.combine(datetime.fromisoformat(local_date).date(),datetime.min.time(),ZoneInfo(prefs["timezone"])).astimezone(timezone.utc)
         # Under the write lock, so two taps that arrive together make one briefing.
@@ -931,14 +938,10 @@ class ProductService:
         prefs=self.repo.get_preferences(uid)
         if not prefs or (prefs.get("content_scope", "selected") != "all" and not prefs.get("topics")):
             return {"new_count":0,"generating":False,"generation_id":None}
-        db=self.repo.db
-        key=(self.local_date(prefs),json.dumps(prefs,sort_keys=True,default=str),
-             db.execute("SELECT MAX(completed_at) FROM content_ingestion_runs").fetchone()[0],
-             db.execute("SELECT MAX(generated_at) FROM briefing_editions WHERE user_id=?",(uid,)).fetchone()[0],
-             db.execute("SELECT MAX(created_at) FROM user_briefing_deliveries WHERE user_id=?",(uid,)).fetchone()[0])
-        cached=self._on_demand_news.get(uid)
-        if cached and cached[0]==key and time.monotonic()-cached[1]<self.ON_DEMAND_NEWS_SECONDS:
-            return {"new_count":cached[2],"generating":False,"generation_id":None}
+        cached=self._cached_on_demand_count(uid,prefs)
+        if cached is not None:
+            return {"new_count":cached,"generating":False,"generation_id":None}
+        key=self._on_demand_key(uid,prefs)
         from .briefing_slots import ON_DEMAND_FIRST_SLOT, slot_for
         from .content import compose
         from .scheduling import BriefingProfile
@@ -948,6 +951,21 @@ class ProductService:
         count=len(payload.get("items") or [])
         self._on_demand_news[uid]=(key,time.monotonic(),count)
         return {"new_count":count,"generating":False,"generation_id":None}
+
+    def _on_demand_key(self, uid, prefs):
+        """What the count of new stories depends on: the day, the preferences, the last collection and briefings."""
+        db=self.repo.db
+        return (self.local_date(prefs),json.dumps(prefs,sort_keys=True,default=str),
+                db.execute("SELECT MAX(completed_at) FROM content_ingestion_runs").fetchone()[0],
+                db.execute("SELECT MAX(generated_at) FROM briefing_editions WHERE user_id=?",(uid,)).fetchone()[0],
+                db.execute("SELECT MAX(created_at) FROM user_briefing_deliveries WHERE user_id=?",(uid,)).fetchone()[0])
+
+    def _cached_on_demand_count(self, uid, prefs):
+        """The count of new stories if it is known and still valid, else None (cheap: never composes)."""
+        cached=self._on_demand_news.get(uid)
+        if cached and cached[0]==self._on_demand_key(uid,prefs) and time.monotonic()-cached[1]<self.ON_DEMAND_NEWS_SECONDS:
+            return cached[2]
+        return None
 
     def generation_status(self, uid, generation_id):
         row=self.repo.db.execute("SELECT * FROM manual_refresh_requests WHERE id=? AND user_id=?",(generation_id,uid)).fetchone()
