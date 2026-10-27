@@ -404,6 +404,39 @@ def test_a_cycle_places_only_its_changed_stories(repo):
     assert audit["metrics"]["articles_placed"] == 1
 
 
+def test_a_cycle_prepares_each_story_once_with_the_same_events(repo):
+    """One news cycle clusters overlapping windows; a story's fingerprint is reused while its text is the same."""
+    from newzi_engine.clustering import events as clustering
+    stories = lambda: [story("g1", "verge", "Google releases Gemini 4 Argon, its most powerful AI model", hours_ago=3),
+                       story("g2", "wired", "Google rolls out Gemini 4 Argon, its most advanced AI model", hours_ago=2),
+                       story("a1", "engadget", "Apple unveils the iPhone 18 Pro with a new camera", hours_ago=2),
+                       story("a2", "verge", "Apple iPhone 18 Pro unveiled with new camera system", hours_ago=1),
+                       story("m1", "folha", "Filme sobre criador do ChatGPT é aclamado após Amazon largar projeto", hours_ago=1)]
+    windows = lambda articles: [articles[:4], articles[1:]]
+    expected = [groups(window) for window in windows(stories())]
+    prepared, calls = {}, []
+    original = clustering.prepare_similarity_features
+    clustering.prepare_similarity_features = lambda article: calls.append(article.article_id) or original(article)
+    try:
+        got = [sorted(sorted(event.article_ids) for event in clustering.cluster_articles(window, SETTINGS, prepared=prepared))
+               for window in windows(stories())]
+        assert got == expected and sorted(calls) == ["a1", "a2", "g1", "g2", "m1"]      # each story once
+        # A story whose text changed is prepared again.
+        changed = stories(); changed[0].title = "Google delays Gemini 4 Argon"
+        calls.clear()
+        clustering.cluster_articles(changed[:4], SETTINGS, prepared=prepared)
+        assert calls == ["g1"]
+    finally:
+        clustering.prepare_similarity_features = original
+
+
+def test_tokens_hands_out_a_set_of_its_own():
+    from newzi_engine.utils.text import tokens
+    first = tokens("Google releases Gemini 4 Argon")
+    first.add("changed")
+    assert "changed" not in tokens("Google releases Gemini 4 Argon")
+
+
 def test_stories_stored_outside_the_worker_still_reach_the_index(repo):
     from newzi_backend.content import sync_content_incremental
     from newzi_engine.storage import Store

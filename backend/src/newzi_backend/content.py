@@ -408,6 +408,8 @@ def _cluster_incremental_content(repo, changed_articles):
     cluster_phase_ms=0.0; feature_ms=candidate_ms=prune_ms=similarity_ms=0.0
     claimed=set()  # an event split in two keeps its id on one side only
     writes=ShortWrites(repo)
+    # The windows overlap, so most stories are in several: each is classified and fingerprinted once per call.
+    genres={}; prepared={}
     for group in groups:
         # The previous window's event ids are saved before this window's comparisons, which take seconds.
         writes.release()
@@ -426,12 +428,14 @@ def _cluster_incremental_content(repo, changed_articles):
             article=Article(row["id"],row["source_id"],row["source_name"],row["title"],row["description"] or "",
                 row["url"],row["url"],published,collected,row["source_language"] or "en",
                 categories=(row["taxonomy_ids"] or "").split(",") if row["taxonomy_ids"] else [],publisher_id=row["source_id"])
-            article.content_genre=clustering_genre(article)
+            genre=genres.get(article.title)
+            if genre is None: genre=genres[article.title]=clustering_genre(article)
+            article.content_genre=genre
             articles.append(article);event_ids[article.article_id]=row["event_id"]
         if not articles: continue
         considered+=len(articles)
         # Only this cycle's stories are placed; the rest of the window keeps its events and is only joined.
-        phase=time.perf_counter(); events,audit=cluster_articles(articles,settings,load_sources(),diagnostics=True,focus_ids=changed_ids,seed_events=event_ids)
+        phase=time.perf_counter(); events,audit=cluster_articles(articles,settings,load_sources(),diagnostics=True,focus_ids=changed_ids,seed_events=event_ids,prepared=prepared)
         cluster_phase_ms+=(time.perf_counter()-phase)*1000
         metrics=audit.get("metrics",{}); timings=metrics.get("timings_ms",{})
         comparisons+=int(metrics.get("pair_comparisons",0));possible_pairs+=int(metrics.get("possible_pairs",0))

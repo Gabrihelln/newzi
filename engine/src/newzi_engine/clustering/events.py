@@ -24,19 +24,34 @@ def _representative(articles, source_priorities=None):
     priorities = source_priorities or {}
     return sorted(articles, key=lambda a: (a.language != "pt-BR", -priorities.get(a.source_id, 5), -len(a.title)))[0].title
 
-def cluster_articles(articles, settings, sources=None, diagnostics=False, focus_ids=None, seed_events=None):
+def cluster_articles(articles, settings, sources=None, diagnostics=False, focus_ids=None, seed_events=None, prepared=None):
     """Group stories into events in one pass, oldest first.
 
     With ``focus_ids`` only those stories are placed; every other story keeps the event named in
     ``seed_events`` (or stays alone) and is only a candidate to join. A news cycle changes a few
     hundred stories of tens of thousands in the window, and re-deciding them all took hours.
+
+    ``prepared``: a dict the caller keeps across calls whose windows overlap (one news cycle clusters
+    several), so a story is fingerprinted once per cycle instead of once per window. An entry is
+    reused only while the story's title, description and genre are the same; the result is identical.
     """
     cluster_started = time.perf_counter()
     cfg = settings.get("clustering", {}); window_hours = cfg.get("time_window_hours", 72); events = []; audit = {"merges": [], "near_misses": []}; priorities = {s["id"]: s.get("priority", 5) for s in (sources or [])}
     feature_started = time.perf_counter()
-    for article in articles: apply_fingerprint(article)
+
+    def prepare(article):
+        key = (article.title, article.description, article.content_genre)
+        hit = prepared.get(article.article_id) if prepared is not None else None
+        if hit and hit[0] == key:
+            article.fingerprint = hit[1]
+        else:
+            apply_fingerprint(article)
+            hit = (key, article.fingerprint, prepare_similarity_features(article))
+            if prepared is not None: prepared[article.article_id] = hit
+        # A copy: mark_specific_terms adds this batch's "specific" terms to it.
+        return dict(hit[2])
     ordered = sorted(articles, key=lambda a: a.published_at or a.collected_at)
-    features = mark_specific_terms([prepare_similarity_features(article) for article in ordered])
+    features = mark_specific_terms([prepare(article) for article in ordered])
     feature_ms = (time.perf_counter() - feature_started) * 1000
     postings = defaultdict(list)
     article_events = {}

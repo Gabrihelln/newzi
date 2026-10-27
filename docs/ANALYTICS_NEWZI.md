@@ -710,4 +710,9 @@ Tudo o que ainda falta, em um só lugar. **[G]** = Gabriel, **[C]** = Claude.
 - [ ] **[C]** Etapa 4 (com a versão 1.1, depois da aprovação da 1.0): eventos no app, tela Engajamento e taxa de
   abertura dos pushes; **[G]** política de privacidade, App Privacy e Segurança dos dados antes de enviar.
 - [ ] **[C]** Junto da próxima versão do app: texto de cortesia na tela de assinatura (tabela acima).
+- [ ] **[C]** Junto da próxima versão do app (código já pronto em `mobile/`, sem commit até o build): o "Gerar agora"
+  continua acompanhando depois de 4 min (o aviso "Está demorando…" deixa de ser erro e some quando o áudio fica
+  pronto, trocado por "Seu novo resumo está pronto"), além do "Em dia" de 2026-10-25.
+- [ ] **[G]** Premium dado pelo painel só aparece no app ao reabrir ou voltar do segundo plano (o app só pergunta o
+  plano nesses momentos). Correção definitiva pede build nova.
 - [ ] **[C]** Quando o painel ficar lento: resumo diário no worker (seção 2.4).

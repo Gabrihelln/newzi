@@ -179,6 +179,10 @@ def strip_junk_text(value: str | None) -> str:
     cleaned = _LEADING_MARKS.sub("", cleaned)
     return _SPACES.sub(" ", cleaned).strip()
 
+# Clustering normalizes the same few strings of a story (its title, title + description) several times per story
+# and re-prepares every story of the window each news cycle; remembering recent answers makes that a lookup. The
+# answers are the same either way (pure functions of the text), and the bound keeps the memory small.
+@lru_cache(maxsize=8192)
 def normalize_title(value: str) -> str:
     value = clean_text(value)
     value = value.replace("Ã¢â‚¬â€", " ").replace("Ã¢â‚¬â€œ", " ").replace("Ã¢â‚¬â„¢", " ").replace("Ã¢â‚¬Å“", " ").replace("Ã¢â‚¬Â", " ")
@@ -196,6 +200,11 @@ def article_id(source_id: str, canonical_url: str, title: str) -> str:
     key = canonical_url or f"{source_id}:{normalize_title(title)}"
     return hashlib.sha256(key.encode()).hexdigest()[:24]
 
+@lru_cache(maxsize=8192)
+def _token_set(text: str) -> frozenset[str]:
+    return frozenset(t for t in re.findall(r"[a-z0-9]{3,}", normalize_title(text).replace(" ", " ")) if t not in STOPWORDS)
+
 def tokens(text: str) -> set[str]:
-    return {t for t in re.findall(r"[a-z0-9]{3,}", normalize_title(text).replace(" ", " ")) if t not in STOPWORDS}
+    # A copy: callers may change the set they get.
+    return set(_token_set(text))
 
