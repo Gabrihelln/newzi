@@ -54,9 +54,12 @@ NOTIFICATION_KINDS = {
     "TEAM_REMINDER": NotificationKind("TEAM_REMINDER", "team_reminder_enabled", "team_alerts", timedelta(minutes=15)),
     "KEYWORD_ALERT": NotificationKind("KEYWORD_ALERT", "keyword_alerts_enabled", "personal_alerts", timedelta(hours=1)),
     "STORY_UPDATE": NotificationKind("STORY_UPDATE", "story_updates_enabled", "personal_alerts", timedelta(hours=2)),
+    # Announcements and promotions sent from the panel (admin_push.py). They have no switch of their own, only the
+    # main one; the Android channels exist since app 1.0. The Firebase console can still send them to the FCM
+    # topics every phone joins (mobile/src/push/topics.ts).
+    "ANNOUNCEMENT": NotificationKind("ANNOUNCEMENT", "notifications_enabled", "announcements", timedelta(hours=24)),
+    "PROMOTION": NotificationKind("PROMOTION", "notifications_enabled", "promotions", timedelta(hours=24)),
 }
-# Announcements and promotions are not here: they are sent from the Firebase console to the FCM topics every
-# phone joins (mobile/src/push/topics.ts), to everyone whose phone allows notifications, with no switch.
 # Every switch and its value for a new account.
 SETTING_DEFAULTS = {"notifications_enabled": True, "daily_briefing_enabled": True, "breaking_news_enabled": False,
                     "team_kickoff_enabled": True, "team_goals_enabled": True, "team_final_enabled": True, "team_news_enabled": True,

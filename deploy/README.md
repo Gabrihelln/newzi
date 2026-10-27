@@ -76,6 +76,12 @@ O painel privado de métricas (`docs/ANALYTICS_NEWZI.md`) é um site estático e
    `sites-enabled`, rode `nginx -t`, recarregue e emita o certificado com `certbot --nginx -d painel.newzi.app`.
 4. Reinicie `newzi-api` (a migração `0013_admin_panel` cria as tabelas do painel).
 
+Pelo painel também se dá Premium com data inicial e final e se enviam avisos e promoções por push (agora ou
+agendados); o worker (papel `notifications`) libera os agendados, então reinicie `newzi-worker` junto com a API ao
+atualizar. Vendas na tela Assinaturas: os eventos do webhook do RevenueCat são guardados sozinhos; para as métricas
+gerais (MRR etc.) acrescente `REVENUECAT_API_V2_KEY` (chave v2 somente leitura, permissão *Charts metrics*) e
+`REVENUECAT_PROJECT_ID` ao `newzi.env`.
+
 Trocar a senha: gere um hash novo com o mesmo script, substitua a linha e reinicie a API; as sessões abertas caem.
 Cinco senhas erradas seguidas bloqueiam o login por 15 minutos; os acessos aparecem na tela Sistema do painel.
 

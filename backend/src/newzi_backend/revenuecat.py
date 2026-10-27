@@ -11,6 +11,9 @@ The app logs into RevenueCat with the backend user id, so every RevenueCat ``app
 Both read the subscriber from RevenueCat's REST API (REVENUECAT_SECRET_KEY, a secret ``sk_`` key) and write the
 ``subscriptions`` row from it, so the row always matches what RevenueCat knows, whatever the order the events
 arrive in. Without the secret key the webhook falls back to the event's own fields.
+
+Every webhook event is also kept in ``billing_events`` (type, price, trial or not, cancel reason), which is where
+the panel's sales numbers come from: trials, conversions, cancellations, refunds and revenue (billing.py).
 """
 import logging
 import os
@@ -130,6 +133,28 @@ def apply_event(repo, event, now=None):
                  unsubscribed=kind == "CANCELLATION", now=now)
 
 
+def _number(value):
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def record_event(repo, event, uid, now=None):
+    """Keep the event for the panel's sales numbers; RevenueCat's own id makes a redelivery a no-op."""
+    if not event.get("id") or not event.get("type"):
+        return
+    stamp = iso(now or datetime.now(timezone.utc))
+    repo.db.execute("""INSERT INTO billing_events(id,type,user_id,product_id,period_type,store,environment,price_usd,price_local,currency,
+        takehome,is_trial_conversion,cancel_reason,event_at,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING""",
+        (str(event["id"])[:100], str(event["type"])[:40], uid, event.get("product_id"), event.get("period_type"),
+         STORES.get(event.get("store") or "", event.get("store")), event.get("environment"), _number(event.get("price")),
+         _number(event.get("price_in_purchased_currency")), event.get("currency"), _number(event.get("takehome_percentage")),
+         1 if event.get("is_trial_conversion") else 0, event.get("cancel_reason"),
+         _ms(event.get("event_timestamp_ms")) or stamp, stamp))
+    repo.db.commit()
+
+
 def handle_webhook(repo, authorization, body, client=None, now=None):
     """A RevenueCat webhook call: ``(http_status, response_body)``."""
     expected = webhook_auth()
@@ -142,6 +167,11 @@ def handle_webhook(repo, authorization, body, client=None, now=None):
     candidates = [event.get("app_user_id"), event.get("original_app_user_id"), *(event.get("aliases") or [])]
     uid = next((item for item in candidates if _user_exists(repo, item)), None)
     log.info("[Billing] webhook type=%s user=%s environment=%s", event.get("type"), uid, event.get("environment"))
+    try:
+        record_event(repo, event, uid, now)
+    except Exception:
+        repo.db.rollback()
+        log.exception("[Billing] event_record_failed type=%s", event.get("type"))
     if not uid:
         return 200, {"status": "ignored"}       # anonymous or unknown user: nothing to write, never retry
     if not secret_key():

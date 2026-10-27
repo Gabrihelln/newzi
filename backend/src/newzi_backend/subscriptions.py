@@ -4,12 +4,17 @@ Premium is bought in the store (App Store, later Google Play) through RevenueCat
 call write the ``subscriptions`` table (``revenuecat.py``). BILLING_ENABLED tells the app it may sell; while it is
 off the app shows the plans without selling.
 
+Premium also comes from ``premium_grants``: a courtesy given from the panel (painel.newzi.app) or by
+``backend/premium_test_account.py``, from a start date to an end date. It lives in its own table, so a store
+purchase and a courtesy never overwrite each other; an account is Premium while either is valid.
+
 The Premium limits only apply with PREMIUM_ENFORCED on. While it is off (until purchases work) everyone keeps
 every feature, so a deploy never takes away what people use today; ``backend/premium_test_account.py`` marks an
 account Premium (or Básico) to test both sides with it on. Every premium rule is decided here, on the server,
 never only in the app.
 """
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from .timeutil import iso
@@ -58,16 +63,23 @@ def premium_enforced():
 
 
 def _row(repo, uid):
-    return repo.db.execute("SELECT period,status,expires_at,auto_renew FROM subscriptions WHERE user_id=?", (uid,)).fetchone()
+    return repo.db.execute("SELECT period,status,expires_at,auto_renew,store FROM subscriptions WHERE user_id=?", (uid,)).fetchone()
 
 
 def _active(row, now):
     return bool(row) and row["status"] in WITH_ACCESS and (row["expires_at"] or "") > now
 
 
+def current_grant(repo, uid, now):
+    """The courtesy valid at ``now`` (ISO) that lasts longest, or None."""
+    return repo.db.execute("""SELECT id,starts_at,ends_at,reason FROM premium_grants WHERE user_id=? AND revoked_at IS NULL
+        AND starts_at<=? AND ends_at>? ORDER BY ends_at DESC LIMIT 1""", (uid, now, now)).fetchone()
+
+
 def is_premium(repo, uid, now=None):
-    """Whether the account holds a Premium plan right now."""
-    return _active(_row(repo, uid), iso(now or datetime.now(timezone.utc)))
+    """Whether the account holds Premium right now: a store plan or a valid courtesy."""
+    now = iso(now or datetime.now(timezone.utc))
+    return _active(_row(repo, uid), now) or current_grant(repo, uid, now) is not None
 
 
 def has_premium_features(repo, uid, now=None):
@@ -102,16 +114,20 @@ def subscription_for(repo, uid, now=None):
     """The user's plan, what it unlocks, and the plans on offer."""
     now = iso(now or datetime.now(timezone.utc))
     row = _row(repo, uid)
-    premium = _active(row, now)
+    store = _active(row, now)
+    # The store plan wins when both exist (it renews and can be managed in the store).
+    grant = None if store else current_grant(repo, uid, now)
+    premium = store or grant is not None
     tier = "premium" if premium else "basic"
     from .briefing_slots import used_briefing_times
     return {
         "tier": tier,
-        "period": row["period"] if premium else None,
-        "status": row["status"] if premium else "active",
-        "expires_at": row["expires_at"] if premium else None,
-        "will_renew": premium and bool(row["auto_renew"]) and row["status"] != "canceled",
-        "payment_issue": premium and row["status"] == "grace",
+        "period": row["period"] if store else None,
+        "status": row["status"] if store else "active",
+        "expires_at": row["expires_at"] if store else grant["ends_at"] if grant else None,
+        "will_renew": store and bool(row["auto_renew"]) and row["status"] != "canceled",
+        "payment_issue": store and row["status"] == "grace",
+        "source": "store" if store else "courtesy" if grant else None,
         "limits": LIMITS[tier],
         "usage": {"briefing_times": used_briefing_times(repo, uid)},
         "entitlements": entitlements(repo, uid),
@@ -123,16 +139,62 @@ def subscription_for(repo, uid, now=None):
     }
 
 
-def grant_manual(repo, uid, days=30, period="monthly"):
-    """Mark an account Premium for ``days`` (tests and support; the store webhook writes real plans)."""
-    now = datetime.now(timezone.utc)
-    repo.db.execute("""INSERT INTO subscriptions(user_id,period,status,store,product_id,purchase_token,started_at,expires_at,auto_renew,updated_at)
-        VALUES(?,?,'active','manual',NULL,NULL,?,?,0,?) ON CONFLICT(user_id) DO UPDATE SET period=excluded.period,status='active',
-        store='manual',started_at=excluded.started_at,expires_at=excluded.expires_at,auto_renew=0,updated_at=excluded.updated_at""",
-        (uid, period, iso(now), iso(now + timedelta(days=days)), iso(now)))
+# ------------------------------------------------------------- courtesy Premium (premium_grants)
+GRANT_REASONS = ("cortesia", "parceria", "suporte", "teste", "outro")
+
+
+def _clean_grant(starts_at, ends_at, reason, note):
+    if not starts_at or not ends_at or ends_at <= starts_at:
+        raise ValueError("the end date must come after the start date")
+    if reason not in GRANT_REASONS:
+        raise ValueError("reason must be one of: " + ", ".join(GRANT_REASONS))
+    return (str(note or "").strip()[:300] or None)
+
+
+def add_grant(repo, uid, starts_at, ends_at, reason="cortesia", note=None, granted_by=None, now=None):
+    """Give ``uid`` Premium from ``starts_at`` to ``ends_at`` (ISO, UTC); returns the grant id."""
+    note = _clean_grant(starts_at, ends_at, reason, note)
+    stamp = iso(now or datetime.now(timezone.utc))
+    grant_id = "grant_" + uuid.uuid4().hex
+    repo.db.execute("""INSERT INTO premium_grants(id,user_id,starts_at,ends_at,reason,note,granted_by,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?)""", (grant_id, uid, starts_at, ends_at, reason, note, granted_by, stamp, stamp))
     repo.db.commit()
+    return grant_id
+
+
+def update_grant(repo, grant_id, starts_at, ends_at, reason, note, now=None):
+    note = _clean_grant(starts_at, ends_at, reason, note)
+    changed = repo.db.execute("""UPDATE premium_grants SET starts_at=?,ends_at=?,reason=?,note=?,updated_at=?
+        WHERE id=? AND revoked_at IS NULL""", (starts_at, ends_at, reason, note, iso(now or datetime.now(timezone.utc)), grant_id)).rowcount
+    repo.db.commit()
+    return changed == 1
+
+
+def revoke_grant(repo, grant_id, revoked_by=None, now=None):
+    """End a courtesy now (it stays in the history)."""
+    stamp = iso(now or datetime.now(timezone.utc))
+    changed = repo.db.execute("UPDATE premium_grants SET revoked_at=?,revoked_by=?,updated_at=? WHERE id=? AND revoked_at IS NULL",
+                              (stamp, revoked_by, stamp, grant_id)).rowcount
+    repo.db.commit()
+    return changed == 1
+
+
+def grant_status(row, now):
+    """ativo, agendado, encerrado or retirado, for the panel."""
+    if row["revoked_at"]:
+        return "retirado"
+    if row["starts_at"] > now:
+        return "agendado"
+    return "ativo" if row["ends_at"] > now else "encerrado"
+
+
+def grant_manual(repo, uid, days=30, period="monthly"):
+    """Mark an account Premium for ``days`` from now (tests and support; the store webhook writes real plans)."""
+    now = datetime.now(timezone.utc)
+    return add_grant(repo, uid, iso(now), iso(now + timedelta(days=days)), "teste", granted_by="script", now=now)
 
 
 def revoke_manual(repo, uid):
-    repo.db.execute("DELETE FROM subscriptions WHERE user_id=?", (uid,))
-    repo.db.commit()
+    """End every courtesy of the account now; a store plan is left alone."""
+    for row in repo.db.execute("SELECT id FROM premium_grants WHERE user_id=? AND revoked_at IS NULL", (uid,)).fetchall():
+        revoke_grant(repo, row["id"], "script")

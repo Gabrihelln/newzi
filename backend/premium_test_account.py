@@ -5,7 +5,8 @@
     python backend/premium_test_account.py EMAIL status
 
 The Premium limits only apply with PREMIUM_ENFORCED=true in .env (restart the API and the worker after changing
-it); with it off everyone keeps every feature. A granted plan is stored with store='manual' and does not renew.
+it); with it off everyone keeps every feature. A grant is a courtesy in premium_grants, the same as "Dar Premium"
+on painel.newzi.app, and revoke ends the courtesies only (a store plan is left alone).
 """
 import argparse
 import os

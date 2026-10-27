@@ -6,8 +6,9 @@
 > Comandos na VPS são sempre passados ao Gabriel para ele rodar (ninguém acessa a VPS diretamente).
 > Ao terminar uma etapa, marque o `[ ]` como `[x]` neste arquivo.
 
-Proposta registrada em 2026-10-22. **Etapa 1 (painel somente leitura) no ar desde 2026-10-27** em https://painel.newzi.app;
-as demais etapas ainda não.
+Proposta registrada em 2026-10-22. **Etapa 1 (painel somente leitura) no ar desde 2026-10-27** em https://painel.newzi.app.
+**Etapas 2 (push e Premium pelo painel) e 3 (vendas) implementadas em 2026-10-27**, aguardando o deploy na VPS. Nenhuma das
+três precisa de versão nova do app. O que falta está na seção 13 (Pendências).
 
 ## 1. A ideia
 
@@ -608,21 +609,37 @@ métricas agregadas de uso do serviço.
 
 ### Etapa 2: envio de push e Premium pelo painel (sem versão nova do app)
 
-1. [ ] **[Claude]** Conferir se `subscriptions` guarda quem deixou de ser Premium; se não, criar
-   `subscription_history` (seção 8.3).
-2. [ ] **[Claude]** Tela Enviar push (seção 8): tipo, públicos e filtros, conteúdo, prévia, confirmação, envio na
-   hora, agendamento (editar, cancelar, enviar agora) e registro. Worker enviando os agendados a cada minuto.
-3. [ ] **[Claude]** Testes; envio de teste para um usuário só.
-4. [ ] **[Claude]** Premium pelo painel (seção 7.1): tabela `premium_grants`, regra de acesso loja + grant com
-   data inicial, migração dos `store='manual'`, rotas para dar, alterar e retirar, tela no detalhe do usuário e
-   lista dos grants, `premium_test_account.py` usando a mesma função, testes (agendado, vencido, retirado, junto
-   com assinatura da loja).
-5. [ ] **[Gabriel]** Testar no próprio celular (Android e iPhone) e decidir se o Firebase Console deixa de ser usado.
+1. [x] **[Claude]** Histórico do Premium: `subscriptions` mantém a linha quando a assinatura vence ou é cancelada
+   (o webhook só muda o `status`), e o Premium dado pelo painel fica em `premium_grants` com data de retirada. Não
+   foi preciso `subscription_history`. "Já foi Premium" = teve assinatura da loja **ou** cortesia.
+2. [x] **[Claude]** Tela **Enviar push** (`backend/src/newzi_backend/admin_push.py`, seção 8): tipo, públicos e
+   filtros, destino ao tocar, imagem, prévia do celular, contagem de pessoas e aparelhos, confirmação "ENVIAR",
+   envio na hora ou agendado (editar, cancelar, enviar agora, duplicar) e histórico com resultado. O worker (papel
+   `notifications`) libera os agendados a cada ciclo (~15 s). Tipos de push novos `ANNOUNCEMENT` e `PROMOTION`, nos
+   canais Android `announcements` e `promotions` que já existem no app 1.0.
+3. [x] **[Claude]** Testes (`backend/tests/test_admin_writes.py`). Para o envio de teste, use "Ou só estes e-mails"
+   com o seu e-mail.
+4. [x] **[Claude]** Premium pelo painel (seção 7.1): tabela `premium_grants`, regra de acesso loja **ou** cortesia
+   com data inicial, migração `0014_panel_writes` (move os `store='manual'`), rotas para dar, alterar e retirar,
+   tela **Dar Premium** e histórico no detalhe do usuário, `premium_test_account.py` usando as mesmas funções.
+5. [ ] **[Gabriel]** Deploy (seção 13) e testar no próprio celular (Android e iPhone): um Aviso, uma Promoção que
+   abre a tela de assinatura, e um Premium dado com data. Depois decidir se o Firebase Console deixa de ser usado.
 
 ### Etapa 3: vendas completas (sem versão nova do app)
 
-1. [ ] **[Gabriel]** Criar uma chave de API (somente leitura) no RevenueCat e colocar em `/etc/newzi/newzi.env`.
-2. [ ] **[Claude]** Resumo diário lendo a API do RevenueCat: testes grátis, conversões, cancelamentos, reembolsos, receita, MRR.
+1. [x] **[Claude]** Cada evento do webhook do RevenueCat agora fica em `billing_events` (`revenuecat.py`), e a tela
+   **Assinaturas** mostra, por período: testes grátis iniciados, convertidos e cancelados, novas assinaturas,
+   renovações, cancelamentos, reembolsos, receita bruta por moeda, líquido estimado e receita por dia
+   (`billing.py`). Compras sandbox ficam de fora. Os números começam no deploy (o RevenueCat não reenvia o passado).
+2. [x] **[Claude]** Bloco "RevenueCat agora" com as métricas oficiais (MRR, assinaturas e testes ativos, receita
+   dos últimos 28 dias), lidas da API v2 e guardadas por 10 minutos. Só aparece com a chave configurada.
+3. [ ] **[Gabriel]** No RevenueCat: *Project settings → API keys → + New secret API key*, versão **V2**, permissão
+   **somente leitura** em *Charts metrics* (o resto sem acesso). Copiar a chave (`sk_...`) e o **Project ID**
+   (aparece na URL do projeto, `proj...`), e colocar em `/etc/newzi/newzi.env`:
+   `REVENUECAT_API_V2_KEY=sk_...` e `REVENUECAT_PROJECT_ID=proj...`. Reiniciar `newzi-api`.
+4. [ ] **[Gabriel]** Conferir que o webhook do RevenueCat está ligado (sem ele não há eventos de venda): em
+   `/etc/newzi/newzi.env` precisa existir `REVENUECAT_WEBHOOK_AUTH`, e no RevenueCat, *Integrations → Webhooks*,
+   a URL `https://api.newzi.app/api/v1/webhooks/revenuecat` com o mesmo valor no campo *Authorization*.
 
 ### Etapa 4: eventos do app (versão 1.1, Apple e Google Play)
 
@@ -651,3 +668,46 @@ métricas agregadas de uso do serviço.
 - [ ] Premium pelo painel (7.1): avisar o usuário por push quando o Premium dado começar ou estiver para vencer,
   ou não avisar.
 - [ ] Se os avisos automáticos (6.17) chegam por push no celular do Gabriel, por e-mail, ou só no painel.
+
+## 13. Pendências (atualizado em 2026-10-27)
+
+Tudo o que ainda falta, em um só lugar. **[G]** = Gabriel, **[C]** = Claude.
+
+### Precisa de versão nova do app?
+
+| O quê | Etapa | Versão nova? |
+|---|---|---|
+| Painel de leitura (todas as telas) | 1 | **Não** (no ar) |
+| Dar Premium com data inicial e final | 2 | **Não**: o app pergunta o plano ao servidor |
+| Enviar Aviso e Promoção, agora ou agendado, com público | 2 | **Não**: canais Android e destinos (`screen`, `story_id`, `url`) já existem no 1.0 |
+| Vendas: testes grátis, conversões, cancelamentos, reembolsos, receita, MRR | 3 | **Não**: só servidor e RevenueCat |
+| Avisos automáticos para o Gabriel | 5 | **Não** |
+| Telas visitadas, sessões, tempo de uso, **aberturas de push** | 4 | **Sim** (versão 1.1) |
+| Texto "Premium de cortesia até DD/MM" no app (hoje aparece "Premium até DD/MM. A renovação está desligada." e o link "Gerenciar na App Store") | melhoria | **Sim**, entra em qualquer versão futura (o servidor já manda `source: "courtesy"`) |
+
+### Para colocar as etapas 2 e 3 no ar
+
+1. [ ] **[G]** Na VPS: `cd /opt/newzi && git pull && systemctl restart newzi-api newzi-worker`. A API cria as
+   tabelas novas sozinha (migração `0014_panel_writes`); o worker precisa reiniciar para mandar os agendados.
+2. [ ] **[G]** Testar no celular: Enviar push → "Ou só estes e-mails" com o seu e-mail → um Aviso e uma Promoção
+   que abre a tela de assinatura; Dar Premium para a sua conta por 1 dia e ver o app liberar.
+3. [ ] **[G]** RevenueCat: chave da API v2 somente leitura e Project ID no `newzi.env` (etapa 3, item 3).
+4. [ ] **[G]** RevenueCat: conferir o webhook (etapa 3, item 4).
+
+### Decisões
+
+- [ ] **[G]** Firebase Console: continuar usando para push ou passar tudo para o painel. Os dois funcionam juntos;
+  o painel tem público, agendamento e histórico, o Console manda para todo mundo pelos tópicos.
+- [ ] **[G]** Premium pelo painel: avisar o usuário por push quando a cortesia começar ou estiver para vencer.
+- [ ] **[G]** Etapa 4: aprovar a lista de eventos (seção 9), a opção "Compartilhar dados de uso" e o prazo de
+  guarda dos eventos (90 dias sugerido).
+- [ ] **[G]** Etapa 5: como os avisos automáticos chegam (push no celular, e-mail ou só no painel).
+
+### Próximas etapas
+
+- [ ] **[G]** Etapa 1, item 9: conferir os números do painel com o que conhece do app.
+- [ ] **[C]** Etapa 5: avisos automáticos (worker parado, áudio falhando, fonte sem notícias, backup, disco).
+- [ ] **[C]** Etapa 4 (com a versão 1.1, depois da aprovação da 1.0): eventos no app, tela Engajamento e taxa de
+  abertura dos pushes; **[G]** política de privacidade, App Privacy e Segurança dos dados antes de enviar.
+- [ ] **[C]** Junto da próxima versão do app: texto de cortesia na tela de assinatura (tabela acima).
+- [ ] **[C]** Quando o painel ficar lento: resumo diário no worker (seção 2.4).

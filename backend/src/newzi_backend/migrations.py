@@ -447,6 +447,31 @@ def _admin_panel(db):
     db.execute("CREATE INDEX IF NOT EXISTS idx_user_activity_day ON user_activity_days(day)")
 
 
+def _panel_writes(db):
+    """Premium given from the panel (own table, so a store purchase and a courtesy never overwrite each other), the
+    panel's push campaigns, and the RevenueCat events behind the sales numbers."""
+    integer, real = render_column("INTEGER", db.dialect), render_column("REAL", db.dialect)
+    db.execute("""CREATE TABLE IF NOT EXISTS premium_grants(id TEXT PRIMARY KEY, user_id TEXT NOT NULL, starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL, reason TEXT NOT NULL, note TEXT, granted_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        revoked_at TEXT, revoked_by TEXT)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_premium_grants_user ON premium_grants(user_id,ends_at)")
+    # Plans marked with backend/premium_test_account.py lived in subscriptions as store='manual'.
+    for row in db.execute("SELECT user_id,started_at,expires_at,updated_at FROM subscriptions WHERE store='manual'").fetchall():
+        db.execute("INSERT INTO premium_grants(id,user_id,starts_at,ends_at,reason,note,granted_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                   ("grant_" + row["user_id"][:24] + "_" + (row["updated_at"] or "")[:10], row["user_id"], row["started_at"] or row["updated_at"],
+                    row["expires_at"], "teste", "migrado do premium_test_account.py", "script", row["updated_at"], row["updated_at"]))
+    db.execute("DELETE FROM subscriptions WHERE store='manual'")
+    db.execute(f"""CREATE TABLE IF NOT EXISTS admin_push_campaigns(id TEXT PRIMARY KEY, kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
+        target_json TEXT NOT NULL DEFAULT '{{}}', audience_json TEXT NOT NULL DEFAULT '{{}}', scheduled_for TEXT NOT NULL, status TEXT NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, dispatched_at TEXT, cancelled_at TEXT, users {integer}, devices {integer},
+        results_json TEXT)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_push_campaigns_due ON admin_push_campaigns(status,scheduled_for)")
+    db.execute(f"""CREATE TABLE IF NOT EXISTS billing_events(id TEXT PRIMARY KEY, type TEXT NOT NULL, user_id TEXT, product_id TEXT,
+        period_type TEXT, store TEXT, environment TEXT, price_usd {real}, price_local {real}, currency TEXT, takehome {real},
+        is_trial_conversion {integer} NOT NULL DEFAULT 0, cancel_reason TEXT, event_at TEXT NOT NULL, created_at TEXT NOT NULL)""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_billing_events_at ON billing_events(event_at)")
+
+
 MIGRATIONS = [
     ("0001_baseline", _baseline),
     ("0002_hot_path_indexes", _hot_path_indexes),
@@ -461,6 +486,7 @@ MIGRATIONS = [
     ("0011_briefing_slots", _briefing_slots),
     ("0012_premium_features", _premium_features),
     ("0013_admin_panel", _admin_panel),
+    ("0014_panel_writes", _panel_writes),
 ]
 
 

@@ -674,6 +674,8 @@ class BriefingDeliveryWorker:
             result["personal_alerts"]=self.personal_alerts.run_once()
         if "football" in roles: result["football_alerts"]=self.football.run_once()
         if "notifications" in roles:
+            from .admin_push import dispatch_due
+            result["push_campaigns"]=dispatch_due(self.repo)
             result["notifications_enqueued"]=self.notifications.enqueue_ready()
             result["notification_delivery"]=self.notifications.run_batch(self.notification_batch)
         if "retention" in roles: result["retention"]=self._retention_if_due()

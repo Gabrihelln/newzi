@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .admin import analytics_zone, local_day
 from .subscriptions import WITH_ACCESS
+from .admin_premium import grants
 from .timeutil import iso, parse
 
 MAX_DAYS = 120
@@ -70,13 +71,21 @@ def _active_users(repo, since_day, until_day=None):
     return _one(repo, "SELECT COUNT(DISTINCT user_id) FROM user_activity_days WHERE day>=?", (since_day,)) or 0
 
 
+def _premium_now(repo, now):
+    """``(paid, courtesy)``: user ids with a store plan, and with a valid courtesy (premium_grants), right now."""
+    stamp = iso(now)
+    paid = {row["user_id"]: row for row in _all(repo, "SELECT user_id,store,period,status,expires_at FROM subscriptions WHERE expires_at>?", (stamp,))
+            if row["status"] in WITH_ACCESS}
+    courtesy = {row["user_id"] for row in _all(repo, """SELECT user_id FROM premium_grants WHERE revoked_at IS NULL AND starts_at<=?
+        AND ends_at>?""", (stamp, stamp))}
+    return paid, courtesy
+
+
 def _plans(repo, now):
-    """Accounts with Premium right now, split by where it came from."""
-    rows = _all(repo, "SELECT user_id,store,period,status,expires_at FROM subscriptions WHERE expires_at>?", (iso(now),))
-    active = [row for row in rows if row["status"] in WITH_ACCESS]
-    paid = [row for row in active if row["store"] != "manual"]
-    return {"premium": len(active), "paid": len(paid), "manual": len(active) - len(paid),
-            "monthly": sum(row["period"] == "monthly" for row in paid), "annual": sum(row["period"] == "annual" for row in paid)}
+    """Accounts with Premium right now, split by where it came from (someone with both counts as paid)."""
+    paid, courtesy = _premium_now(repo, now)
+    return {"premium": len(set(paid) | courtesy), "paid": len(paid), "manual": len(courtesy - set(paid)),
+            "monthly": sum(row["period"] == "monthly" for row in paid.values()), "annual": sum(row["period"] == "annual" for row in paid.values())}
 
 
 # ------------------------------------------------------------- Visão geral
@@ -125,15 +134,12 @@ def users(repo, query="", plan="", page=1, per_page=50, now=None):
             (SELECT MAX(day) FROM user_activity_days a WHERE a.user_id=u.id) AS last_active,
             (SELECT COUNT(*) FROM user_activity_days a WHERE a.user_id=u.id) AS active_days
         FROM users u {where} ORDER BY u.created_at DESC""", params)
-    subs = {row["user_id"]: row for row in _all(repo, "SELECT user_id,store,status,expires_at FROM subscriptions")}
+    paid, courtesy = _premium_now(repo, now)
     devices = {}
     for row in _all(repo, "SELECT user_id,platform,app_version FROM push_devices WHERE invalidated_at IS NULL ORDER BY last_seen_at DESC"):
         devices.setdefault(row["user_id"], row)
-    stamp = iso(now)
     for row in rows:
-        sub = subs.get(row["id"])
-        premium = bool(sub) and sub["status"] in WITH_ACCESS and (sub["expires_at"] or "") > stamp
-        row["plan"] = ("premium_manual" if sub["store"] == "manual" else "premium") if premium else "basic"
+        row["plan"] = "premium" if row["id"] in paid else "premium_manual" if row["id"] in courtesy else "basic"
         device = devices.get(row["id"])
         row["platform"], row["app_version"] = (device["platform"], device["app_version"]) if device else (None, None)
     if plan in ("basic", "premium", "premium_manual"):
@@ -159,8 +165,10 @@ def user_detail(repo, uid, now=None):
         "user": repo.public_user(user),
         "preferences": repo.get_preferences(uid),
         "briefing_slots": _all(repo, "SELECT slot,delivery_time,theme,length,enabled FROM briefing_slots WHERE user_id=? ORDER BY slot", (uid,)),
-        "plan": {"tier": plan["tier"], "period": plan["period"], "status": plan["status"], "expires_at": plan["expires_at"],
-                 "will_renew": plan["will_renew"], "store": sub["store"] if sub else None, "started_at": sub["started_at"] if sub else None},
+        "plan": {"tier": plan["tier"], "source": plan["source"], "period": plan["period"], "status": plan["status"],
+                 "expires_at": plan["expires_at"], "will_renew": plan["will_renew"]},
+        "store_subscription": dict(sub) if sub else None,
+        "grants": grants(repo, uid, now)["grants"],
         "devices": _all(repo, """SELECT platform,app_version,locale,timezone,enabled,created_at,last_seen_at,invalidated_at
             FROM push_devices WHERE user_id=? ORDER BY last_seen_at DESC""", (uid,)),
         "notification_settings": dict(repo.db.execute("SELECT * FROM notification_settings WHERE user_id=?", (uid,)).fetchone() or {}),
@@ -326,8 +334,10 @@ def subscriptions(repo, days=90, now=None):
     stamp = iso(now)
     for row in rows:
         row["active"] = row["status"] in WITH_ACCESS and (row["expires_at"] or "") > stamp
-    paid = [row for row in rows if row["store"] != "manual"]
+    paid = rows
+    from .billing import sales
     return {
+        "sales": sales(repo, days, now=now),
         "days": days,
         "plans": _plans(repo, now),
         "by_status": dict(Counter(row["status"] for row in paid)),
