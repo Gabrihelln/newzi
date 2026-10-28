@@ -27,40 +27,44 @@ tinha links funcionais para os **Termos de Uso (EULA)** e a **Política de Priva
 1. [ ] **VPS** [Gabriel]: no `/etc/newzi/newzi.env`, `TERMS_URL=https://newzi.app/termos.html` e
    `PRIVACY_URL=https://newzi.app/privacidade.html`; reiniciar a API. Opcional (o app já não depende disso), mas
    deixa o backend e o app dizendo a mesma coisa.
-2. [ ] **App Store Connect › Informações do app** [Gabriel]: campo **"URL da Política de Privacidade"** =
+2. [x] **App Store Connect › Informações do app** [Gabriel]: campo **"URL da Política de Privacidade"** =
    `https://newzi.app/privacidade.html`.
-3. [ ] **App Store Connect › versão 1.0 › Descrição** [Gabriel]: acrescentar no fim
+3. [x] **App Store Connect › versão 1.0 › Descrição** [Gabriel]: acrescentar no fim
    `Termos de uso (EULA): https://newzi.app/termos.html` e
    `Política de privacidade: https://newzi.app/privacidade.html`
    (ou usar o EULA padrão da Apple, `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`, mas
    então o link dos Termos no app também precisa apontar para ele).
-4. [ ] **Conta de teste da Apple** [Gabriel + Claude]: conferir que voltou para Básico
-   (`premium_test_account.py status` na VPS), para o revisor ver a tela de compra.
+4. [x] **Conta de teste da Apple** [Gabriel + Claude]: conferir que voltou para Básico
+   (`premium_test_account.py revisao@newzi.app status` na VPS), para o revisor ver a tela de compra.
+   A conta é **`revisao@newzi.app`** (id `5kSS0D49veP6QgPGKlPoZk4cFeB3`). Em 2026-10-28 ela estava Premium por uma
+   compra **sandbox do próprio revisor** (`store=app_store`); o `revoke` não mexe nisso (só tira cortesias).
+   Resolvido apagando a linha dela em `subscriptions`. Se uma renovação do sandbox regravar o plano, apagar de
+   novo ou usar "Delete customer" no RevenueCat. Repetir a limpeza depois de cada análise em que o revisor comprar.
 
 **No Mac:**
 
-5. [ ] **Código** [Claude]: `git pull` em `main`; `cd mobile && npm ci && npm run typecheck`. Não há pod novo; um
+5. [x] **Código** [Claude]: `git pull` em `main`; `cd mobile && npm ci && npm run typecheck`. Não há pod novo; um
    `pod install` só por segurança.
 6. [ ] **Testar no iPhone** (build local): Perfil › Assinatura e plano mostra Anual e Mensal com preço e duração,
    o preço por mês e a economia **na moeda da loja**; "Termos de uso (EULA)" e "Política de privacidade" abrem as
    páginas; "Restaurar compras" responde. Conferir também o "Resumo na hora" na Home.
-7. [ ] **Build 8** [Claude]: **manter** `MARKETING_VERSION` **1.0** (a versão recusada aceita build novo, não crie a
+7. [x] **Build 8** [Claude]: **manter** `MARKETING_VERSION` **1.0** (a versão recusada aceita build novo, não crie a
    1.0.1) e subir `CURRENT_PROJECT_VERSION` 7 → **8**; archive e upload (seção 8). Anotar na seção 11.
 
 **Depois do upload** [Gabriel]:
 
-8. [ ] Na versão 1.0, **trocar o build 7 pelo 8**.
-9. [ ] **Notas da análise** (Informações de análise do app › Notas): "Os links para os Termos de Uso (EULA) e a
+8. [x] Na versão 1.0, **trocar o build 7 pelo 8**.
+9. [x] **Notas da análise** (Informações de análise do app › Notas): "Os links para os Termos de Uso (EULA) e a
    Política de Privacidade estão na tela de assinatura (Perfil › Assinatura e plano), abaixo do botão Assinar e de
    Restaurar compras. Também estão na descrição do app e no campo Política de Privacidade."
-10. [ ] **Gravação de tela** do build 8 (pelo TestFlight). Não há iPad: gravar no **iPhone** (Central de Controle ›
+10. [x] **Gravação de tela** do build 8 (pelo TestFlight). Não há iPad: gravar no **iPhone** (Central de Controle ›
     Gravar Tela) serve; a Apple só quer ver o fluxo. Mostrar: abrir Assinatura e plano, rolar até os planos (nome,
     duração e preço), tocar em "Termos de uso (EULA)" (a página abre), voltar, tocar em "Política de privacidade"
     (a página abre). Se quiser mostrar em iPad, dá para gravar o Simulador de iPad no Mac com
     `xcrun simctl io booted recordVideo assinatura.mp4` (a compra não precisa acontecer).
 11. [ ] **Responder** a mensagem da recusa (Central de resoluções) com o vídeo anexado e uma linha dizendo que o
     build 8 traz os links e que os metadados foram atualizados.
-12. [ ] **Enviar para análise** de novo. Conferir que as **duas assinaturas** continuam no envio; se saíram, usar
+12. [x] **Enviar para análise** de novo. Conferir que as **duas assinaturas** continuam no envio; se saíram, usar
     "Adicionar para revisão" em cada uma.
 
 ## 0.0 Sessão anterior (2026-10-18, à noite, depois do splash novo), concluída
@@ -645,3 +649,13 @@ Falta:
   pessoais e Editar perfil (`ProfileAvatar` não tem mais `onCamera`).
 - `CURRENT_PROJECT_VERSION` 6 → 7; archive e upload aceitos (versão 1.0, build 7), o build escolhido para a revisão.
 
+### 2026-10-28 — recusa 3.1.2(c) e build 8
+- `npm ci`, `npm run typecheck` e `pod install` sem erro; build de Debug no simulador (iPhone 17) para conferir a tela
+  de assinatura. Antes do Debug foi preciso voltar o `React-Core-prebuilt` para Debug (ver "Problemas comuns").
+- A conta de revisão é `revisao@newzi.app`; estava Premium por compra sandbox do revisor e, depois, por um
+  "Restaurar compras" no simulador (o RevenueCat transfere a compra da conta Apple para a conta logada). Limpa
+  apagando a linha em `subscriptions` (etapa 4). Não usar "Restaurar compras" logado nela.
+- `CURRENT_PROJECT_VERSION` 7 → 8 (app e extensão), `MARKETING_VERSION` 1.0; archive e upload aceitos (versão 1.0,
+  build 8). Mesmos avisos de dSYM de React, ReactNativeDependencies e hermesvm, que não impedem o envio.
+- Build 8 no lugar do 7 na versão 1.0, assinaturas mensal e anual no envio, notas e vídeo da tela de assinatura
+  anexados em Informações de análise; reenviado para análise ("Aguardando revisão").
