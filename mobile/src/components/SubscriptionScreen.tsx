@@ -12,7 +12,10 @@ import { BrandPage, BrandPageHeader } from './ScreenPrimitives';
 const SOON = `A assinatura pela ${STORE_NAME} será liberada em breve. Avisaremos quando estiver disponível.`;
 const WELCOME = 'Bem-vindo ao Newzi Premium! Todos os recursos já estão liberados.';
 const PENDING = `A ${STORE_NAME} ainda está confirmando o pagamento. O Premium é liberado assim que ela aprovar.`;
-const FAILED = `Não foi possível concluir pela ${STORE_NAME}. Nada foi cobrado; tente de novo em instantes.`;
+// The store requires both links on the purchase screen, so the app never depends on the server for them.
+const TERMS_URL = 'https://newzi.app/termos.html';
+const PRIVACY_URL = 'https://newzi.app/privacidade.html';
+const FAILED =`Não foi possível concluir pela ${STORE_NAME}. Nada foi cobrado; tente de novo em instantes.`;
 
 /** Restore earlier purchases and tell the reader what was found. */
 async function restoreAndTell(onChanged: (data: Subscription) => void) {
@@ -57,8 +60,17 @@ function BasicPlan({ data, onChanged }: { data: Subscription; onChanged: (data: 
   const [busy, setBusy] = useState<'buy' | 'restore' | null>(null);
   const selling = data.purchases_enabled && purchasesAvailable;
   useEffect(() => { if (selling) storePlans().then(setStore).catch(() => setStore([])); }, [selling]);
-  // The store's own price (in the reader's currency) replaces the display price once it is known.
-  const plans = data.plans.map(item => { const price = store.find(entry => entry.id === item.id)?.price; return price ? { ...item, price } : item; });
+  // The store's own price (in the reader's currency) replaces the display price once it is known, and the
+  // monthly equivalent and savings are worked out from it so they never mix currencies.
+  const monthly = store.find(entry => entry.id === 'monthly');
+  const plans = data.plans.map(item => {
+    const entry = store.find(candidate => candidate.id === item.id);
+    if (!entry) return item;
+    if (item.id !== 'annual') return { ...item, price: entry.price };
+    const savings = monthly && monthly.amount > 0 ? Math.round((1 - entry.amount / (monthly.amount * 12)) * 100) : 0;
+    return { ...item, price: entry.price, monthly_equivalent: entry.perMonth || undefined, savings_percent: savings > 0 ? savings : undefined };
+  });
+  const terms = data.legal?.terms_url || TERMS_URL, privacy = data.legal?.privacy_url || PRIVACY_URL;
   const plan = plans.find(item => item.id === planId) || plans[0];
   const used = data.usage.briefing_times, limit = data.limits.briefing_times;
   const full = used >= limit;
@@ -110,8 +122,8 @@ function BasicPlan({ data, onChanged }: { data: Subscription; onChanged: (data: 
       <Pressable accessibilityRole="button" accessibilityState={{ busy: busy === 'restore' }} disabled={!!busy} onPress={() => void restorePurchases()} style={styles.restore}>
         {busy === 'restore' ? <ActivityIndicator color={colors.primary} size="small" /> : <Text style={styles.restoreText}>Restaurar compras</Text>}
       </Pressable>
-      {!!data.legal?.terms_url && <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(data.legal!.terms_url!)} style={styles.restore}><Text style={styles.legalText}>Termos de uso</Text></Pressable>}
-      {!!data.legal?.privacy_url && <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(data.legal!.privacy_url!)} style={styles.restore}><Text style={styles.legalText}>Privacidade</Text></Pressable>}
+      <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(terms)} style={styles.restore}><Text style={styles.legalText}>Termos de uso (EULA)</Text></Pressable>
+      <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(privacy)} style={styles.restore}><Text style={styles.legalText}>Política de privacidade</Text></Pressable>
     </View>
   </View>;
 }

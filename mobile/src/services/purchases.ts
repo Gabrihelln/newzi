@@ -15,7 +15,7 @@ const API_KEYS: Partial<Record<typeof Platform.OS, string>> = {
 const KEY = API_KEYS[Platform.OS];
 const ENTITLEMENT = 'premium';
 
-export type StorePlan = { id: 'annual' | 'monthly'; price: string; pkg: PurchasesPackage };
+export type StorePlan = { id: 'annual' | 'monthly'; price: string; perMonth: string | null; amount: number; pkg: PurchasesPackage };
 export type PurchaseOutcome = { status: 'premium' | 'cancelled' | 'pending' | 'none'; subscription?: Subscription };
 
 let configuredFor: string | null = null;
@@ -47,7 +47,7 @@ export async function storePlans(): Promise<StorePlan[]> {
   const plans: StorePlan[] = [];
   for (const pkg of offering?.availablePackages || []) {
     const id = pkg.packageType === PACKAGE_TYPE.ANNUAL ? 'annual' : pkg.packageType === PACKAGE_TYPE.MONTHLY ? 'monthly' : null;
-    if (id) plans.push({ id, price: pkg.product.priceString, pkg });
+    if (id) plans.push({ id, price: pkg.product.priceString, perMonth: pkg.product.pricePerMonthString, amount: pkg.product.price, pkg });
   }
   return plans;
 }

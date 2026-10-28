@@ -6,7 +6,64 @@
 > fazer e espere ele confirmar. Ao terminar uma etapa, marque o `[ ]` como `[x]` neste arquivo.
 > Não pule a seção **Regras do projeto**.
 
-## 0. Ao voltar ao Mac: comece por aqui (atualizado em 2026-10-18, à noite, depois do splash novo)
+## 0. Ao voltar ao Mac: comece por aqui (atualizado em 2026-10-28: build 8 depois da recusa da Apple)
+
+Em 2026-10-28 a Apple **recusou a versão 1.0 (build 7)** pela diretriz **3.1.2(c)**: a tela de assinatura não
+tinha links funcionais para os **Termos de Uso (EULA)** e a **Política de Privacidade** (revisão feita num iPad Air
+11" M3). Os links existiam no código, mas só apareciam quando o backend mandava `TERMS_URL`/`PRIVACY_URL`, e o
+`.env` da VPS não tinha as duas. A correção já está no `main` (só JavaScript, nada nativo, nenhum pod novo):
+
+- `SubscriptionScreen.tsx`: "Termos de uso (EULA)" e "Política de privacidade" aparecem **sempre**, abaixo de
+  "Restaurar compras"; sem resposta do servidor o app usa `https://newzi.app/termos.html` e
+  `https://newzi.app/privacidade.html`.
+- `services/purchases.ts` + `SubscriptionScreen.tsx`: no plano Anual, o preço por mês e o "Economize N%" saem dos
+  preços da própria loja. Antes vinham fixos do backend em reais e a tela mostrava "$19.99 por ano · R$ 9,99/mês"
+  e "Economize 33%" (o certo com $19.99/$1.99 é ~$1.67/mês e 16%).
+- Também entram no build 8 as mudanças do "Resumo na hora" (`OnDemandBriefing.tsx`, `client.ts`, `HomeScreen.tsx`,
+  `types/api.ts`): pílula "Novo resumo" / "✓ Em dia" / "Gerando…" e acompanhamento do resumo depois de 4 min.
+
+**Antes do build** (faça nesta ordem e marque cada item):
+
+1. [ ] **VPS** [Gabriel]: no `/etc/newzi/newzi.env`, `TERMS_URL=https://newzi.app/termos.html` e
+   `PRIVACY_URL=https://newzi.app/privacidade.html`; reiniciar a API. Opcional (o app já não depende disso), mas
+   deixa o backend e o app dizendo a mesma coisa.
+2. [ ] **App Store Connect › Informações do app** [Gabriel]: campo **"URL da Política de Privacidade"** =
+   `https://newzi.app/privacidade.html`.
+3. [ ] **App Store Connect › versão 1.0 › Descrição** [Gabriel]: acrescentar no fim
+   `Termos de uso (EULA): https://newzi.app/termos.html` e
+   `Política de privacidade: https://newzi.app/privacidade.html`
+   (ou usar o EULA padrão da Apple, `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`, mas
+   então o link dos Termos no app também precisa apontar para ele).
+4. [ ] **Conta de teste da Apple** [Gabriel + Claude]: conferir que voltou para Básico
+   (`premium_test_account.py status` na VPS), para o revisor ver a tela de compra.
+
+**No Mac:**
+
+5. [ ] **Código** [Claude]: `git pull` em `main`; `cd mobile && npm ci && npm run typecheck`. Não há pod novo; um
+   `pod install` só por segurança.
+6. [ ] **Testar no iPhone** (build local): Perfil › Assinatura e plano mostra Anual e Mensal com preço e duração,
+   o preço por mês e a economia **na moeda da loja**; "Termos de uso (EULA)" e "Política de privacidade" abrem as
+   páginas; "Restaurar compras" responde. Conferir também o "Resumo na hora" na Home.
+7. [ ] **Build 8** [Claude]: **manter** `MARKETING_VERSION` **1.0** (a versão recusada aceita build novo, não crie a
+   1.0.1) e subir `CURRENT_PROJECT_VERSION` 7 → **8**; archive e upload (seção 8). Anotar na seção 11.
+
+**Depois do upload** [Gabriel]:
+
+8. [ ] Na versão 1.0, **trocar o build 7 pelo 8**.
+9. [ ] **Notas da análise** (Informações de análise do app › Notas): "Os links para os Termos de Uso (EULA) e a
+   Política de Privacidade estão na tela de assinatura (Perfil › Assinatura e plano), abaixo do botão Assinar e de
+   Restaurar compras. Também estão na descrição do app e no campo Política de Privacidade."
+10. [ ] **Gravação de tela** do build 8 (pelo TestFlight). Não há iPad: gravar no **iPhone** (Central de Controle ›
+    Gravar Tela) serve; a Apple só quer ver o fluxo. Mostrar: abrir Assinatura e plano, rolar até os planos (nome,
+    duração e preço), tocar em "Termos de uso (EULA)" (a página abre), voltar, tocar em "Política de privacidade"
+    (a página abre). Se quiser mostrar em iPad, dá para gravar o Simulador de iPad no Mac com
+    `xcrun simctl io booted recordVideo assinatura.mp4` (a compra não precisa acontecer).
+11. [ ] **Responder** a mensagem da recusa (Central de resoluções) com o vídeo anexado e uma linha dizendo que o
+    build 8 traz os links e que os metadados foram atualizados.
+12. [ ] **Enviar para análise** de novo. Conferir que as **duas assinaturas** continuam no envio; se saíram, usar
+    "Adicionar para revisão" em cada uma.
+
+## 0.0 Sessão anterior (2026-10-18, à noite, depois do splash novo), concluída
 
 Desde a última sessão no Mac (registro de 2026-10-18 na seção 11, commit `f6c4678`), o `main` recebeu todos os
 commits de `e3af3c0` até o último (Esportes, alertas dos times, Home só com imagens, animação do logo e splash),
