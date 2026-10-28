@@ -32,6 +32,8 @@ export type BriefingSearchResult = { briefing_id: string; date: string; slot: nu
 export type ExtraBriefing = { slot: number; time: string; theme: string | null; theme_label?: string | null; length: BriefingLength; enabled: boolean; active?: boolean };
 export type BriefingSlots = { main: { slot: 1; time: string; length: BriefingLength }; extra: ExtraBriefing[]; limit: number; premium: boolean };
 export type GenerationStatus = { generation_id: string; reason: string; status: 'PENDING' | 'GENERATING' | 'READY' | 'FAILED'; stage: string; delivery_id?: string | null; error_code?: string | null; remaining_today?: number; coalesced?: boolean };
+/** Início › "Gerar agora": how many stories are new since the earlier briefings (0: "Em dia"). */
+export type OnDemandNews = { new_count: number; generating: boolean; generation_id: string | null };
 export type NotificationSettings = { notifications_enabled: boolean; daily_briefing_enabled: boolean; breaking_news_enabled: boolean; briefing_time?: string | null; briefing_size?: number | null;
   breaking_news_rules?: { min_sources: number; quiet_hours: { start: number; end: number } | null }; active_devices?: number;
   keyword_alerts_enabled?: boolean; story_updates_enabled?: boolean; team_reminder_enabled?: boolean; live_activities_enabled?: boolean };

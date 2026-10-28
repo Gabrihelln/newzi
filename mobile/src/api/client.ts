@@ -1,7 +1,7 @@
 import { API_BASE_URL, LOGGING_ENABLED, devLog } from '../config/env';
 import { firebaseAuth, getFirebaseIdToken } from '../services/firebaseAuth';
 import { cachedRead } from '../services/offlineCache';
-import type { ApiError, AudioMetadata, BriefingSearchResult, BriefingSlots, Entitlements, ExtraBriefing, FollowedStory, GenerationStatus, KeywordAlert, MatchAudio, PremiumFeatureId, SavedAudio, SavedCollection, SavedArticle, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballAlerts, FootballFavorites, FootballOverview, FootballRound, FootballStandings, FootballTeam, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
+import type { ApiError, AudioMetadata, BriefingSearchResult, BriefingSlots, Entitlements, ExtraBriefing, FollowedStory, GenerationStatus, KeywordAlert, OnDemandNews, MatchAudio, PremiumFeatureId, SavedAudio, SavedCollection, SavedArticle, AudioVoiceCatalog, Briefing, BriefingHistoryPage, BriefingItem, FootballAlerts, FootballFavorites, FootballOverview, FootballRound, FootballStandings, FootballTeam, HomeData, Subscription, NotificationSettings, NotificationSwitches, SavedOverview, SavedStoryPage } from '../types/api';
 
 /** What users read when the app cannot reach the server: no technical terms. */
 export const CONNECTION_ERROR_MESSAGE = 'Sem conexão com o Newzi. Verifique sua internet e tente novamente.';
@@ -143,6 +143,7 @@ export const api = {
   entitlements: () => cached(['entitlements'], () => apiRequest<Entitlements>('/api/v1/me/entitlements')),
   briefingSlots: () => apiRequest<BriefingSlots>('/api/v1/me/briefing-slots'),
   saveBriefingSlots: (extra: Pick<ExtraBriefing, 'time' | 'theme' | 'length' | 'enabled'>[]) => apiRequest<BriefingSlots>('/api/v1/me/briefing-slots', { method: 'PUT', body: JSON.stringify({ extra }) }),
+  onDemandNews: () => apiRequest<OnDemandNews>('/api/v1/me/briefings/now'),
   briefingNow: () => apiRequest<GenerationStatus>('/api/v1/me/briefings/now', { method: 'POST' }),
   generation: (id: string) => apiRequest<GenerationStatus>(`/api/v1/me/briefings/generations/${encodeURIComponent(id)}`),
   searchBriefings: (query: string) => apiRequest<{ items: BriefingSearchResult[] }>(`/api/v1/me/briefings/search?q=${encodeURIComponent(query)}`),

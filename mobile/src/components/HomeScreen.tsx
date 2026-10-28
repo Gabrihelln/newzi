@@ -402,7 +402,7 @@ export function HomeScreen({ user, onDetail, onAuthExpired, onProfile, onExplore
 
 
       <AudioControls briefing={briefing} audio={audio} loading={loading} regenerating={Boolean(data?.today_briefing?.profile_stale)} />
-      <OnDemandBriefingButton onReady={() => void load()} />
+      <OnDemandBriefingButton onReady={() => void load()} checkKey={loadTick} />
 
 
       <View style={h.section}><SectionLabel label="Destaques de hoje" />
