@@ -387,6 +387,30 @@ def test_on_demand_briefing_with_nothing_new_ends_at_once_and_shown_as_em_dia(re
     assert (row["status"], row["error_code"]) == ("FAILED", "NO_ELIGIBLE_CONTENT")
 
 
+def test_on_demand_request_interrupted_midway_stops_showing_as_being_made(repo):
+    """A restart while composing left it GENERATING for ever: every Home open showed "Gerando…" with nothing running."""
+    import support
+    from datetime import timedelta
+    from newzi_backend.product_backend import ProductService
+    from newzi_backend.scheduling import BriefingGenerationWorker
+    from newzi_backend.timeutil import iso, now_iso
+    support.seed_content(repo)
+    add_user(repo, "reader", topics=support.SEED_TOPICS)
+    add_user(repo, "other", topics=support.SEED_TOPICS)
+    old = iso(datetime.now(timezone.utc) - timedelta(minutes=31))
+    insert = "INSERT INTO manual_refresh_requests(id,user_id,reason,status,stage,requested_at,updated_at,slot) VALUES(?,?,'ON_DEMAND','GENERATING','COMPOSITION',?,?,10)"
+    repo.db.execute(insert, ("stuck", "reader", old, old))
+    # Requested as long ago, but it moved a moment ago (an audio retry does this): still being made.
+    repo.db.execute(insert, ("moving", "other", old, now_iso())); repo.db.commit()
+    service = ProductService(repo)
+    assert service.on_demand_news("reader")["generation_id"] == "stuck"
+    BriefingGenerationWorker(repo, timeout_minutes=30).recover_stale()
+    status = service.generation_status("reader", "stuck")
+    assert (status["status"], status["stage"], status["error_code"]) == ("FAILED", "FAILED_FINAL", "WORKER_TIMEOUT")
+    assert service.on_demand_news("reader")["generating"] is False
+    assert service.on_demand_news("other")["generation_id"] == "moving"
+
+
 def test_on_demand_news_is_kept_until_something_changes(repo, monkeypatch):
     import support
     from newzi_backend import content

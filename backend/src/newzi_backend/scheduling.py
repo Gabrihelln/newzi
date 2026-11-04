@@ -357,7 +357,12 @@ class BriefingGenerationWorker:
         cutoff=iso(datetime.now(timezone.utc)-timedelta(minutes=self.timeout_minutes)); now=now_iso()
         cur=self.repo.db.execute("""UPDATE generation_jobs SET status=CASE WHEN attempt_count<max_attempts THEN 'RETRY' ELSE 'FAILED' END,
             next_retry_at=CASE WHEN attempt_count<max_attempts THEN ? ELSE NULL END,finished_at=CASE WHEN attempt_count<max_attempts THEN NULL ELSE ? END,
-            error_code='WORKER_TIMEOUT',error_message='stale RUNNING job recovered',worker_id=NULL WHERE status='RUNNING' AND started_at<?""",(now,now,cutoff)); self.repo.db.commit(); return cur.rowcount
+            error_code='WORKER_TIMEOUT',error_message='stale RUNNING job recovered',worker_id=NULL WHERE status='RUNNING' AND started_at<?""",(now,now,cutoff))
+        # A briefing asked for has no other way out: a restart while it is composed, or an audio that never ends, left
+        # it being made for ever, and the app showed "Gerando…" at every open. FAILED does not use one of the day's.
+        requests=self.repo.db.execute("""UPDATE manual_refresh_requests SET status='FAILED',stage='FAILED_FINAL',error_code='WORKER_TIMEOUT',
+            error_message='stale request recovered',updated_at=?,finished_at=? WHERE status IN ('PENDING','GENERATING') AND updated_at<?""",(now,now,cutoff))
+        self.repo.db.commit(); return cur.rowcount+requests.rowcount
     def claim(self):
         self.recover_stale()
         try:
